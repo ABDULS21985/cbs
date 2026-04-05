@@ -291,6 +291,7 @@ public final class IslamicPaymentResponses {
     public static class AchBatchResult {
         private String countryCode;
         private java.time.LocalDate valueDate;
+        private java.util.List<String> batchRefs;
         private int totalMessages;
         private int successCount;
         private int failureCount;

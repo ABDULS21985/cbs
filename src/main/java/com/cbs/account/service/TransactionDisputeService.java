@@ -45,6 +45,9 @@ public class TransactionDisputeService {
 
     private static final long MAX_FILE_SIZE_BYTES = 5L * 1024L * 1024L;
 
+    @org.springframework.beans.factory.annotation.Value("${document.storage.base-path:/var/data/document-store}")
+    private String storageBasePath;
+
     private final TransactionService transactionService;
     private final TransactionDisputeRepository transactionDisputeRepository;
     private final CurrentActorProvider currentActorProvider;
@@ -230,7 +233,7 @@ public class TransactionDisputeService {
         }
 
         List<Long> documentIds = new ArrayList<>();
-        Path directory = Path.of("build", "document-store", "transactions", "disputes", dispute.getDisputeRef());
+        Path directory = Path.of(storageBasePath, "transactions", "disputes", dispute.getDisputeRef());
         try {
             Files.createDirectories(directory);
             for (MultipartFile file : files) {

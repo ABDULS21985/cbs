@@ -16,4 +16,12 @@ public interface IjarahAssetMaintenanceRecordRepository extends JpaRepository<Ij
     List<IjarahAssetMaintenanceRecord> findByAssetIdAndResponsibleParty(Long assetId, IjarahDomainEnums.ResponsibleParty responsibleParty);
 
     List<IjarahAssetMaintenanceRecord> findByMaintenanceDateBetween(LocalDate from, LocalDate to);
+
+    /** Find bank-responsible maintenance records on or before the given date */
+    List<IjarahAssetMaintenanceRecord> findByResponsiblePartyAndMaintenanceDateLessThanEqual(
+            IjarahDomainEnums.ResponsibleParty responsibleParty, LocalDate asOfDate);
+
+    /** Find bank-responsible maintenance records within a date range */
+    List<IjarahAssetMaintenanceRecord> findByResponsiblePartyAndMaintenanceDateBetween(
+            IjarahDomainEnums.ResponsibleParty responsibleParty, LocalDate from, LocalDate to);
 }

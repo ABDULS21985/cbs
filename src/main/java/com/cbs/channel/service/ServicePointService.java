@@ -1,5 +1,7 @@
 package com.cbs.channel.service;
 
+import com.cbs.common.audit.CurrentActorProvider;
+import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.channel.entity.ServicePoint;
 import com.cbs.channel.entity.ServicePointInteraction;
@@ -24,11 +26,33 @@ public class ServicePointService {
 
     private final ServicePointRepository servicePointRepository;
     private final ServicePointInteractionRepository interactionRepository;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public ServicePoint registerServicePoint(ServicePoint servicePoint) {
+        // Field validation
+        if (servicePoint.getServicePointName() == null || servicePoint.getServicePointName().isBlank()) {
+            throw new BusinessException("Service point name is required", "MISSING_NAME");
+        }
+        if (servicePoint.getServicePointType() == null || servicePoint.getServicePointType().isBlank()) {
+            throw new BusinessException("Service point type is required", "MISSING_TYPE");
+        }
+        // Duplicate check by name and location
+        if (servicePoint.getLocationId() != null) {
+            List<ServicePoint> existing = servicePointRepository.findByServicePointTypeAndStatusOrderByServicePointNameAsc(
+                    servicePoint.getServicePointType(), "ONLINE");
+            for (ServicePoint sp : existing) {
+                if (servicePoint.getServicePointName().equals(sp.getServicePointName())
+                        && servicePoint.getLocationId().equals(sp.getLocationId())) {
+                    throw new BusinessException("Duplicate service point: same name and location already exists", "DUPLICATE_SERVICE_POINT");
+                }
+            }
+        }
         servicePoint.setServicePointCode("SPT-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
-        return servicePointRepository.save(servicePoint);
+        ServicePoint saved = servicePointRepository.save(servicePoint);
+        log.info("AUDIT: Service point registered: code={}, name={}, type={}, actor={}",
+                saved.getServicePointCode(), saved.getServicePointName(), saved.getServicePointType(), currentActorProvider.getCurrentActor());
+        return saved;
     }
 
     @Transactional
@@ -131,7 +155,9 @@ public class ServicePointService {
         existing.setMaxConcurrentCustomers(updated.getMaxConcurrentCustomers());
         existing.setAvgServiceTimeMinutes(updated.getAvgServiceTimeMinutes());
         existing.setStatus(updated.getStatus());
-        return servicePointRepository.save(existing);
+        ServicePoint saved = servicePointRepository.save(existing);
+        log.info("AUDIT: Service point updated: code={}, actor={}", existing.getServicePointCode(), currentActorProvider.getCurrentActor());
+        return saved;
     }
 
     @Transactional
@@ -141,9 +167,17 @@ public class ServicePointService {
 
     @Transactional
     public void deleteServicePoint(Long id) {
-        if (!servicePointRepository.existsById(id)) {
-            throw new ResourceNotFoundException("ServicePoint", "id", id);
+        ServicePoint sp = servicePointRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("ServicePoint", "id", id));
+        // Check for active interactions before deactivating
+        long activeInteractions = interactionRepository.countByServicePointIdAndEndedAtIsNull(id);
+        if (activeInteractions > 0) {
+            throw new BusinessException("Cannot delete service point " + sp.getServicePointCode()
+                    + ": it has " + activeInteractions + " active interactions", "ACTIVE_INTERACTIONS_EXIST");
         }
-        servicePointRepository.deleteById(id);
+        // Soft delete instead of hard delete
+        sp.setStatus("DECOMMISSIONED");
+        servicePointRepository.save(sp);
+        log.info("AUDIT: Service point soft-deleted: code={}, actor={}", sp.getServicePointCode(), currentActorProvider.getCurrentActor());
     }
 }

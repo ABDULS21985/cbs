@@ -26,6 +26,8 @@ public interface MusharakahContractRepository extends JpaRepository<MusharakahCo
 
     List<MusharakahContract> findByStatus(MusharakahDomainEnums.ContractStatus status);
 
+    List<MusharakahContract> findByStatusIn(Collection<MusharakahDomainEnums.ContractStatus> statuses);
+
     List<MusharakahContract> findByMaturityDateBetween(LocalDate from, LocalDate to);
 
     List<MusharakahContract> findByInvestmentPoolId(Long investmentPoolId);

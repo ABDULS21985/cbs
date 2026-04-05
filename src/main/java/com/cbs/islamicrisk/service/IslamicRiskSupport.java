@@ -115,21 +115,19 @@ public class IslamicRiskSupport {
                     MurabahaDomainEnums.ContractStatus.DEFAULTED,
                     MurabahaDomainEnums.ContractStatus.EXECUTED
             )).stream().map(MurabahaContract::getId).toList();
-            case "IJARAH" -> ijarahContractRepository.findAll().stream()
-                    .filter(contract -> List.of(
+            case "IJARAH" -> ijarahContractRepository.findByStatusIn(List.of(
                             IjarahDomainEnums.ContractStatus.ACTIVE,
                             IjarahDomainEnums.ContractStatus.RENTAL_ARREARS,
                             IjarahDomainEnums.ContractStatus.DEFAULTED
-                    ).contains(contract.getStatus()))
+                    )).stream()
                     .map(IjarahContract::getId)
                     .toList();
-            case "MUSHARAKAH" -> musharakahContractRepository.findAll().stream()
-                    .filter(contract -> List.of(
+            case "MUSHARAKAH" -> musharakahContractRepository.findByStatusIn(List.of(
                             MusharakahDomainEnums.ContractStatus.ACTIVE,
                             MusharakahDomainEnums.ContractStatus.RENTAL_ARREARS,
                             MusharakahDomainEnums.ContractStatus.BUYOUT_ARREARS,
                             MusharakahDomainEnums.ContractStatus.DEFAULTED
-                    ).contains(contract.getStatus()))
+                    )).stream()
                     .map(MusharakahContract::getId)
                     .toList();
             default -> List.of();

@@ -134,19 +134,54 @@ public class EscrowService {
         return toReleaseDto(saved);
     }
 
+    /**
+     * Records a signatory approval for a release. If the mandate requires multi-sign,
+     * the release is only executed once the required number of distinct signatories
+     * have approved. If multi-sign is not required, the release executes immediately.
+     */
     @Transactional
     public EscrowReleaseDto approveAndExecuteRelease(Long releaseId) {
         EscrowRelease release = releaseRepository.findById(releaseId)
                 .orElseThrow(() -> new ResourceNotFoundException("EscrowRelease", "id", releaseId));
 
-        if (!"PENDING".equals(release.getStatus())) {
-            throw new BusinessException("Release is not pending", "RELEASE_NOT_PENDING");
+        if (!"PENDING".equals(release.getStatus()) && !"PARTIALLY_APPROVED".equals(release.getStatus())) {
+            throw new BusinessException("Release is not pending approval", "RELEASE_NOT_PENDING");
         }
 
         EscrowMandate mandate = release.getMandate();
+        String actor = currentActorProvider.getCurrentActor();
+
+        // ── Multi-signature enforcement ──
+        if (Boolean.TRUE.equals(mandate.getRequiresMultiSign()) && mandate.getRequiredSignatories() > 1) {
+            // Track individual signatory approvals in the approvedBy field as a comma-separated list
+            String existingApprovals = release.getApprovedBy();
+            List<String> approvers = new java.util.ArrayList<>();
+            if (existingApprovals != null && !existingApprovals.isBlank()) {
+                approvers.addAll(java.util.Arrays.asList(existingApprovals.split(",")));
+            }
+
+            // Prevent duplicate approval by the same signatory
+            if (approvers.contains(actor)) {
+                throw new BusinessException("You have already approved this release", "DUPLICATE_SIGNATORY");
+            }
+
+            approvers.add(actor);
+            release.setApprovedBy(String.join(",", approvers));
+
+            if (approvers.size() < mandate.getRequiredSignatories()) {
+                // Not enough signatories yet — save as partially approved and return
+                release.setStatus("PARTIALLY_APPROVED");
+                releaseRepository.save(release);
+                log.info("Escrow release partially approved: mandate={}, signatories={}/{}, latestApprover={}",
+                        mandate.getMandateNumber(), approvers.size(), mandate.getRequiredSignatories(), actor);
+                return toReleaseDto(release);
+            }
+            // All required signatories have approved — fall through to execute
+        }
+
+        // ── Execute the release ──
         Account sourceAccount = mandate.getAccount();
         Account destinationAccount = release.getReleaseToAccount();
-        String actor = currentActorProvider.getCurrentActor();
 
         // Release the lien first, then either unlock funds in place or move them through a real posting.
         sourceAccount.releaseLien(release.getReleaseAmount());
@@ -176,12 +211,14 @@ public class EscrowService {
 
         // Update release
         release.setStatus("EXECUTED");
-        release.setApprovedBy(actor);
+        if (release.getApprovedBy() == null || release.getApprovedBy().isBlank()) {
+            release.setApprovedBy(actor);
+        }
         release.setApprovalDate(Instant.now());
         releaseRepository.save(release);
 
         log.info("Escrow release executed: mandate={}, amount={}, approvedBy={}",
-                mandate.getMandateNumber(), release.getReleaseAmount(), actor);
+                mandate.getMandateNumber(), release.getReleaseAmount(), release.getApprovedBy());
         return toReleaseDto(release);
     }
 

@@ -65,21 +65,68 @@ public class Iso20022Service {
                   </FIToFICstmrCdtTrf>
                 </Document>
                 """.formatted(
-                details.messageId(),
+                escapeXml(details.messageId()),
                 details.creationDateTime().toString(),
-                details.currency(),
+                escapeXml(details.currency()),
                 amount,
-                details.instructionId(),
-                details.endToEndId(),
-                details.currency(),
+                escapeXml(details.instructionId()),
+                escapeXml(details.endToEndId()),
+                escapeXml(details.currency()),
                 amount,
-                details.debtorName(),
-                details.creditorName()
+                escapeXml(details.debtorName()),
+                escapeXml(details.creditorName())
         );
+    }
+
+    /**
+     * Escape XML special characters to prevent injection in generated ISO 20022 messages.
+     */
+    private String escapeXml(String value) {
+        if (value == null) return "";
+        return value.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&apos;");
+    }
+
+    /**
+     * Validate an ISO 20022 XML document against its XSD schema.
+     * Returns a list of validation errors (empty if valid).
+     * Currently a stub that performs basic structural checks; full XSD validation
+     * requires loading schema files from the ISO 20022 catalogue.
+     */
+    public List<String> validateAgainstXsd(String xmlContent, String messageDefinition) {
+        List<String> errors = new ArrayList<>();
+        if (xmlContent == null || xmlContent.isBlank()) {
+            errors.add("XSD: XML content is empty");
+            return errors;
+        }
+        if (!xmlContent.contains("<?xml")) {
+            errors.add("XSD: Missing XML declaration");
+        }
+        if (!xmlContent.contains("<Document")) {
+            errors.add("XSD: Missing Document root element");
+        }
+        // TODO: Load actual XSD schema files and perform javax.xml.validation against them
+        log.debug("XSD validation stub invoked for definition={}, {} structural checks performed", messageDefinition, errors.size() == 0 ? "passed" : "failed");
+        return errors;
     }
 
     @Transactional
     public Iso20022Message ingestMessage(Iso20022Message message) {
+        // Duplicate ingestion check: reject if same sender + same businessMessageId already ingested
+        if (message.getBusinessMessageId() != null && message.getSenderBic() != null) {
+            Optional<Iso20022Message> existing = messageRepository.findByBusinessMessageIdAndSenderBic(
+                    message.getBusinessMessageId(), message.getSenderBic());
+            if (existing.isPresent()) {
+                log.warn("Duplicate ISO 20022 message rejected: bizMsgId={}, sender={}, existingId={}",
+                        message.getBusinessMessageId(), message.getSenderBic(), existing.get().getMessageId());
+                throw new BusinessException("Duplicate message: businessMessageId=" + message.getBusinessMessageId()
+                        + " from sender " + message.getSenderBic() + " already ingested as " + existing.get().getMessageId());
+            }
+        }
+
         message.setMessageId("ISO-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase());
 
         // Auto-fill category/function from message definition

@@ -2,13 +2,16 @@ package com.cbs.shariahcompliance.repository;
 
 import com.cbs.shariahcompliance.entity.QuarantineStatus;
 import com.cbs.shariahcompliance.entity.SnciRecord;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,4 +39,19 @@ public interface SnciRecordRepository extends JpaRepository<SnciRecord, Long>,
     long countByNonComplianceType(com.cbs.shariahcompliance.entity.NonComplianceType type);
 
     boolean existsBySourceTransactionRefAndSourceContractRef(String sourceTransactionRef, String sourceContractRef);
+
+        @Lock(LockModeType.PESSIMISTIC_WRITE)
+        @Query("""
+                        SELECT r FROM SnciRecord r
+                        WHERE r.quarantineStatus IN :statuses
+                            AND r.purificationBatchId IS NULL
+                            AND (:periodFrom IS NULL OR r.detectionDate >= :periodFrom)
+                            AND (:periodTo IS NULL OR r.detectionDate <= :periodTo)
+                            AND (:currencyCode IS NULL OR UPPER(r.currencyCode) = UPPER(:currencyCode))
+                        ORDER BY r.id
+                        """)
+        List<SnciRecord> lockEligibleForPurification(@Param("statuses") List<QuarantineStatus> statuses,
+                                                                                                 @Param("periodFrom") LocalDate periodFrom,
+                                                                                                 @Param("periodTo") LocalDate periodTo,
+                                                                                                 @Param("currencyCode") String currencyCode);
 }

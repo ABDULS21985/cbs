@@ -10,6 +10,8 @@ import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.payments.entity.*;
 import com.cbs.payments.repository.*;
+import com.cbs.sanctions.service.SanctionsScreeningService;
+import com.cbs.sanctions.entity.ScreeningRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -38,6 +40,7 @@ public class PaymentService {
     private final AccountPostingService accountPostingService;
     private final CbsProperties cbsProperties;
     private final CurrentActorProvider currentActorProvider;
+    private final SanctionsScreeningService sanctionsScreeningService;
 
     // ========================================================================
     // INTERNAL TRANSFER (Cap 27)
@@ -163,8 +166,27 @@ public class PaymentService {
                 .amount(amount).currencyCode(currencyCode)
                 .paymentRail(isInstant ? "INSTANT" : "ACH")
                 .remittanceInfo(narration)
-                .screeningStatus("CLEAR") // Simplified — production would invoke sanctions screening
-                .status(PaymentStatus.VALIDATED).build();
+                .screeningStatus("PENDING")
+                .status(PaymentStatus.SCREENING).build();
+
+        // Real sanctions screening on beneficiary
+        ScreeningRequest domesticScreening = sanctionsScreeningService.screenName(
+                "DOMESTIC_PAYMENT", beneficiaryName, "INDIVIDUAL",
+                null, null, null, null, ref, null, null);
+        log.info("Domestic payment sanctions screening: ref={}, beneficiary={}, result={}",
+                ref, beneficiaryName, domesticScreening.getStatus());
+
+        if ("CLEAR".equals(domesticScreening.getStatus())) {
+            payment.setScreeningStatus("CLEAR");
+            payment.setStatus(PaymentStatus.VALIDATED);
+        } else {
+            payment.setScreeningStatus("PENDING_REVIEW");
+            payment.setStatus(PaymentStatus.HELD);
+            PaymentInstruction held = paymentRepository.save(payment);
+            log.warn("Domestic payment held for sanctions review: ref={}, beneficiary={}, matches={}",
+                    ref, beneficiaryName, domesticScreening.getTotalMatches());
+            return held;
+        }
 
         // For internal bank transfers, check if credit account exists locally
         Account localCreditAccount = accountRepository.findByAccountNumber(creditAccountNumber).orElse(null);
@@ -307,9 +329,24 @@ public class PaymentService {
                 ref
         );
 
-        // In production: submit to sanctions screening, then to SWIFT gateway
-        payment.setScreeningStatus("CLEAR");
-        payment.setStatus(PaymentStatus.SUBMITTED);
+        // Real sanctions screening on beneficiary before SWIFT submission
+        ScreeningRequest swiftScreening = sanctionsScreeningService.screenName(
+                "SWIFT_TRANSFER", beneficiaryName, "INDIVIDUAL",
+                null, null, null, null, ref, null, null);
+        log.info("SWIFT transfer sanctions screening: ref={}, beneficiary={}, result={}",
+                ref, beneficiaryName, swiftScreening.getStatus());
+
+        if ("CLEAR".equals(swiftScreening.getStatus())) {
+            payment.setScreeningStatus("CLEAR");
+            payment.setStatus(PaymentStatus.SUBMITTED);
+        } else {
+            payment.setScreeningStatus("PENDING_REVIEW");
+            payment.setStatus(PaymentStatus.HELD);
+            PaymentInstruction held = paymentRepository.save(payment);
+            log.warn("SWIFT transfer held for sanctions review: ref={}, beneficiary={}, matches={}",
+                    ref, beneficiaryName, swiftScreening.getTotalMatches());
+            return held;
+        }
 
         PaymentInstruction saved = paymentRepository.save(payment);
         log.info("SWIFT transfer initiated: ref={}, uetr={}, amount={} {}, dest={}",

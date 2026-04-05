@@ -11,7 +11,6 @@ import com.cbs.account.service.AccountService;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.entity.Customer;
-import com.cbs.customer.entity.CustomerType;
 import com.cbs.customer.repository.CustomerIdentificationRepository;
 import com.cbs.customer.repository.CustomerRepository;
 import com.cbs.hijri.dto.HijriDateResponse;
@@ -40,7 +39,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -49,7 +48,6 @@ import java.util.concurrent.atomic.AtomicLong;
 public class WadiahAccountService {
 
     private static final String CASH_GL = "1100-000-001";
-    private static final AtomicLong CONTRACT_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
 
     private final WadiahAccountRepository wadiahAccountRepository;
     private final AccountRepository accountRepository;
@@ -497,7 +495,8 @@ public class WadiahAccountService {
     }
 
     private String generateContractReference() {
-        return "WAD-" + LocalDate.now().getYear() + "-" + String.format("%06d", CONTRACT_SEQ.incrementAndGet());
+        return "WAD-" + LocalDate.now().getYear() + "-"
+                + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
     }
 
     private WadiahAccountResponse toResponse(WadiahAccount wadiahAccount) {

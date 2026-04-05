@@ -73,13 +73,13 @@ public class InstantPaymentService {
                         .build());
         extension.setIpsRail("SARIE_EXPRESS");
         extension.setIpsTransactionId(paymentSupport.nextMessageRef("IPS", payment.getId()));
-        extension.setIpsResponseCode("00");
-        extension.setIpsResponseMessage("APPROVED");
+        extension.setIpsResponseCode("PENDING_GATEWAY");
+        extension.setIpsResponseMessage("Awaiting network acknowledgement");
         extension.setRequestReceivedAt(extension.getRequestReceivedAt() != null ? extension.getRequestReceivedAt() : start);
         extension.setScreeningCompletedAt(start.plusNanos(screeningDurationMs * 1_000_000));
         extension.setScreeningDurationMs(screeningDurationMs);
         extension.setPaymentSubmittedAt(LocalDateTime.now());
-        extension.setPaymentConfirmedAt(LocalDateTime.now());
+        extension.setPaymentConfirmedAt(null);
         extension.setTotalProcessingMs(Math.max(screeningDurationMs, 20L));
         extension.setScreeningMode(screeningMode);
         extension.setDeferredScreeningResult(screeningMode == IslamicPaymentDomainEnums.InstantScreeningMode.DEFERRED
@@ -91,7 +91,7 @@ public class InstantPaymentService {
         extension.setProxyValue(request != null ? request.getProxyValue() : null);
         extension.setResolvedAccountNumber(resolution != null ? resolution.getResolvedAccountNumber() : payment.getCreditAccountNumber());
         extension.setResolvedBankCode(resolution != null ? resolution.getResolvedBankCode() : payment.getBeneficiaryBankCode());
-        extension.setStatus(IslamicPaymentDomainEnums.InstantPaymentStatus.CONFIRMED);
+        extension.setStatus(IslamicPaymentDomainEnums.InstantPaymentStatus.SUBMITTED);
         extensionRepository.save(extension);
 
         return IslamicPaymentResponses.InstantPaymentResult.builder()
@@ -140,6 +140,11 @@ public class InstantPaymentService {
 
         extension.setDeferredScreeningResult(result);
         extension.setDeferredScreeningCompletedAt(LocalDateTime.now());
+        if (result == IslamicPaymentDomainEnums.DeferredScreeningResult.FAIL) {
+            extension.setStatus(IslamicPaymentDomainEnums.InstantPaymentStatus.REJECTED);
+            extension.setIpsResponseCode("SHARIAH_FAIL");
+            extension.setIpsResponseMessage("Deferred screening rejected the payment");
+        }
         extensionRepository.save(extension);
 
         log.info("Deferred screening completed for payment {}: result={}", paymentId, result);
@@ -238,7 +243,8 @@ public class InstantPaymentService {
                 .deferredScreeningCount(extensions.stream()
                         .filter(extension -> extension.getScreeningMode() == IslamicPaymentDomainEnums.InstantScreeningMode.DEFERRED)
                         .count())
-                .successCount(extensions.stream().filter(extension -> extension.getStatus() == IslamicPaymentDomainEnums.InstantPaymentStatus.CONFIRMED).count())
+                .successCount(extensions.stream().filter(extension -> extension.getStatus() == IslamicPaymentDomainEnums.InstantPaymentStatus.SUBMITTED
+                    || extension.getStatus() == IslamicPaymentDomainEnums.InstantPaymentStatus.CONFIRMED).count())
                 .rejectionCount(extensions.stream().filter(extension -> extension.getStatus() == IslamicPaymentDomainEnums.InstantPaymentStatus.REJECTED).count())
                 .timeoutCount(extensions.stream().filter(extension -> extension.getStatus() == IslamicPaymentDomainEnums.InstantPaymentStatus.TIMED_OUT).count())
                 .build();

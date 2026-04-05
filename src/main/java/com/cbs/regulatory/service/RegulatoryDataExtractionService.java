@@ -2,13 +2,14 @@ package com.cbs.regulatory.service;
 
 import com.cbs.gl.entity.GlBalance;
 import com.cbs.gl.islamic.dto.AaoifiBalanceSheet;
+import com.cbs.gl.islamic.entity.InvestmentPool;
 import com.cbs.gl.islamic.entity.PoolStatus;
 import com.cbs.gl.islamic.entity.PoolType;
-import com.cbs.gl.islamic.entity.InvestmentPool;
 import com.cbs.gl.islamic.repository.InvestmentPoolRepository;
 import com.cbs.gl.islamic.service.IslamicChartOfAccountsService;
 import com.cbs.gl.repository.GlBalanceRepository;
 import com.cbs.ijarah.entity.IjarahContract;
+import com.cbs.ijarah.entity.IjarahDomainEnums;
 import com.cbs.ijarah.repository.IjarahContractRepository;
 import com.cbs.islamicaml.dto.IslamicAmlDashboard;
 import com.cbs.islamicaml.service.IslamicAmlDashboardService;
@@ -21,13 +22,16 @@ import com.cbs.islamicrisk.service.IslamicCollateralService;
 import com.cbs.islamicrisk.service.IslamicCreditRiskDashboardService;
 import com.cbs.islamicrisk.service.IslamicRiskSupport;
 import com.cbs.murabaha.entity.MurabahaContract;
+import com.cbs.murabaha.entity.MurabahaDomainEnums;
 import com.cbs.murabaha.repository.MurabahaContractRepository;
 import com.cbs.musharakah.entity.MusharakahContract;
+import com.cbs.musharakah.entity.MusharakahDomainEnums;
 import com.cbs.musharakah.repository.MusharakahContractRepository;
 import com.cbs.profitdistribution.entity.CalculationStatus;
 import com.cbs.profitdistribution.entity.PoolProfitCalculation;
 import com.cbs.profitdistribution.repository.PoolProfitCalculationRepository;
 import com.cbs.regulatory.dto.RegulatoryResponses;
+import com.cbs.governance.repository.SystemParameterRepository;
 import com.cbs.shariahcompliance.entity.QuarantineStatus;
 import com.cbs.shariahcompliance.entity.RemediationStatus;
 import com.cbs.shariahcompliance.entity.ScreeningOverallResult;
@@ -59,8 +63,22 @@ import java.util.Optional;
 public class RegulatoryDataExtractionService {
 
     private static final BigDecimal HUNDRED = new BigDecimal("100");
-    private static final BigDecimal DEFAULT_ALPHA_FACTOR = new BigDecimal("0.30");
-    private static final Collection<String> ACTIVE_MURABAHA_STATUSES = List.of("ACTIVE", "EXECUTED", "DEFAULTED");
+    private static final Collection<MurabahaDomainEnums.ContractStatus> ACTIVE_MURABAHA_STATUSES = List.of(
+            MurabahaDomainEnums.ContractStatus.ACTIVE,
+            MurabahaDomainEnums.ContractStatus.EXECUTED,
+            MurabahaDomainEnums.ContractStatus.DEFAULTED
+    );
+    private static final Collection<IjarahDomainEnums.ContractStatus> ACTIVE_IJARAH_STATUSES = List.of(
+            IjarahDomainEnums.ContractStatus.ACTIVE,
+            IjarahDomainEnums.ContractStatus.RENTAL_ARREARS,
+            IjarahDomainEnums.ContractStatus.DEFAULTED
+    );
+    private static final Collection<MusharakahDomainEnums.ContractStatus> ACTIVE_MUSHARAKAH_STATUSES = List.of(
+            MusharakahDomainEnums.ContractStatus.ACTIVE,
+            MusharakahDomainEnums.ContractStatus.RENTAL_ARREARS,
+            MusharakahDomainEnums.ContractStatus.BUYOUT_ARREARS,
+            MusharakahDomainEnums.ContractStatus.DEFAULTED
+    );
 
     private final GlBalanceRepository glBalanceRepository;
     private final IslamicChartOfAccountsService islamicChartOfAccountsService;
@@ -78,6 +96,7 @@ public class RegulatoryDataExtractionService {
     private final ShariahScreeningResultRepository shariahScreeningResultRepository;
     private final ShariahAuditFindingRepository shariahAuditFindingRepository;
     private final IslamicAmlDashboardService islamicAmlDashboardService;
+    private final SystemParameterRepository systemParameterRepository;
 
     public BigDecimal extractGlBalance(List<String> glAccountCodes, LocalDate asOfDate, String balanceType) {
         if (glAccountCodes == null || glAccountCodes.isEmpty()) {
@@ -169,10 +188,9 @@ public class RegulatoryDataExtractionService {
         byStage.put("STAGE_1", BigDecimal.ZERO);
         byStage.put("STAGE_2", BigDecimal.ZERO);
         byStage.put("STAGE_3", BigDecimal.ZERO);
+        Map<Long, IslamicFinancingRiskClassification> latestClassifications = latestClassifications(contractType, asOfDate);
         for (IslamicRiskSupport.ContractSnapshot snapshot : contractSnapshots(contractType, null)) {
-            IslamicFinancingRiskClassification classification = classificationRepository
-                    .findTopByContractIdOrderByClassificationDateDesc(snapshot.contractId())
-                    .orElse(null);
+            IslamicFinancingRiskClassification classification = latestClassifications.get(snapshot.contractId());
             String stage = classification != null ? classification.getIfrs9Stage().name() : "STAGE_1";
             byStage.merge(stage, snapshotMetric(snapshot, "OUTSTANDING"), BigDecimal::add);
         }
@@ -253,6 +271,10 @@ public class RegulatoryDataExtractionService {
     }
 
     public RegulatoryResponses.CapitalAdequacyData extractCapitalAdequacyData(LocalDate asOfDate) {
+        return extractCapitalAdequacyData(asOfDate, null);
+    }
+
+    public RegulatoryResponses.CapitalAdequacyData extractCapitalAdequacyData(LocalDate asOfDate, BigDecimal alphaFactorOverride) {
         LocalDate effectiveDate = safeDate(asOfDate);
         AaoifiBalanceSheet sheet = islamicChartOfAccountsService.generateAaoifiBalanceSheet(effectiveDate);
         IslamicRiskResponses.PortfolioOverview portfolioOverview = dashboardService.getPortfolioOverview(effectiveDate);
@@ -263,7 +285,8 @@ public class RegulatoryDataExtractionService {
         BigDecimal share = rwa.add(iahFunds).compareTo(BigDecimal.ZERO) == 0
                 ? BigDecimal.ZERO
                 : iahFunds.divide(rwa.add(iahFunds), 6, RoundingMode.HALF_UP);
-        BigDecimal adjustedRwa = rwa.multiply(BigDecimal.ONE.subtract(DEFAULT_ALPHA_FACTOR.multiply(share)))
+        BigDecimal alphaFactor = resolveAlphaFactor(alphaFactorOverride);
+        BigDecimal adjustedRwa = rwa.multiply(BigDecimal.ONE.subtract(alphaFactor.multiply(share)))
                 .max(BigDecimal.ONE);
         BigDecimal car = tier1.add(tier2).multiply(HUNDRED).divide(adjustedRwa, 2, RoundingMode.HALF_UP);
         return RegulatoryResponses.CapitalAdequacyData.builder()
@@ -271,10 +294,24 @@ public class RegulatoryDataExtractionService {
                 .tier2Capital(scale(tier2))
                 .riskWeightedAssets(scale(rwa))
                 .iahFunds(scale(iahFunds))
-                .alphaFactor(DEFAULT_ALPHA_FACTOR)
+                .alphaFactor(alphaFactor)
                 .adjustedRiskWeightedAssets(scale(adjustedRwa))
                 .capitalAdequacyRatio(car)
                 .build();
+    }
+
+    public BigDecimal extractCapitalMetric(String metric, LocalDate asOfDate, BigDecimal alphaFactorOverride) {
+        RegulatoryResponses.CapitalAdequacyData data = extractCapitalAdequacyData(asOfDate, alphaFactorOverride);
+        String normalizedMetric = normalize(metric, "CAPITAL_ADEQUACY_RATIO");
+        return switch (normalizedMetric) {
+            case "TIER1_CAPITAL" -> scale(data.getTier1Capital());
+            case "TIER2_CAPITAL" -> scale(data.getTier2Capital());
+            case "RISK_WEIGHTED_ASSETS" -> scale(data.getRiskWeightedAssets());
+            case "IAH_FUNDS" -> scale(data.getIahFunds());
+            case "ALPHA_FACTOR" -> data.getAlphaFactor().multiply(HUNDRED).setScale(2, RoundingMode.HALF_UP);
+            case "ADJUSTED_RISK_WEIGHTED_ASSETS" -> scale(data.getAdjustedRiskWeightedAssets());
+            default -> scale(data.getCapitalAdequacyRatio());
+        };
     }
 
     public RegulatoryResponses.ShariahComplianceData extractShariahComplianceData(LocalDate periodFrom, LocalDate periodTo) {
@@ -333,6 +370,49 @@ public class RegulatoryDataExtractionService {
                 .build();
     }
 
+    public BigDecimal extractShariahMetric(String metric, LocalDate periodFrom, LocalDate periodTo) {
+        RegulatoryResponses.ShariahComplianceData data = extractShariahComplianceData(periodFrom, periodTo);
+        return switch (normalize(metric, "SCREENINGS_TOTAL")) {
+            case "SNCI_DETECTED" -> BigDecimal.valueOf(data.getSnciDetected());
+            case "CHARITY_FUND_BALANCE" -> scale(data.getCharityFundBalance());
+            case "SCREENINGS_BLOCKED" -> BigDecimal.valueOf(data.getScreeningsBlocked());
+            case "SCREENINGS_ALERTED" -> BigDecimal.valueOf(data.getScreeningsAlerted());
+            case "OPEN_AUDIT_FINDINGS" -> BigDecimal.valueOf(data.getOpenAuditFindings());
+            case "CLOSED_AUDIT_FINDINGS" -> BigDecimal.valueOf(data.getClosedAuditFindings());
+            default -> BigDecimal.valueOf(data.getScreeningsTotal());
+        };
+    }
+
+    public BigDecimal extractAmlMetric(String metric, LocalDate periodFrom, LocalDate periodTo, String jurisdiction) {
+        RegulatoryResponses.AmlStatisticalData data = extractAmlData(periodFrom, periodTo);
+        String normalizedMetric = normalize(metric, "TOTAL_SARS_FILED");
+        if (normalizedMetric.startsWith("SARS_BY_JURISDICTION")) {
+            String key = normalize(jurisdiction, "ALL");
+            return BigDecimal.valueOf(data.getSarsByJurisdiction().getOrDefault(key, 0L));
+        }
+        return switch (normalizedMetric) {
+            case "SANCTIONS_MATCHES" -> BigDecimal.valueOf(data.getSanctionsMatches());
+            case "ISLAMIC_ALERTS" -> BigDecimal.valueOf(data.getIslamicAlerts());
+            default -> BigDecimal.valueOf(data.getTotalSarsFiled());
+        };
+    }
+
+    public BigDecimal extractFinancingMetric(String contractType, String metric, String dimension, LocalDate asOfDate) {
+        String normalizedMetric = normalize(metric, "TOTAL_OUTSTANDING");
+        return switch (normalizedMetric) {
+            case "TOTAL_COUNT" -> BigDecimal.valueOf(extractFinancingCount(contractType, null));
+            case "STAGE_TOTAL" -> extractFinancingByStage(contractType, asOfDate)
+                    .getOrDefault(normalize(dimension, "STAGE_1"), BigDecimal.ZERO);
+            case "SECTOR_TOTAL" -> extractFinancingBySector(contractType, asOfDate)
+                    .getOrDefault(normalize(dimension, "UNSPECIFIED"), BigDecimal.ZERO);
+            case "MATURITY_TOTAL" -> extractFinancingByMaturity(contractType, asOfDate)
+                    .getOrDefault(normalize(dimension, "0-1M"), BigDecimal.ZERO);
+            case "TOTAL_COLLATERAL" -> extractTotalCollateralValue(contractType, asOfDate);
+            case "COLLATERAL_COVERAGE" -> extractCollateralCoverage(contractType, asOfDate);
+            default -> extractFinancingTotal(contractType, null, dimension != null ? dimension : "OUTSTANDING", asOfDate);
+        };
+    }
+
     private List<IslamicRiskSupport.ContractSnapshot> contractSnapshots(String contractType, String status) {
         String normalizedType = normalize(contractType, null);
         if (normalizedType == null) {
@@ -353,32 +433,27 @@ public class RegulatoryDataExtractionService {
 
     private List<Long> murabahaIds(String status) {
         if (!StringUtils.hasText(status)) {
-            return murabahaContractRepository.findAll().stream().map(MurabahaContract::getId).toList();
+            return islamicRiskSupport.activeContractIds("MURABAHA");
         }
-        return murabahaContractRepository.findByStatusIn(ACTIVE_MURABAHA_STATUSES.stream()
-                        .map(value -> com.cbs.murabaha.entity.MurabahaDomainEnums.ContractStatus.valueOf(value))
-                        .toList()).stream()
-                .filter(contract -> contract.getStatus().name().equals(normalize(status, status)))
+        return murabahaContractRepository.findByStatus(MurabahaDomainEnums.ContractStatus.valueOf(normalize(status, status))).stream()
                 .map(MurabahaContract::getId)
                 .toList();
     }
 
     private List<Long> ijarahIds(String status) {
         if (!StringUtils.hasText(status)) {
-            return ijarahContractRepository.findAll().stream().map(IjarahContract::getId).toList();
+            return islamicRiskSupport.activeContractIds("IJARAH");
         }
-        return ijarahContractRepository.findAll().stream()
-                .filter(contract -> contract.getStatus().name().equals(normalize(status, status)))
+        return ijarahContractRepository.findByStatus(IjarahDomainEnums.ContractStatus.valueOf(normalize(status, status))).stream()
                 .map(IjarahContract::getId)
                 .toList();
     }
 
     private List<Long> musharakahIds(String status) {
         if (!StringUtils.hasText(status)) {
-            return musharakahContractRepository.findAll().stream().map(MusharakahContract::getId).toList();
+            return islamicRiskSupport.activeContractIds("MUSHARAKAH");
         }
-        return musharakahContractRepository.findAll().stream()
-                .filter(contract -> contract.getStatus().name().equals(normalize(status, status)))
+        return musharakahContractRepository.findByStatus(MusharakahDomainEnums.ContractStatus.valueOf(normalize(status, status))).stream()
                 .map(MusharakahContract::getId)
                 .toList();
     }
@@ -417,11 +492,9 @@ public class RegulatoryDataExtractionService {
         if (!calculations.isEmpty()) {
             return calculations;
         }
-        return StringUtils.hasText(contractType)
-                ? eclCalculationRepository.findAll().stream()
-                    .filter(item -> normalize(contractType, contractType).equals(item.getContractTypeCode()))
-                    .toList()
-                : eclCalculationRepository.findAll();
+        return eclCalculationRepository.findLatestByContractTypeCode(StringUtils.hasText(contractType)
+                ? normalize(contractType, contractType)
+                : null);
     }
 
     private FinancingFilter parseFilter(String filter) {
@@ -439,6 +512,38 @@ public class RegulatoryDataExtractionService {
             minimumDaysPastDue = Integer.parseInt(raw);
         }
         return new FinancingFilter(status, minimumDaysPastDue);
+    }
+
+    private Map<Long, IslamicFinancingRiskClassification> latestClassifications(String contractType, LocalDate asOfDate) {
+        List<IslamicFinancingRiskClassification> classifications = StringUtils.hasText(contractType)
+                ? classificationRepository.findByContractTypeCodeAndClassificationDate(normalize(contractType, contractType), safeDate(asOfDate))
+                : classificationRepository.findByClassificationDate(safeDate(asOfDate));
+        if (classifications.isEmpty()) {
+            classifications = classificationRepository.findLatestByContractTypeCode(
+                    StringUtils.hasText(contractType) ? normalize(contractType, contractType) : null);
+        }
+        return classifications.stream().collect(java.util.stream.Collectors.toMap(
+                IslamicFinancingRiskClassification::getContractId,
+                item -> item,
+                (left, right) -> left.getClassificationDate().isAfter(right.getClassificationDate()) ? left : right,
+                LinkedHashMap::new
+        ));
+    }
+
+    private BigDecimal resolveAlphaFactor(BigDecimal override) {
+        if (override != null && override.compareTo(BigDecimal.ZERO) >= 0) {
+            return override.setScale(6, RoundingMode.HALF_UP);
+        }
+        try {
+            List<com.cbs.governance.entity.SystemParameter> parameters = systemParameterRepository
+                    .findEffective("regulatory.ifsb.alpha-factor", islamicRiskSupport.currentTenantId());
+            if (!parameters.isEmpty()) {
+                return new BigDecimal(parameters.getFirst().getParamValue()).setScale(6, RoundingMode.HALF_UP);
+            }
+        } catch (Exception ignored) {
+            // Fall through to policy baseline when no approved parameter exists yet.
+        }
+        return new BigDecimal("0.300000");
     }
 
     private Map<String, BigDecimal> scaleMap(Map<String, BigDecimal> values) {

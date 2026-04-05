@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Repository
 public interface OpRiskLossEventRepository extends JpaRepository<OpRiskLossEvent, Long> {
@@ -16,4 +17,5 @@ public interface OpRiskLossEventRepository extends JpaRepository<OpRiskLossEvent
     Page<OpRiskLossEvent> findByStatusOrderByNetLossDesc(String status, Pageable pageable);
     @Query("SELECT SUM(e.netLoss) FROM OpRiskLossEvent e WHERE e.eventDate BETWEEN :from AND :to")
     BigDecimal totalNetLoss(@Param("from") LocalDate from, @Param("to") LocalDate to);
+    List<OpRiskLossEvent> findByEventDateBetween(LocalDate from, LocalDate to);
 }

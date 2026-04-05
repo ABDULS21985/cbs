@@ -34,7 +34,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -187,6 +186,22 @@ public class IslamicPaymentService {
         Account sourceAccount = paymentSupport.loadSourceAccount(request.getSourceAccountId());
         IslamicPaymentSupport.SourceAccountProfile sourceProfile = paymentSupport.resolveSourceProfile(sourceAccount);
 
+        if (overrideRequest == null) {
+            PaymentInstruction existingPayment = findExistingIdempotentPayment(request);
+            if (existingPayment != null) {
+                log.info("Duplicate Islamic payment request detected for reference {} - returning existing payment {}",
+                        request.getReference(), existingPayment.getInstructionRef());
+                return IslamicPaymentResponses.PaymentResponse.builder()
+                        .paymentId(existingPayment.getId())
+                        .paymentRef(existingPayment.getInstructionRef())
+                        .paymentInstruction(existingPayment)
+                        .screeningResult(reconstructScreeningResult(existingPayment.getId(), existingPayment.getInstructionRef()))
+                        .status(existingPayment.getStatus().name())
+                        .message("Duplicate request reference detected; returning the existing payment record")
+                        .build();
+            }
+        }
+
         if (sourceProfile.islamic() && !request.isRequireShariahScreening()) {
             throw new BusinessException("Payments from Islamic accounts must be Shariah-screened", "SHARIAH-PAY-001");
         }
@@ -218,7 +233,7 @@ public class IslamicPaymentService {
                     sourceAccount,
                     screeningResult.getBlockReason()
             );
-            PaymentIslamicExtension extension = saveExtension(
+                saveExtension(
                     blockedPayment,
                     request,
                     sourceProfile,
@@ -498,5 +513,46 @@ public class IslamicPaymentService {
             }
         }
         return null;
+    }
+
+    private PaymentInstruction findExistingIdempotentPayment(IslamicPaymentRequests.IslamicPaymentRequest request) {
+        if (!StringUtils.hasText(request.getReference())) {
+            return null;
+        }
+        return paymentInstructionRepository
+                .findFirstByDebitAccountIdAndCreditAccountNumberAndAmountAndCurrencyCodeAndPaymentRailAndRemittanceInfoOrderByCreatedAtDesc(
+                        request.getSourceAccountId(),
+                        request.getDestinationAccountNumber(),
+                        request.getAmount(),
+                        request.getCurrencyCode(),
+                        paymentSupport.uppercase(request.getPaymentChannel()),
+                        request.getReference())
+                .orElse(null);
+    }
+
+    private IslamicPaymentResponses.PaymentScreeningResult reconstructScreeningResult(Long paymentId, String paymentRef) {
+        PaymentShariahAuditLog auditLog = auditLogRepository.findByPaymentId(paymentId).orElse(null);
+        PaymentIslamicExtension extension = extensionRepository.findByPaymentId(paymentId).orElse(null);
+        IslamicPaymentDomainEnums.PaymentScreeningResult result = extension != null
+                ? extension.getShariahScreeningResult()
+                : auditLog != null ? auditLog.getOverallResult() : IslamicPaymentDomainEnums.PaymentScreeningResult.PASS;
+        IslamicPaymentDomainEnums.ScreeningOutcome outcome = switch (result) {
+            case FAIL -> IslamicPaymentDomainEnums.ScreeningOutcome.BLOCKED;
+            case ALERT -> auditLog != null && auditLog.getActionTaken() == IslamicPaymentDomainEnums.AuditActionTaken.MANUAL_OVERRIDE
+                    ? IslamicPaymentDomainEnums.ScreeningOutcome.MANUAL_OVERRIDE
+                    : IslamicPaymentDomainEnums.ScreeningOutcome.ALLOWED_WITH_ALERT;
+            case WARN -> IslamicPaymentDomainEnums.ScreeningOutcome.ALLOWED_WITH_WARNING;
+            default -> IslamicPaymentDomainEnums.ScreeningOutcome.ALLOWED;
+        };
+        return IslamicPaymentResponses.PaymentScreeningResult.builder()
+                .paymentRef(paymentRef)
+                .outcome(outcome)
+                .overallResult(result)
+                .screeningRef(extension != null ? extension.getShariahScreeningRef() : auditLog != null ? auditLog.getPaymentRef() : null)
+                .screeningDurationMs(auditLog != null ? auditLog.getScreeningDurationMs() : 0L)
+                .blockReason(auditLog != null && auditLog.getFailedRuleDescriptions() != null && !auditLog.getFailedRuleDescriptions().isEmpty()
+                        ? auditLog.getFailedRuleDescriptions().getFirst()
+                        : null)
+                .build();
     }
 }

@@ -35,9 +35,12 @@ public class GapAnalysisController {
     }
 
     @PostMapping("/{code}/progress") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<ComplianceGapAnalysis>> progress(@PathVariable String code) {
+    public ResponseEntity<ApiResponse<ComplianceGapAnalysis>> progress(
+            @PathVariable String code,
+            @RequestParam(defaultValue = "50") int percentageComplete,
+            @RequestParam(defaultValue = "Progress update") String progressNotes) {
         ComplianceGapAnalysis gap = service.getByCode(code);
-        return ResponseEntity.ok(ApiResponse.ok(service.updateProgress(gap.getId())));
+        return ResponseEntity.ok(ApiResponse.ok(service.updateProgress(gap.getId(), percentageComplete, progressNotes)));
     }
 
     @PostMapping("/{code}/close") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")

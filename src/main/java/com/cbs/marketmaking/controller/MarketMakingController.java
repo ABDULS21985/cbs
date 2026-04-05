@@ -53,7 +53,7 @@ public class MarketMakingController {
 
     @PostMapping("/{code}/suspend")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<MarketMakingMandate>> suspendMandate(@PathVariable String code) {
-        return ResponseEntity.ok(ApiResponse.ok(service.suspendMandate(code)));
+    public ResponseEntity<ApiResponse<MarketMakingMandate>> suspendMandate(@PathVariable String code, @RequestParam(required = false) String reason) {
+        return ResponseEntity.ok(ApiResponse.ok(service.suspendMandate(code, reason)));
     }
 }

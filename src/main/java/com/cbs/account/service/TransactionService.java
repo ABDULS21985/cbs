@@ -72,6 +72,7 @@ public class TransactionService {
     private final TransactionDisputeRepository transactionDisputeRepository;
     private final TransactionAuditService transactionAuditService;
     private final CurrentCustomerProvider currentCustomerProvider;
+    private final jakarta.persistence.EntityManager entityManager;
 
     public Page<TransactionResponse> search(TransactionSearchCriteria criteria, Pageable pageable) {
         return transactionJournalRepository.findAll(buildSpecification(criteria), pageable)
@@ -79,18 +80,57 @@ public class TransactionService {
     }
 
     public TransactionSummary calculateSummary(TransactionSearchCriteria criteria) {
-        List<TransactionJournal> transactions = transactionJournalRepository.findAll(buildSpecification(criteria));
-        BigDecimal totalDebit = transactions.stream()
-                .filter(this::isDebitLike)
-                .map(TransactionJournal::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal totalCredit = transactions.stream()
-                .filter(this::isCreditLike)
-                .map(TransactionJournal::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // Use aggregate queries instead of loading all matching transactions into memory.
+        // The specification filters are applied via EntityManager criteria query with SUM/COUNT projections.
+        Specification<TransactionJournal> spec = buildSpecification(criteria);
+
+        jakarta.persistence.criteria.CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        // Count query
+        jakarta.persistence.criteria.CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
+        jakarta.persistence.criteria.Root<TransactionJournal> countRoot = countQuery.from(TransactionJournal.class);
+        countQuery.select(cb.count(countRoot));
+        jakarta.persistence.criteria.Predicate countPredicate = spec.toPredicate(countRoot, countQuery, cb);
+        if (countPredicate != null) {
+            countQuery.where(countPredicate);
+        }
+        long totalResults = entityManager.createQuery(countQuery).getSingleResult();
+
+        // Debit sum query
+        jakarta.persistence.criteria.CriteriaQuery<BigDecimal> debitQuery = cb.createQuery(BigDecimal.class);
+        jakarta.persistence.criteria.Root<TransactionJournal> debitRoot = debitQuery.from(TransactionJournal.class);
+        debitQuery.select(cb.coalesce(cb.sum(
+                cb.<BigDecimal>selectCase()
+                        .when(debitRoot.get("transactionType").in(
+                                TransactionType.DEBIT, TransactionType.FEE_DEBIT,
+                                TransactionType.TRANSFER_OUT, TransactionType.LIEN_PLACEMENT),
+                                debitRoot.get("amount"))
+                        .otherwise(BigDecimal.ZERO)), BigDecimal.ZERO));
+        jakarta.persistence.criteria.Predicate debitPredicate = spec.toPredicate(debitRoot, debitQuery, cb);
+        if (debitPredicate != null) {
+            debitQuery.where(debitPredicate);
+        }
+        BigDecimal totalDebit = entityManager.createQuery(debitQuery).getSingleResult();
+
+        // Credit sum query
+        jakarta.persistence.criteria.CriteriaQuery<BigDecimal> creditQuery = cb.createQuery(BigDecimal.class);
+        jakarta.persistence.criteria.Root<TransactionJournal> creditRoot = creditQuery.from(TransactionJournal.class);
+        creditQuery.select(cb.coalesce(cb.sum(
+                cb.<BigDecimal>selectCase()
+                        .when(creditRoot.get("transactionType").in(
+                                TransactionType.CREDIT, TransactionType.TRANSFER_IN,
+                                TransactionType.INTEREST_POSTING, TransactionType.OPENING_BALANCE,
+                                TransactionType.LIEN_RELEASE),
+                                creditRoot.get("amount"))
+                        .otherwise(BigDecimal.ZERO)), BigDecimal.ZERO));
+        jakarta.persistence.criteria.Predicate creditPredicate = spec.toPredicate(creditRoot, creditQuery, cb);
+        if (creditPredicate != null) {
+            creditQuery.where(creditPredicate);
+        }
+        BigDecimal totalCredit = entityManager.createQuery(creditQuery).getSingleResult();
 
         return TransactionSummary.builder()
-                .totalResults(transactions.size())
+                .totalResults((int) totalResults)
                 .totalDebit(totalDebit)
                 .totalCredit(totalCredit)
                 .netAmount(totalCredit.subtract(totalDebit))

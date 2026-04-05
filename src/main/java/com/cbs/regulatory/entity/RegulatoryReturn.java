@@ -147,6 +147,17 @@ public class RegulatoryReturn extends AuditableEntity {
     @Column(name = "regulator_feedback", columnDefinition = "TEXT")
     private String regulatorFeedback;
 
+    @Column(name = "submission_payload", columnDefinition = "TEXT")
+    private String submissionPayload;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "submission_response", columnDefinition = "jsonb")
+    private Map<String, Object> submissionResponse;
+
+    @Column(name = "submission_attempt_count", nullable = false)
+    @Builder.Default
+    private Integer submissionAttemptCount = 0;
+
     @Column(name = "filing_deadline", nullable = false)
     private LocalDate filingDeadline;
 

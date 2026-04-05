@@ -102,13 +102,13 @@ public class RegulatoryTemplateController {
     @PreAuthorize("hasAnyRole('FINANCE','COMPLIANCE')")
     public ResponseEntity<byte[]> export(@PathVariable Long id, @RequestParam String format) {
         RegulatoryDomainEnums.OutputFormat outputFormat = RegulatoryDomainEnums.OutputFormat.valueOf(format.toUpperCase());
-        byte[] content = templateEngine.exportReturn(id, outputFormat);
+        RegulatoryTemplateEngine.ExportArtifact artifact = templateEngine.prepareExportArtifact(id, outputFormat);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentDisposition(ContentDisposition.attachment()
-                .filename("regulatory-return-" + id + "." + format.toLowerCase())
+                .filename(artifact.filename())
                 .build());
-        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-        return ResponseEntity.ok().headers(headers).body(content);
+        headers.setContentType(MediaType.parseMediaType(artifact.contentType()));
+        return ResponseEntity.ok().headers(headers).body(artifact.body());
     }
 
     @GetMapping("/templates/{code}/compare")

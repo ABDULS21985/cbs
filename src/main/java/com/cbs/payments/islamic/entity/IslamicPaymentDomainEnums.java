@@ -135,6 +135,7 @@ public final class IslamicPaymentDomainEnums {
     public enum CheckType {
         MCC,
         COUNTERPARTY,
+        SANCTIONS,
         BENEFICIARY_BANK,
         PURPOSE,
         AMOUNT_THRESHOLD,

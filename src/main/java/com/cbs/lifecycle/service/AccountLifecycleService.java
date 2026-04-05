@@ -34,19 +34,24 @@ public class AccountLifecycleService {
     private final CurrentActorProvider currentActorProvider;
 
     /**
-     * Scans all active accounts and marks those without transactions
+     * Scans active accounts and marks those without transactions
      * beyond the product's dormancy threshold as DORMANT.
+     * Uses a conservative cutoff based on the minimum dormancy days across all products,
+     * then verifies each account against its own product's threshold.
      */
     @Transactional
     public int detectDormantAccounts() {
         int dormantCount = 0;
-        // Get all active accounts grouped by product dormancy days
-        List<Account> activeAccounts = accountRepository.findAll().stream()
-                .filter(a -> a.getStatus() == AccountStatus.ACTIVE)
-                .filter(a -> a.getProduct() != null)
-                .toList();
+        // Use the minimum possible dormancy threshold to pre-filter at the DB level,
+        // then verify each account against its own product's dormancyDays.
+        int minDormancyDays = cbsProperties.getLifecycle().getMinDormancyDays();
+        LocalDate conservativeCutoff = LocalDate.now().minusDays(minDormancyDays);
 
-        for (Account account : activeAccounts) {
+        // Query only ACTIVE accounts whose last transaction is before the conservative cutoff
+        List<Account> candidates = accountRepository.findAccountsEligibleForDormancy(conservativeCutoff);
+
+        for (Account account : candidates) {
+            if (account.getProduct() == null) continue;
             int dormancyDays = account.getProduct().getDormancyDays();
             LocalDate cutoff = LocalDate.now().minusDays(dormancyDays);
 

@@ -69,6 +69,9 @@ public class PortalService {
     private final com.cbs.notification.service.NotificationService notificationService;
     private final com.cbs.payments.repository.BankDirectoryRepository bankDirectoryRepository;
 
+    @org.springframework.beans.factory.annotation.Value("${portal.totp.encryption-key:ch4ng3-th1s-AES-k3y!}")
+    private String totpEncryptionKey;
+
     // ========================================================================
     // DASHBOARD — single pane for the logged-in customer
     // ========================================================================
@@ -267,11 +270,12 @@ public class PortalService {
         String secret = UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase();
         String qrCodeUrl = String.format("otpauth://totp/CBS:%s?secret=%s&issuer=CBS",
                 customer.getEmail(), secret);
-        // Store the secret (using metadata or dedicated field)
+        // Encrypt the secret before storing to metadata
+        String encryptedSecret = encryptTotpSecret(secret);
         if (customer.getMetadata() == null) {
-            customer.setMetadata(Map.of("twoFactorSecret", secret, "twoFactorEnabled", true));
+            customer.setMetadata(Map.of("twoFactorSecret", encryptedSecret, "twoFactorEnabled", true));
         } else {
-            customer.getMetadata().put("twoFactorSecret", secret);
+            customer.getMetadata().put("twoFactorSecret", encryptedSecret);
             customer.getMetadata().put("twoFactorEnabled", true);
         }
         customerRepository.save(customer);
@@ -293,6 +297,64 @@ public class PortalService {
         log.info("2FA disabled for customer={}", customerId);
         return TwoFactorResponse.builder()
                 .enabled(false).message("Two-factor authentication has been disabled.").build();
+    }
+
+    /**
+     * Reads and decrypts the TOTP secret from customer metadata.
+     */
+    public String getTotpSecret(Long customerId) {
+        Customer customer = findCustomerOrThrow(customerId);
+        if (customer.getMetadata() == null || !customer.getMetadata().containsKey("twoFactorSecret")) {
+            return null;
+        }
+        String encrypted = String.valueOf(customer.getMetadata().get("twoFactorSecret"));
+        return decryptTotpSecret(encrypted);
+    }
+
+    private String encryptTotpSecret(String plainText) {
+        try {
+            byte[] keyBytes = deriveAesKey(totpEncryptionKey);
+            javax.crypto.spec.SecretKeySpec keySpec = new javax.crypto.spec.SecretKeySpec(keyBytes, "AES");
+            javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding");
+            byte[] iv = new byte[12];
+            new java.security.SecureRandom().nextBytes(iv);
+            javax.crypto.spec.GCMParameterSpec gcmSpec = new javax.crypto.spec.GCMParameterSpec(128, iv);
+            cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, keySpec, gcmSpec);
+            byte[] encrypted = cipher.doFinal(plainText.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            // Prepend IV to ciphertext and Base64-encode the whole thing
+            byte[] combined = new byte[iv.length + encrypted.length];
+            System.arraycopy(iv, 0, combined, 0, iv.length);
+            System.arraycopy(encrypted, 0, combined, iv.length, encrypted.length);
+            return Base64.getEncoder().encodeToString(combined);
+        } catch (Exception ex) {
+            throw new BusinessException("Failed to encrypt TOTP secret", "TOTP_ENCRYPTION_FAILED");
+        }
+    }
+
+    private String decryptTotpSecret(String cipherText) {
+        try {
+            byte[] combined = Base64.getDecoder().decode(cipherText);
+            byte[] iv = new byte[12];
+            byte[] encrypted = new byte[combined.length - 12];
+            System.arraycopy(combined, 0, iv, 0, 12);
+            System.arraycopy(combined, 12, encrypted, 0, encrypted.length);
+
+            byte[] keyBytes = deriveAesKey(totpEncryptionKey);
+            javax.crypto.spec.SecretKeySpec keySpec = new javax.crypto.spec.SecretKeySpec(keyBytes, "AES");
+            javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding");
+            javax.crypto.spec.GCMParameterSpec gcmSpec = new javax.crypto.spec.GCMParameterSpec(128, iv);
+            cipher.init(javax.crypto.Cipher.DECRYPT_MODE, keySpec, gcmSpec);
+            byte[] decrypted = cipher.doFinal(encrypted);
+            return new String(decrypted, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception ex) {
+            throw new BusinessException("Failed to decrypt TOTP secret", "TOTP_DECRYPTION_FAILED");
+        }
+    }
+
+    private byte[] deriveAesKey(String passphrase) throws java.security.NoSuchAlgorithmException {
+        // Derive a 256-bit AES key from the passphrase using SHA-256
+        java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+        return digest.digest(passphrase.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     public List<LoginHistoryDto> getLoginHistory(Long customerId, int limit) {

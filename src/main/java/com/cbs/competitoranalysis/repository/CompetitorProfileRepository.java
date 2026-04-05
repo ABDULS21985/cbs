@@ -10,4 +10,7 @@ public interface CompetitorProfileRepository extends JpaRepository<CompetitorPro
     Optional<CompetitorProfile> findByProfileCode(String profileCode);
     List<CompetitorProfile> findByCompetitorTypeAndStatusOrderByMarketSharePctDesc(String competitorType, String status);
     List<CompetitorProfile> findByThreatLevelOrderByMarketSharePctDesc(String threatLevel);
+    boolean existsByCompetitorNameAndCountry(String competitorName, String country);
+    List<CompetitorProfile> findByStatusOrderByCompetitorNameAsc(String status);
+    List<CompetitorProfile> findByCountryAndStatusOrderByMarketSharePctDesc(String country, String status);
 }

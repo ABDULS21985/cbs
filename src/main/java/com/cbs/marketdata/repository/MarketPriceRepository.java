@@ -3,4 +3,5 @@ import com.cbs.marketdata.entity.MarketPrice; import org.springframework.data.jp
 import java.util.List;
 public interface MarketPriceRepository extends JpaRepository<MarketPrice, Long> {
     List<MarketPrice> findByInstrumentCodeOrderByPriceDateDescPriceTimeDesc(String instrumentCode);
+    List<MarketPrice> findTop5ByInstrumentCodeOrderByPriceDateDescPriceTimeDesc(String instrumentCode);
 }

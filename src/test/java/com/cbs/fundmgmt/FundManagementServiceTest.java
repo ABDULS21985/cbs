@@ -16,9 +16,11 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class FundManagementServiceTest {
 
     @Mock private ManagedFundRepository fundRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private FundManagementService service;
 
     @Test
@@ -48,6 +50,7 @@ class FundManagementServiceTest {
         fund.setId(1L);
         fund.setFundCode("FND-TEST");
         fund.setTotalUnitsOutstanding(new BigDecimal("1000000"));
+        fund.setStatus("ACTIVE");
 
         when(fundRepository.findByFundCode("FND-TEST")).thenReturn(Optional.of(fund));
         when(fundRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));

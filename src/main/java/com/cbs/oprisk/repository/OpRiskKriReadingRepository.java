@@ -10,4 +10,5 @@ import java.util.List;
 public interface OpRiskKriReadingRepository extends JpaRepository<OpRiskKriReading, Long> {
     List<OpRiskKriReading> findByKriIdOrderByReadingDateDesc(Long kriId);
     List<OpRiskKriReading> findByReadingDateOrderByRagStatusDescKriIdAsc(LocalDate date);
+    List<OpRiskKriReading> findByKriIdAndReadingDateBetweenOrderByReadingDateAsc(Long kriId, LocalDate from, LocalDate to);
 }

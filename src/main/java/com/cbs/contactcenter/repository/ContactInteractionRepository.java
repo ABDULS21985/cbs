@@ -8,4 +8,5 @@ public interface ContactInteractionRepository extends JpaRepository<ContactInter
     List<ContactInteraction> findByAgentIdOrderByStartedAtDesc(String agentId);
     List<ContactInteraction> findByAgentIdAndStatusOrderByStartedAtDesc(String agentId, String status);
     List<ContactInteraction> findByCenterIdAndStatusOrderByStartedAtDesc(Long centerId, String status);
+    long countByAgentIdAndStatus(String agentId, String status);
 }

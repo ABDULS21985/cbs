@@ -2,6 +2,9 @@ package com.cbs.branchnetwork.service;
 
 import com.cbs.branchnetwork.entity.BranchPerformance;
 import com.cbs.branchnetwork.repository.BranchPerformanceRepository;
+import com.cbs.common.audit.CurrentActorProvider;
+import com.cbs.common.exception.BusinessException;
+import com.cbs.common.exception.DuplicateResourceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,12 +19,34 @@ import java.util.stream.Collectors;
 public class BranchPerformanceService {
 
     private final BranchPerformanceRepository repository;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public BranchPerformance recordPerformance(BranchPerformance performance) {
+        // Validate required fields
+        if (performance.getBranchId() == null) {
+            throw new BusinessException("Branch ID is required", "MISSING_BRANCH_ID");
+        }
+        if (performance.getPeriodDate() == null || performance.getPeriodType() == null) {
+            throw new BusinessException("Period date and period type are required", "MISSING_PERIOD");
+        }
+        // Validate numeric fields are non-negative
+        if (performance.getTotalRevenue() != null && performance.getTotalRevenue().signum() < 0) {
+            throw new BusinessException("Total revenue cannot be negative", "NEGATIVE_REVENUE");
+        }
+        if (performance.getCostToIncomeRatio() != null && performance.getCostToIncomeRatio().signum() < 0) {
+            throw new BusinessException("Cost-to-income ratio cannot be negative", "NEGATIVE_COST_TO_INCOME");
+        }
+        // Duplicate check: same branch + period
+        repository.findByBranchIdAndPeriodDateAndPeriodType(performance.getBranchId(), performance.getPeriodDate(), performance.getPeriodType())
+                .ifPresent(existing -> {
+                    throw new DuplicateResourceException("BranchPerformance", "branchId+period",
+                            performance.getBranchId() + "/" + performance.getPeriodDate() + "/" + performance.getPeriodType());
+                });
         performance.setStatus("CALCULATED");
         BranchPerformance saved = repository.save(performance);
-        log.info("Branch performance recorded: branchId={}, period={} {}", saved.getBranchId(), saved.getPeriodType(), saved.getPeriodDate());
+        log.info("AUDIT: Branch performance recorded: branchId={}, period={} {}, actor={}",
+                saved.getBranchId(), saved.getPeriodType(), saved.getPeriodDate(), currentActorProvider.getCurrentActor());
         return saved;
     }
 
@@ -30,11 +55,10 @@ public class BranchPerformanceService {
     }
 
     public Map<String, BigDecimal> getRegionalSummary(LocalDate periodDate, String periodType) {
-        // This would ideally join with branch table for region; simplified here
         return repository.findByPeriodDateAndPeriodType(periodDate, periodType).stream()
                 .filter(p -> p.getTotalRevenue() != null)
                 .collect(Collectors.groupingBy(
-                        p -> "branch_" + p.getBranchId(),
+                        p -> String.valueOf(p.getBranchId()),
                         Collectors.reducing(BigDecimal.ZERO, BranchPerformance::getTotalRevenue, BigDecimal::add)));
     }
 

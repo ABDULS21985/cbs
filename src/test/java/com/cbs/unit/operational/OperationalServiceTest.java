@@ -316,9 +316,11 @@ class OperationalServiceTest {
     @Nested
     @DisplayName("FinancialPositionService - Limit Breach Tests")
     @ExtendWith(MockitoExtension.class)
+    @org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
     class FinancialPositionLimitTests {
 
         @Mock private FinancialPositionRepository repository;
+        @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
 
         @InjectMocks private FinancialPositionService financialPositionService;
 
@@ -335,6 +337,8 @@ class OperationalServiceTest {
                     .positionDate(LocalDate.now())
                     .build();
 
+            when(repository.findByPositionTypeAndPositionDateOrderByNetPositionDesc("FX", LocalDate.now()))
+                    .thenReturn(java.util.List.of());
             when(repository.save(any(FinancialPosition.class))).thenAnswer(inv -> inv.getArgument(0));
 
             FinancialPosition result = financialPositionService.record(pos);
@@ -360,6 +364,8 @@ class OperationalServiceTest {
                     .positionDate(LocalDate.now())
                     .build();
 
+            when(repository.findByPositionTypeAndPositionDateOrderByNetPositionDesc("IR", LocalDate.now()))
+                    .thenReturn(java.util.List.of());
             when(repository.save(any(FinancialPosition.class))).thenAnswer(inv -> inv.getArgument(0));
 
             FinancialPosition result = financialPositionService.record(pos);

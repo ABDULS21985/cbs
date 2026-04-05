@@ -6,4 +6,5 @@ public interface CustomerPropositionRepository extends JpaRepository<CustomerPro
     Optional<CustomerProposition> findByPropositionCode(String code);
     List<CustomerProposition> findByStatusOrderByPropositionNameAsc(String status);
     List<CustomerProposition> findByTargetSegmentAndStatus(String segment, String status);
+    boolean existsByPropositionNameAndStatus(String propositionName, String status);
 }

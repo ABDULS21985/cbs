@@ -17,6 +17,7 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.Deque;
 
 @Service @RequiredArgsConstructor @Slf4j @Transactional(readOnly = true)
 public class EsbService {
@@ -166,16 +167,36 @@ public class EsbService {
         return messageRepository.save(message);
     }
 
+    /**
+     * In-memory sliding-window rate limiter per route.
+     * Production deployments should use Redis or a distributed rate limiter.
+     */
+    private final Map<String, Deque<Instant>> rateLimitWindows = new java.util.concurrent.ConcurrentHashMap<>();
+
     private void validateMessage(IntegrationMessage message, IntegrationRoute route) {
-        if (route.getRateLimitPerSec() != null) {
-            // Rate limiting requires a shared counter (e.g. Redis). Not yet implemented.
-            log.debug("Rate limit check (not enforced): route={}, limit={}/sec", route.getRouteCode(), route.getRateLimitPerSec());
+        if (route.getRateLimitPerSec() != null && route.getRateLimitPerSec() > 0) {
+            String key = route.getRouteCode();
+            Deque<Instant> window = rateLimitWindows.computeIfAbsent(key, k -> new java.util.concurrent.ConcurrentLinkedDeque<>());
+            Instant cutoff = Instant.now().minusSeconds(1);
+            // Evict timestamps older than 1 second
+            while (!window.isEmpty() && window.peekFirst().isBefore(cutoff)) {
+                window.pollFirst();
+            }
+            if (window.size() >= route.getRateLimitPerSec()) {
+                throw new BusinessException("Rate limit exceeded for route " + route.getRouteCode()
+                        + ": " + route.getRateLimitPerSec() + " requests/sec");
+            }
+            window.addLast(Instant.now());
         }
     }
 
     private void applyTransformation(IntegrationMessage message, Map<String, Object> transformSpec) {
-        // XSLT / JSONata transformation not yet implemented.
-        log.debug("Transform spec present but not applied: messageId={}, spec keys={}", message.getMessageId(), transformSpec.keySet());
+        // Transformation spec is present but no runtime transformer is available.
+        // Fail explicitly so callers know the message was not transformed.
+        String type = transformSpec.get("type") != null ? transformSpec.get("type").toString() : "UNKNOWN";
+        throw new BusinessException("Message transformation not supported: transform type '"
+                + type + "' on message " + message.getMessageId()
+                + ". Supported transformations require an XSLT/JSONata engine to be configured.");
     }
 
     /**
@@ -235,11 +256,13 @@ public class EsbService {
             }
 
         } else {
-            // JMS, Kafka, SFTP, AMQP, etc. — not implemented
-            log.warn("Protocol {} not implemented for route {} — message {} moved to DEAD_LETTER",
+            // JMS, Kafka, SFTP, AMQP, etc. — fail with a clear error so callers can handle it.
+            // Messages will be retried via dead-letter queue once the protocol adapter is deployed.
+            message.setStatus("FAILED");
+            message.setErrorMessage("Protocol adapter not available: " + protocol
+                    + ". Configure a " + protocol + " adapter bean for route " + route.getRouteCode());
+            log.error("No protocol adapter for {} on route {} — message {} marked FAILED for DLQ retry",
                     protocol, route.getRouteCode(), message.getMessageId());
-            message.setStatus("DEAD_LETTER");
-            message.setErrorMessage("Protocol not implemented: " + protocol);
         }
     }
 

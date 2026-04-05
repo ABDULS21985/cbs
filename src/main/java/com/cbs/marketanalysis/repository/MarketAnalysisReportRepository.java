@@ -10,4 +10,7 @@ public interface MarketAnalysisReportRepository extends JpaRepository<MarketAnal
     Optional<MarketAnalysisReport> findByReportCode(String reportCode);
     List<MarketAnalysisReport> findByAnalysisTypeAndStatusOrderByAnalysisDateDesc(String analysisType, String status);
     List<MarketAnalysisReport> findByStatusOrderByAnalysisDateDesc(String status);
+    List<MarketAnalysisReport> findByAnalystContainingIgnoreCaseOrderByAnalysisDateDesc(String analyst);
+    List<MarketAnalysisReport> findByRegionAndStatusOrderByAnalysisDateDesc(String region, String status);
+    boolean existsByReportNameAndAnalysisType(String reportName, String analysisType);
 }

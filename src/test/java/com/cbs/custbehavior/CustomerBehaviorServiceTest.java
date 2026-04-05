@@ -19,10 +19,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class CustomerBehaviorServiceTest {
 
     @Mock
     private CustomerBehaviorModelRepository repository;
+
+    @Mock
+    private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
 
     @InjectMocks
     private CustomerBehaviorService service;

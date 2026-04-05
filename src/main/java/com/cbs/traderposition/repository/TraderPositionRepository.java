@@ -8,10 +8,13 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface TraderPositionRepository extends JpaRepository<TraderPosition, Long> {
     List<TraderPosition> findByDealerIdAndStatus(String dealerId, String status);
+    Optional<TraderPosition> findByDealerIdAndInstrumentCodeAndCurrencyAndStatus(String dealerId, String instrumentCode, String currency, String status);
+    Optional<TraderPosition> findByPositionRef(String positionRef);
 
     @Query("SELECT p FROM TraderPosition p WHERE p.deskId = :deskId AND p.positionDate = " +
            "(SELECT MAX(p2.positionDate) FROM TraderPosition p2 WHERE p2.deskId = :deskId)")

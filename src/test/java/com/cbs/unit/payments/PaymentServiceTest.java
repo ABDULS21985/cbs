@@ -15,6 +15,8 @@ import com.cbs.payments.repository.FxRateRepository;
 import com.cbs.payments.repository.PaymentBatchRepository;
 import com.cbs.payments.repository.PaymentInstructionRepository;
 import com.cbs.payments.service.PaymentService;
+import com.cbs.sanctions.service.SanctionsScreeningService;
+import com.cbs.sanctions.entity.ScreeningRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -55,6 +57,8 @@ class PaymentServiceTest {
         @Mock private AccountRepository accountRepository;
         @Mock private AccountPostingService accountPostingService;
         @Mock private CbsProperties cbsProperties;
+        @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
+        @Mock private SanctionsScreeningService sanctionsScreeningService;
 
         @InjectMocks private PaymentService paymentService;
 
@@ -159,6 +163,8 @@ class PaymentServiceTest {
         @Mock private AccountRepository accountRepository;
         @Mock private AccountPostingService accountPostingService;
         @Mock private CbsProperties cbsProperties;
+        @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
+        @Mock private SanctionsScreeningService sanctionsScreeningService;
 
         @InjectMocks private PaymentService paymentService;
 
@@ -195,6 +201,9 @@ class PaymentServiceTest {
             when(accountRepository.findById(1L)).thenReturn(Optional.of(debitAccount));
             when(paymentRepository.getNextInstructionSequence()).thenReturn(100L);
             when(accountRepository.findByAccountNumber("2000000001")).thenReturn(Optional.of(localCredit));
+            when(sanctionsScreeningService.screenName(anyString(), anyString(), anyString(),
+                    any(), any(), any(), any(), anyString(), any(), any()))
+                    .thenReturn(ScreeningRequest.builder().status("CLEAR").totalMatches(0).build());
             when(paymentRepository.save(any(PaymentInstruction.class))).thenAnswer(inv -> inv.getArgument(0));
             when(accountPostingService.postTransfer(any(Account.class), any(Account.class), any(BigDecimal.class),
                     any(BigDecimal.class), anyString(), anyString(), any(com.cbs.account.entity.TransactionChannel.class),
@@ -222,6 +231,9 @@ class PaymentServiceTest {
             when(accountRepository.findById(1L)).thenReturn(Optional.of(debitAccount));
             when(paymentRepository.getNextInstructionSequence()).thenReturn(101L);
             when(accountRepository.findByAccountNumber("EXT_ACC_001")).thenReturn(Optional.empty());
+            when(sanctionsScreeningService.screenName(anyString(), anyString(), anyString(),
+                    any(), any(), any(), any(), anyString(), any(), any()))
+                    .thenReturn(ScreeningRequest.builder().status("CLEAR").totalMatches(0).build());
             when(paymentRepository.save(any(PaymentInstruction.class))).thenAnswer(inv -> inv.getArgument(0));
             when(accountPostingService.postDebitAgainstGl(any(Account.class), any(com.cbs.account.entity.TransactionType.class),
                     any(BigDecimal.class), anyString(), any(com.cbs.account.entity.TransactionChannel.class), anyString(),
@@ -252,6 +264,8 @@ class PaymentServiceTest {
         @Mock private AccountRepository accountRepository;
         @Mock private AccountPostingService accountPostingService;
         @Mock private CbsProperties cbsProperties;
+        @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
+        @Mock private SanctionsScreeningService sanctionsScreeningService;
 
         @InjectMocks private PaymentService paymentService;
 
@@ -279,6 +293,9 @@ class PaymentServiceTest {
             when(accountPostingService.postDebitAgainstGl(any(Account.class), any(com.cbs.account.entity.TransactionType.class),
                     any(BigDecimal.class), anyString(), any(com.cbs.account.entity.TransactionChannel.class), anyString(),
                     anyList(), anyString(), anyString())).thenReturn(new com.cbs.account.entity.TransactionJournal());
+            when(sanctionsScreeningService.screenName(anyString(), anyString(), anyString(),
+                    any(), any(), any(), any(), anyString(), any(), any()))
+                    .thenReturn(ScreeningRequest.builder().status("CLEAR").totalMatches(0).build());
 
             PaymentInstruction result = paymentService.initiateSwiftTransfer(
                     1L, "GB82WEST12345698765432", "John Doe",

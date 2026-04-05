@@ -1,5 +1,6 @@
 package com.cbs.openbanking.service;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.openbanking.entity.*;
@@ -19,6 +20,7 @@ public class OpenBankingService {
 
     private final ApiClientRepository clientRepository;
     private final ApiConsentRepository consentRepository;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public ApiClientRegistration registerClient(ApiClient client, String rawApiKey) {
@@ -57,18 +59,67 @@ public class OpenBankingService {
         ApiConsent consent = consentRepository.findByConsentId(consentId)
                 .orElseThrow(() -> new ResourceNotFoundException("ApiConsent", "consentId", consentId));
         if (!consent.getCustomerId().equals(customerId)) throw new BusinessException("Consent does not belong to customer", "CONSENT_MISMATCH");
+        if (consent.getExpiresAt() != null && consent.getExpiresAt().isBefore(Instant.now())) {
+            consent.setStatus("EXPIRED");
+            consentRepository.save(consent);
+            throw new BusinessException("Consent " + consentId + " has expired", "CONSENT_EXPIRED");
+        }
+        if ("REVOKED".equals(consent.getStatus())) {
+            throw new BusinessException("Consent " + consentId + " has been revoked", "CONSENT_REVOKED");
+        }
         consent.setStatus("AUTHORISED");
         consent.setGrantedAt(Instant.now());
+        log.info("AUDIT: Consent authorised: consentId={}, customerId={}", consentId, customerId);
         return consentRepository.save(consent);
+    }
+
+    /**
+     * Validate that a consent is still valid (not expired, not revoked) before allowing API access.
+     */
+    public boolean validateConsent(String consentId, String requiredPermission) {
+        ApiConsent consent = consentRepository.findByConsentId(consentId)
+                .orElseThrow(() -> new ResourceNotFoundException("ApiConsent", "consentId", consentId));
+        if (!"AUTHORISED".equals(consent.getStatus())) return false;
+        if (consent.getExpiresAt() != null && consent.getExpiresAt().isBefore(Instant.now())) {
+            consent.setStatus("EXPIRED");
+            consentRepository.save(consent);
+            return false;
+        }
+        if (requiredPermission != null && consent.getPermissions() != null) {
+            return consent.getPermissions().contains(requiredPermission);
+        }
+        return true;
     }
 
     @Transactional
     public ApiConsent revokeConsent(String consentId) {
         ApiConsent consent = consentRepository.findByConsentId(consentId)
                 .orElseThrow(() -> new ResourceNotFoundException("ApiConsent", "consentId", consentId));
+        if ("REVOKED".equals(consent.getStatus())) {
+            throw new BusinessException("Consent " + consentId + " is already revoked", "ALREADY_REVOKED");
+        }
         consent.setStatus("REVOKED");
         consent.setRevokedAt(Instant.now());
+        String actor = currentActorProvider.getCurrentActor();
+        log.info("AUDIT: Consent revoked: consentId={}, actor={}", consentId, actor);
         return consentRepository.save(consent);
+    }
+
+    /**
+     * Enforce rate limiting for an API client. Returns true if allowed, false if rate limited.
+     * Updates the client's request count and checks against the configured limit.
+     */
+    @Transactional
+    public boolean enforceRateLimit(String clientId) {
+        ApiClient client = clientRepository.findByClientId(clientId)
+                .orElseThrow(() -> new ResourceNotFoundException("ApiClient", "clientId", clientId));
+        if (client.isRateLimited()) {
+            log.warn("Rate limit exceeded for client: {}", clientId);
+            return false;
+        }
+        client.incrementRequestCount();
+        clientRepository.save(client);
+        return true;
     }
 
     public List<ApiConsent> getCustomerConsents(Long customerId) {

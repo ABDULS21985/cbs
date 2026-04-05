@@ -38,6 +38,9 @@ public class DocumentService {
     private final DocumentRepository documentRepository;
     private final CurrentCustomerProvider currentCustomerProvider;
 
+    @org.springframework.beans.factory.annotation.Value("${document.storage.base-path:/var/data/document-store}")
+    private String storageBasePath;
+
     @Transactional
     public Document uploadDocument(Long customerId, DocumentType type, String fileName, String fileType,
                                      Long fileSizeBytes, String storagePath, String checksum,
@@ -66,11 +69,17 @@ public class DocumentService {
         enforcePortalOwnership(document);
         try {
             Path file = Path.of(document.getStoragePath());
-            if (!Files.exists(file)) {
+            // Path traversal protection: verify the resolved canonical path is within the storage base
+            Path basePath = Path.of(storageBasePath).toAbsolutePath().normalize();
+            Path resolvedFile = file.toAbsolutePath().normalize();
+            if (!resolvedFile.startsWith(basePath)) {
+                throw new BusinessException("Invalid document storage path", "DOCUMENT_PATH_TRAVERSAL");
+            }
+            if (!Files.exists(resolvedFile)) {
                 throw new BusinessException("Document file is not available", "DOCUMENT_FILE_MISSING");
             }
             return new DownloadedDocument(
-                    Files.readAllBytes(file),
+                    Files.readAllBytes(resolvedFile),
                     document.getFileName(),
                     resolveContentType(document)
             );
@@ -126,12 +135,20 @@ public class DocumentService {
 
         try {
             byte[] bytes = file.getBytes();
-            Path directory = Path.of("build", "document-store", "loans", String.valueOf(loanAccountId));
+            Path directory = Path.of(storageBasePath, "loans", String.valueOf(loanAccountId));
             Files.createDirectories(directory);
 
             String originalName = sanitizeFileName(file.getOriginalFilename());
             Path storagePath = directory.resolve(UUID.randomUUID() + "-" + originalName);
-            Files.write(storagePath, bytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+
+            // Path traversal protection on upload: verify resolved path is within storage base
+            Path basePath = Path.of(storageBasePath).toAbsolutePath().normalize();
+            Path resolvedStoragePath = storagePath.toAbsolutePath().normalize();
+            if (!resolvedStoragePath.startsWith(basePath)) {
+                throw new BusinessException("Invalid document storage path", "DOCUMENT_PATH_TRAVERSAL");
+            }
+
+            Files.write(resolvedStoragePath, bytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 
             return uploadDocument(
                     customerId,

@@ -19,12 +19,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
-import java.security.MessageDigest;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.HexFormat;
 import java.util.UUID;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +38,9 @@ public class CardService {
     private final AccountRepository accountRepository;
     private final AccountPostingService accountPostingService;
     private final CbsProperties cbsProperties;
+
+    @org.springframework.beans.factory.annotation.Value("${card.pan.hmac-key:ch4ng3-th1s-d3f4ult-k3y-in-pr0duct10n}")
+    private String panHmacKey;
 
     @Transactional
     public Card issueCard(Long accountId, CardType cardType, CardScheme cardScheme,
@@ -290,8 +294,10 @@ public class CardService {
 
     private String hashPan(String pan) {
         try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] hash = md.digest(pan.getBytes());
+            Mac mac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec keySpec = new SecretKeySpec(panHmacKey.getBytes(java.nio.charset.StandardCharsets.UTF_8), "HmacSHA256");
+            mac.init(keySpec);
+            byte[] hash = mac.doFinal(pan.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hash);
         } catch (Exception e) {
             throw new RuntimeException("PAN hashing failed", e);

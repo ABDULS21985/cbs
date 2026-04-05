@@ -6,4 +6,5 @@ public interface SalesLeadRepository extends JpaRepository<SalesLead, Long> {
     Optional<SalesLead> findByLeadNumber(String number);
     List<SalesLead> findByAssignedToAndStageInOrderByLeadScoreDesc(String assignedTo, List<String> stages);
     List<SalesLead> findByStageOrderByLeadScoreDesc(String stage);
+    Optional<SalesLead> findFirstByProspectEmailAndProductInterestAndStageIn(String prospectEmail, String productInterest, List<String> stages);
 }

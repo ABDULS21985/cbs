@@ -6,4 +6,6 @@ public interface ServiceDirectoryEntryRepository extends JpaRepository<ServiceDi
     Optional<ServiceDirectoryEntry> findByServiceCode(String code);
     List<ServiceDirectoryEntry> findByServiceCategoryAndIsActiveTrueOrderByServiceNameAsc(String category);
     List<ServiceDirectoryEntry> findByIsActiveTrueOrderByServiceCategoryAscServiceNameAsc();
+    List<ServiceDirectoryEntry> findByServiceNameContainingIgnoreCaseAndIsActiveTrueOrderByServiceNameAsc(String name);
+    boolean existsByServiceNameAndServiceCategory(String serviceName, String serviceCategory);
 }

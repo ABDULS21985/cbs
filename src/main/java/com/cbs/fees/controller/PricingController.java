@@ -56,7 +56,7 @@ public class PricingController {
 
     @PostMapping("/discounts/evaluate")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<DiscountScheme>> evaluateDiscount(
+    public ResponseEntity<ApiResponse<PricingService.DiscountResult>> evaluateDiscount(
             @RequestParam Long customerId, @RequestParam String feeCode, @RequestParam BigDecimal amount) {
         return ResponseEntity.ok(ApiResponse.ok(pricingService.evaluateDiscounts(customerId, feeCode, amount)));
     }

@@ -44,7 +44,7 @@ class GapAnalysisServiceTest {
         assertThat(planned.getRemediationOwner()).isEqualTo("John Doe");
 
         // Progress
-        ComplianceGapAnalysis inProgress = service.updateProgress(1L);
+        ComplianceGapAnalysis inProgress = service.updateProgress(1L, 50, "Remediation work started");
         assertThat(inProgress.getStatus()).isEqualTo("IN_PROGRESS");
 
         // Close
@@ -79,7 +79,10 @@ class GapAnalysisServiceTest {
         closedGap.setStatus("VERIFIED");
         closedGap.setRemediationTargetDate(LocalDate.now().minusDays(5));
 
-        when(repository.findAll()).thenReturn(List.of(overdueGap, onTimeGap, closedGap));
+        when(repository.findByRemediationTargetDateBeforeAndStatusNotIn(
+                any(LocalDate.class),
+                any(List.class)))
+                .thenReturn(List.of(overdueGap));
 
         List<ComplianceGapAnalysis> overdue = service.getOverdueRemediations();
 

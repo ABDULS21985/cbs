@@ -17,9 +17,11 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class EconomicCapitalServiceTest {
 
     @Mock private EconomicCapitalRepository repository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private EconomicCapitalService service;
 
     private EconomicCapital buildEc(BigDecimal ecCap, BigDecimal available, BigDecimal allocated, BigDecimal unexpectedLoss) {

@@ -6,4 +6,6 @@ public interface BrandGuidelineRepository extends JpaRepository<BrandGuideline, 
     Optional<BrandGuideline> findByGuidelineCode(String code);
     List<BrandGuideline> findByGuidelineTypeAndApprovalStatusOrderByGuidelineNameAsc(String type, String status);
     List<BrandGuideline> findByApprovalStatusOrderByGuidelineNameAsc(String status);
+    boolean existsByGuidelineNameAndGuidelineType(String guidelineName, String guidelineType);
+    List<BrandGuideline> findByGuidelineNameAndGuidelineTypeAndApprovalStatus(String name, String type, String status);
 }

@@ -6,4 +6,5 @@ public interface ModelLifecycleEventRepository extends JpaRepository<ModelLifecy
     Optional<ModelLifecycleEvent> findByEventCode(String code);
     List<ModelLifecycleEvent> findByModelCodeOrderByEventDateDesc(String modelCode);
     List<ModelLifecycleEvent> findByEventTypeAndStatusOrderByEventDateDesc(String eventType, String status);
+    List<ModelLifecycleEvent> findByModelCodeAndEventTypeOrderByEventDateDesc(String modelCode, String eventType);
 }

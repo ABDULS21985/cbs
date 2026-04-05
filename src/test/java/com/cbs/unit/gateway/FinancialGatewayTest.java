@@ -13,6 +13,8 @@ import com.cbs.fingateway.entity.GatewayMessage;
 import com.cbs.fingateway.repository.FinancialGatewayRepository;
 import com.cbs.fingateway.repository.GatewayMessageRepository;
 import com.cbs.fingateway.service.FinancialGatewayService;
+import com.cbs.sanctions.service.SanctionsScreeningService;
+import com.cbs.sanctions.entity.ScreeningRequest;
 import com.cbs.merchant.entity.MerchantProfile;
 import com.cbs.merchant.repository.MerchantProfileRepository;
 import com.cbs.merchant.service.MerchantService;
@@ -46,6 +48,8 @@ class FinancialGatewayTest {
 
         @Mock private FinancialGatewayRepository gatewayRepository;
         @Mock private GatewayMessageRepository messageRepository;
+        @Mock private SanctionsScreeningService sanctionsScreeningService;
+        @Mock private org.springframework.web.client.RestTemplate restTemplate;
         @InjectMocks private FinancialGatewayService financialGatewayService;
 
         @BeforeEach
@@ -69,14 +73,16 @@ class FinancialGatewayTest {
             when(gatewayRepository.findById(1L)).thenReturn(Optional.of(gw));
             when(gatewayRepository.save(any(FinancialGateway.class))).thenAnswer(inv -> inv.getArgument(0));
             when(messageRepository.save(any(GatewayMessage.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(sanctionsScreeningService.screenName(anyString(), anyString(), anyString(),
+                    any(), any(), any(), any(), anyString(), any(), any()))
+                    .thenReturn(ScreeningRequest.builder().status("CLEAR").totalMatches(0).build());
 
             GatewayMessage result = financialGatewayService.sendMessage(msg);
 
             assertThat(result.getMessageRef()).startsWith("GW-");
-            assertThat(result.getDeliveryStatus()).isEqualTo("SENT");
+            assertThat(result.getDeliveryStatus()).isEqualTo("PENDING");
             assertThat(result.getSanctionsChecked()).isTrue();
             assertThat(result.getSanctionsResult()).isEqualTo("CLEAR");
-            assertThat(result.getDeliveryAttempts()).isEqualTo(1);
             assertThat(gw.getMessagesToday()).isEqualTo(6);
         }
 

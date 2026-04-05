@@ -15,10 +15,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,6 +32,8 @@ public class SyndicatedLoanService {
 
     private static final String GL_SYNDICATED_LOAN_RECEIVABLE = "1450010";
     private static final String GL_NOSTRO_SETTLEMENT = "1100020";
+    private static final String GL_INTEREST_RECEIVABLE = "1450020";
+    private static final String GL_INTEREST_INCOME = "4100010";
 
     private final SyndicatedLoanFacilityRepository facilityRepository;
     private final SyndicateParticipantRepository participantRepository;
@@ -39,21 +43,54 @@ public class SyndicatedLoanService {
 
     @Transactional
     public SyndicatedLoanFacility createFacility(SyndicatedLoanFacility facility) {
+        if (!StringUtils.hasText(facility.getFacilityName())) {
+            throw new BusinessException("Facility name is required", "MISSING_FACILITY_NAME");
+        }
+        if (facility.getTotalFacilityAmount() == null || facility.getTotalFacilityAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Total facility amount must be positive", "INVALID_FACILITY_AMOUNT");
+        }
         facility.setFacilityCode("SLF-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
         facility.setUndrawnAmount(facility.getTotalFacilityAmount());
-        return facilityRepository.save(facility);
+        facility.setDrawnAmount(BigDecimal.ZERO);
+        facility.setStatus("DRAFT");
+        SyndicatedLoanFacility saved = facilityRepository.save(facility);
+        log.info("AUDIT: Syndicated loan facility created: code={}, amount={}, actor={}",
+                saved.getFacilityCode(), saved.getTotalFacilityAmount(), currentActorProvider.getCurrentActor());
+        return saved;
     }
 
     @Transactional
     public SyndicateParticipant addParticipant(String facilityCode, SyndicateParticipant participant) {
         SyndicatedLoanFacility facility = getByCode(facilityCode);
+        if (!StringUtils.hasText(participant.getParticipantName())) {
+            throw new BusinessException("Participant name is required", "MISSING_PARTICIPANT_NAME");
+        }
+        if (participant.getSharePct() == null || participant.getSharePct().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Share percentage must be positive", "INVALID_SHARE_PCT");
+        }
         participant.setFacilityId(facility.getId());
-        return participantRepository.save(participant);
+        SyndicateParticipant saved = participantRepository.save(participant);
+        log.info("AUDIT: Participant added: facility={}, participant={}, share={}%, actor={}",
+                facilityCode, participant.getParticipantName(), participant.getSharePct(),
+                currentActorProvider.getCurrentActor());
+        return saved;
     }
 
     @Transactional
     public SyndicateDrawdown requestDrawdown(String facilityCode, SyndicateDrawdown drawdown) {
         SyndicatedLoanFacility facility = getByCode(facilityCode);
+
+        // Validate drawdown amount against undrawn balance
+        if (drawdown.getAmount() == null || drawdown.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Drawdown amount must be positive", "INVALID_DRAWDOWN_AMOUNT");
+        }
+        if (drawdown.getAmount().compareTo(facility.getUndrawnAmount()) > 0) {
+            throw new BusinessException(
+                    String.format("Drawdown amount %s exceeds undrawn facility amount %s",
+                            drawdown.getAmount(), facility.getUndrawnAmount()),
+                    "DRAWDOWN_EXCEEDS_UNDRAWN");
+        }
+
         drawdown.setDrawdownRef("SDD-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
         drawdown.setFacilityId(facility.getId());
         drawdown.setStatus("REQUESTED");
@@ -63,10 +100,15 @@ public class SyndicatedLoanService {
             BigDecimal ourDrawdown = drawdown.getAmount()
                     .multiply(facility.getOurSharePct())
                     .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
+            // Our share amount tracked in log for reporting
             log.info("Our share of drawdown: {} ({}%)", ourDrawdown, facility.getOurSharePct());
         }
 
-        return drawdownRepository.save(drawdown);
+        SyndicateDrawdown saved = drawdownRepository.save(drawdown);
+        log.info("AUDIT: Drawdown requested: ref={}, amount={}, facility={}, actor={}",
+                saved.getDrawdownRef(), drawdown.getAmount(), facilityCode,
+                currentActorProvider.getCurrentActor());
+        return saved;
     }
 
     @Transactional
@@ -77,7 +119,6 @@ public class SyndicatedLoanService {
             throw new BusinessException("Drawdown " + drawdownRef + " must be APPROVED to fund; current status: " + drawdown.getStatus());
         }
 
-        // Validate drawdown amount does not exceed undrawn facility amount
         SyndicatedLoanFacility facility = facilityRepository.findById(drawdown.getFacilityId())
                 .orElseThrow(() -> new ResourceNotFoundException("SyndicatedLoanFacility", "id", drawdown.getFacilityId()));
         if (drawdown.getAmount().compareTo(facility.getUndrawnAmount()) > 0) {
@@ -122,10 +163,119 @@ public class SyndicatedLoanService {
         );
 
         SyndicateDrawdown saved = drawdownRepository.save(drawdown);
-        log.info("Drawdown funded: ref={}, amount={}, currency={}, facility={}, journalId={}, actor={}",
+        log.info("AUDIT: Drawdown funded: ref={}, amount={}, currency={}, facility={}, journalId={}, actor={}",
                 drawdownRef, drawdown.getAmount(), drawdown.getCurrency(),
                 facility.getFacilityCode(), journal.getId(), currentActorProvider.getCurrentActor());
         return saved;
+    }
+
+    @Transactional
+    public SyndicateDrawdown recordRepayment(String drawdownRef, BigDecimal repaymentAmount) {
+        SyndicateDrawdown drawdown = drawdownRepository.findByDrawdownRef(drawdownRef)
+                .orElseThrow(() -> new ResourceNotFoundException("SyndicateDrawdown", "drawdownRef", drawdownRef));
+        if (!"FUNDED".equals(drawdown.getStatus())) {
+            throw new BusinessException("Only FUNDED drawdowns can be repaid; current status: " + drawdown.getStatus(),
+                    "INVALID_DRAWDOWN_STATUS");
+        }
+        if (repaymentAmount == null || repaymentAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Repayment amount must be positive", "INVALID_REPAYMENT_AMOUNT");
+        }
+        if (repaymentAmount.compareTo(drawdown.getAmount()) > 0) {
+            throw new BusinessException("Repayment amount exceeds outstanding drawdown amount", "REPAYMENT_EXCEEDS_OUTSTANDING");
+        }
+
+        // Update facility
+        SyndicatedLoanFacility facility = facilityRepository.findById(drawdown.getFacilityId())
+                .orElseThrow(() -> new ResourceNotFoundException("SyndicatedLoanFacility", "id", drawdown.getFacilityId()));
+        facility.setDrawnAmount(facility.getDrawnAmount().subtract(repaymentAmount));
+        facility.setUndrawnAmount(facility.getTotalFacilityAmount().subtract(facility.getDrawnAmount()));
+        facilityRepository.save(facility);
+
+        // Update drawdown
+        BigDecimal remaining = drawdown.getAmount().subtract(repaymentAmount);
+        drawdown.setAmount(remaining);
+        if (remaining.compareTo(BigDecimal.ZERO) == 0) {
+            drawdown.setStatus("REPAID");
+        }
+
+        // GL posting: reverse the receivable
+        String narration = String.format("Syndicated loan repayment - %s", drawdownRef);
+        List<GeneralLedgerService.JournalLineRequest> journalLines = List.of(
+                new GeneralLedgerService.JournalLineRequest(
+                        GL_NOSTRO_SETTLEMENT,
+                        repaymentAmount, BigDecimal.ZERO,
+                        drawdown.getCurrency(), BigDecimal.ONE,
+                        narration, null, null, null, null),
+                new GeneralLedgerService.JournalLineRequest(
+                        GL_SYNDICATED_LOAN_RECEIVABLE,
+                        BigDecimal.ZERO, repaymentAmount,
+                        drawdown.getCurrency(), BigDecimal.ONE,
+                        narration, null, null, null, null)
+        );
+        generalLedgerService.postJournal("SYNDICATED_LOAN_REPAYMENT", narration,
+                "SYNDICATED_LOAN", drawdownRef + ":REPAY", LocalDate.now(),
+                currentActorProvider.getCurrentActor(), journalLines);
+
+        SyndicateDrawdown saved = drawdownRepository.save(drawdown);
+        log.info("AUDIT: Repayment recorded: ref={}, repayment={}, remaining={}, actor={}",
+                drawdownRef, repaymentAmount, remaining, currentActorProvider.getCurrentActor());
+        return saved;
+    }
+
+    /**
+     * Calculate interest accrual for a funded drawdown based on the facility rate and days elapsed.
+     */
+    @Transactional
+    public BigDecimal calculateInterest(String drawdownRef) {
+        SyndicateDrawdown drawdown = drawdownRepository.findByDrawdownRef(drawdownRef)
+                .orElseThrow(() -> new ResourceNotFoundException("SyndicateDrawdown", "drawdownRef", drawdownRef));
+        if (!"FUNDED".equals(drawdown.getStatus())) {
+            throw new BusinessException("Interest can only be calculated on FUNDED drawdowns", "INVALID_DRAWDOWN_STATUS");
+        }
+
+        SyndicatedLoanFacility facility = facilityRepository.findById(drawdown.getFacilityId())
+                .orElseThrow(() -> new ResourceNotFoundException("SyndicatedLoanFacility", "id", drawdown.getFacilityId()));
+
+        BigDecimal rate = drawdown.getInterestRate() != null ? drawdown.getInterestRate() : BigDecimal.ZERO;
+        LocalDate startDate = drawdown.getValueDate() != null ? drawdown.getValueDate() : LocalDate.now().minusDays(30);
+        long daysSinceDrawdown = ChronoUnit.DAYS.between(startDate, LocalDate.now());
+
+        // Simple interest: principal * rate/100 * days/365
+        BigDecimal interest = drawdown.getAmount()
+                .multiply(rate)
+                .multiply(BigDecimal.valueOf(daysSinceDrawdown))
+                .divide(BigDecimal.valueOf(36500), 4, RoundingMode.HALF_UP);
+
+        // Our share of interest
+        BigDecimal ourInterest = interest;
+        if (facility.getOurSharePct() != null && facility.getOurSharePct().compareTo(BigDecimal.ZERO) > 0) {
+            ourInterest = interest.multiply(facility.getOurSharePct())
+                    .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
+        }
+
+        // GL posting for interest accrual
+        if (ourInterest.compareTo(BigDecimal.ZERO) > 0) {
+            String narration = String.format("Interest accrual - drawdown %s, %d days", drawdownRef, daysSinceDrawdown);
+            List<GeneralLedgerService.JournalLineRequest> journalLines = List.of(
+                    new GeneralLedgerService.JournalLineRequest(
+                            GL_INTEREST_RECEIVABLE,
+                            ourInterest, BigDecimal.ZERO,
+                            drawdown.getCurrency(), BigDecimal.ONE,
+                            narration, null, null, null, null),
+                    new GeneralLedgerService.JournalLineRequest(
+                            GL_INTEREST_INCOME,
+                            BigDecimal.ZERO, ourInterest,
+                            drawdown.getCurrency(), BigDecimal.ONE,
+                            narration, null, null, null, null)
+            );
+            generalLedgerService.postJournal("SYNDICATED_LOAN_INTEREST", narration,
+                    "SYNDICATED_LOAN", drawdownRef + ":INT", LocalDate.now(),
+                    currentActorProvider.getCurrentActor(), journalLines);
+        }
+
+        log.info("AUDIT: Interest calculated: ref={}, principal={}, rate={}, days={}, interest={}, ourShare={}",
+                drawdownRef, drawdown.getAmount(), rate, daysSinceDrawdown, interest, ourInterest);
+        return ourInterest;
     }
 
     public List<SyndicatedLoanFacility> getByRole(String ourRole) {

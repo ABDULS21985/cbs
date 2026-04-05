@@ -1,5 +1,7 @@
 package com.cbs.guidelinecompliance.service;
 
+import com.cbs.common.audit.CurrentActorProvider;
+import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.guidelinecompliance.entity.GuidelineAssessment;
 import com.cbs.guidelinecompliance.repository.GuidelineAssessmentRepository;
@@ -20,16 +22,34 @@ import java.util.UUID;
 public class GuidelineComplianceService {
 
     private final GuidelineAssessmentRepository repository;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public GuidelineAssessment create(GuidelineAssessment assessment) {
+        if (assessment.getTotalControls() <= 0) {
+            throw new BusinessException("Total controls must be greater than 0");
+        }
+        if (assessment.getCompliantControls() > assessment.getTotalControls()) {
+            throw new BusinessException("Compliant controls (" + assessment.getCompliantControls()
+                    + ") cannot exceed total controls (" + assessment.getTotalControls() + ")");
+        }
+        if (assessment.getNotApplicable() > assessment.getTotalControls()) {
+            throw new BusinessException("Not-applicable controls cannot exceed total controls");
+        }
         assessment.setAssessmentCode("GA-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
-        return repository.save(assessment);
+        assessment.setStatus("DRAFT");
+        GuidelineAssessment saved = repository.save(assessment);
+        String actor = currentActorProvider.getCurrentActor();
+        log.info("AUDIT: Guideline assessment created: code={}, source={}, actor={}", saved.getAssessmentCode(), saved.getGuidelineSource(), actor);
+        return saved;
     }
 
     @Transactional
     public GuidelineAssessment complete(String assessmentCode) {
         GuidelineAssessment assessment = getByCode(assessmentCode);
+        if ("COMPLETED".equals(assessment.getStatus())) {
+            throw new BusinessException("Assessment " + assessmentCode + " is already COMPLETED");
+        }
 
         int applicable = assessment.getTotalControls() - assessment.getNotApplicable();
         if (applicable > 0) {
@@ -54,6 +74,9 @@ public class GuidelineComplianceService {
         }
 
         assessment.setStatus("COMPLETED");
+        String actor = currentActorProvider.getCurrentActor();
+        log.info("AUDIT: Guideline assessment completed: code={}, score={}, rating={}, actor={}",
+                assessmentCode, assessment.getComplianceScorePct(), assessment.getOverallRating(), actor);
         return repository.save(assessment);
     }
 

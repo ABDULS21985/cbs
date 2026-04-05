@@ -23,6 +23,14 @@ public interface PaymentInstructionRepository extends JpaRepository<PaymentInstr
 
     List<PaymentInstruction> findByBatchIdOrderByBatchSequenceAsc(String batchId);
 
+        Optional<PaymentInstruction> findFirstByDebitAccountIdAndCreditAccountNumberAndAmountAndCurrencyCodeAndPaymentRailAndRemittanceInfoOrderByCreatedAtDesc(
+            Long debitAccountId,
+            String creditAccountNumber,
+            java.math.BigDecimal amount,
+            String currencyCode,
+            String paymentRail,
+            String remittanceInfo);
+
     @Query("SELECT p FROM PaymentInstruction p JOIN FETCH p.debitAccount WHERE p.id = :id")
     Optional<PaymentInstruction> findByIdWithDetails(@Param("id") Long id);
 

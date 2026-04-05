@@ -150,7 +150,20 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
             """)
     List<Account> findAccountsEligibleForEscheatment(@Param("cutoffDate") LocalDate cutoffDate);
 
-    // Interest-bearing active accounts for batch accrual
+    // Interest-bearing active accounts for batch accrual (paginated)
+    @Query(value = """
+            SELECT a FROM Account a JOIN a.product p
+            WHERE a.status = 'ACTIVE'
+            AND p.interestBearing = true
+            """,
+            countQuery = """
+            SELECT COUNT(a) FROM Account a JOIN a.product p
+            WHERE a.status = 'ACTIVE'
+            AND p.interestBearing = true
+            """)
+    Page<Account> findActiveInterestBearingAccounts(Pageable pageable);
+
+    // Legacy non-paginated variant kept for backward compatibility
     @Query("""
             SELECT a FROM Account a JOIN FETCH a.product p
             WHERE a.status = 'ACTIVE'

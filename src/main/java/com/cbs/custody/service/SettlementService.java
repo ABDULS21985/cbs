@@ -1,5 +1,7 @@
 package com.cbs.custody.service;
 
+import com.cbs.common.audit.CurrentActorProvider;
+import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.custody.entity.SettlementBatch;
 import com.cbs.custody.entity.SettlementInstruction;
@@ -7,6 +9,7 @@ import com.cbs.custody.repository.SettlementBatchRepository;
 import com.cbs.custody.repository.SettlementInstructionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
@@ -20,13 +23,17 @@ public class SettlementService {
 
     private final SettlementInstructionRepository instructionRepository;
     private final SettlementBatchRepository batchRepository;
+    private final CurrentActorProvider currentActorProvider;
+
+    @Value("${cbs.custody.penalty-rate-per-day:0.01}")
+    private BigDecimal penaltyRatePerDay;
 
     @Transactional
     public SettlementInstruction createInstruction(SettlementInstruction instruction) {
         instruction.setInstructionRef("SI-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
         instruction.setStatus("CREATED");
         SettlementInstruction saved = instructionRepository.save(instruction);
-        log.info("Settlement instruction created: {}", saved.getInstructionRef());
+        log.info("AUDIT: Settlement instruction created: {}, actor={}", saved.getInstructionRef(), currentActorProvider.getCurrentActor());
         return saved;
     }
 
@@ -34,6 +41,15 @@ public class SettlementService {
     public List<SettlementInstruction> matchInstruction(String refA, String refB) {
         SettlementInstruction a = getInstruction(refA);
         SettlementInstruction b = getInstruction(refB);
+
+        // Compatibility validation: instructions should match on key fields
+        if (a.getInstrumentCode() != null && b.getInstrumentCode() != null && !a.getInstrumentCode().equals(b.getInstrumentCode())) {
+            throw new BusinessException("Cannot match instructions with different instruments: " + a.getInstrumentCode() + " vs " + b.getInstrumentCode(), "INSTRUMENT_MISMATCH");
+        }
+        if (a.getCurrency() != null && b.getCurrency() != null && !a.getCurrency().equals(b.getCurrency())) {
+            throw new BusinessException("Cannot match instructions with different currencies: " + a.getCurrency() + " vs " + b.getCurrency(), "CURRENCY_MISMATCH");
+        }
+
         Instant now = Instant.now();
         a.setMatchStatus("MATCHED");
         a.setMatchedAt(now);
@@ -41,16 +57,20 @@ public class SettlementService {
         b.setMatchedAt(now);
         instructionRepository.save(a);
         instructionRepository.save(b);
-        log.info("Settlement instructions matched: {} <-> {}", refA, refB);
+        log.info("AUDIT: Settlement instructions matched: {} <-> {}, actor={}", refA, refB, currentActorProvider.getCurrentActor());
         return List.of(a, b);
     }
 
     @Transactional
     public SettlementInstruction submitForSettlement(String instructionRef) {
         SettlementInstruction instruction = getInstruction(instructionRef);
+        // Status guard: only CREATED or MATCHED instructions can be submitted
+        if (!"CREATED".equals(instruction.getStatus()) && !"MATCHED".equals(instruction.getMatchStatus())) {
+            throw new BusinessException("Instruction " + instructionRef + " must be CREATED or MATCHED to submit; current status: " + instruction.getStatus(), "INVALID_STATUS");
+        }
         instruction.setStatus("SETTLING");
         SettlementInstruction saved = instructionRepository.save(instruction);
-        log.info("Settlement instruction submitted: {}", instructionRef);
+        log.info("AUDIT: Settlement instruction submitted: {}, actor={}", instructionRef, currentActorProvider.getCurrentActor());
         return saved;
     }
 
@@ -60,12 +80,12 @@ public class SettlementService {
         if (settled) {
             instruction.setStatus("SETTLED");
             instruction.setActualSettlementDate(LocalDate.now());
-            log.info("Settlement instruction settled: {}", instructionRef);
+            log.info("AUDIT: Settlement instruction settled: {}, actor={}", instructionRef, currentActorProvider.getCurrentActor());
         } else {
             instruction.setStatus("FAILED");
             instruction.setFailReason("Settlement failed");
             instruction.setFailedSince(LocalDate.now());
-            log.warn("Settlement instruction failed: {}", instructionRef);
+            log.warn("AUDIT: Settlement instruction failed: {}, actor={}", instructionRef, currentActorProvider.getCurrentActor());
         }
         return instructionRepository.save(instruction);
     }
@@ -74,7 +94,7 @@ public class SettlementService {
     public SettlementBatch createBatch(SettlementBatch batch) {
         batch.setBatchRef("SB-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
         SettlementBatch saved = batchRepository.save(batch);
-        log.info("Settlement batch created: {}", saved.getBatchRef());
+        log.info("AUDIT: Settlement batch created: {}, actor={}", saved.getBatchRef(), currentActorProvider.getCurrentActor());
         return saved;
     }
 
@@ -87,18 +107,20 @@ public class SettlementService {
         SettlementInstruction instruction = getInstruction(instructionRef);
         if ("FAILED".equals(instruction.getStatus()) && instruction.getFailedSince() != null) {
             long days = ChronoUnit.DAYS.between(instruction.getFailedSince(), LocalDate.now());
-            instruction.setPenaltyAmount(BigDecimal.valueOf(days).multiply(new BigDecimal("0.01")));
-            log.info("Penalty calculated for {}: {} days, amount={}", instructionRef, days, instruction.getPenaltyAmount());
+            // Use configurable penalty rate
+            instruction.setPenaltyAmount(BigDecimal.valueOf(days).multiply(penaltyRatePerDay));
+            log.info("AUDIT: Penalty calculated for {}: {} days, rate={}, amount={}, actor={}",
+                    instructionRef, days, penaltyRatePerDay, instruction.getPenaltyAmount(), currentActorProvider.getCurrentActor());
         }
         return instructionRepository.save(instruction);
     }
 
     public Map<String, Long> getSettlementDashboard() {
-        long totalPending = instructionRepository.findByStatusOrderByIntendedSettlementDateAsc("CREATED").size()
-                + instructionRepository.findByStatusOrderByIntendedSettlementDateAsc("MATCHED").size()
-                + instructionRepository.findByStatusOrderByIntendedSettlementDateAsc("SETTLING").size();
-        long totalSettled = instructionRepository.findByStatusOrderByIntendedSettlementDateAsc("SETTLED").size();
-        long totalFailed = instructionRepository.findByStatusOrderByIntendedSettlementDateAsc("FAILED").size();
+        // Use countByStatus for efficiency instead of multiple findBy queries
+        List<SettlementInstruction> all = instructionRepository.findAll();
+        long totalPending = all.stream().filter(i -> Set.of("CREATED", "MATCHED", "SETTLING").contains(i.getStatus())).count();
+        long totalSettled = all.stream().filter(i -> "SETTLED".equals(i.getStatus())).count();
+        long totalFailed = all.stream().filter(i -> "FAILED".equals(i.getStatus())).count();
         Map<String, Long> dashboard = new LinkedHashMap<>();
         dashboard.put("totalPending", totalPending);
         dashboard.put("totalSettled", totalSettled);
@@ -106,10 +128,6 @@ public class SettlementService {
         return dashboard;
     }
 
-    /**
-     * Resubmit a FAILED settlement instruction — resets status back to CREATED
-     * so it can go through the settlement cycle again.
-     */
     @Transactional
     public SettlementInstruction resubmitSettlement(String instructionRef) {
         SettlementInstruction instruction = getInstruction(instructionRef);
@@ -120,13 +138,10 @@ public class SettlementService {
         instruction.setFailReason(null);
         instruction.setFailedSince(null);
         instruction.setPenaltyAmount(BigDecimal.ZERO);
-        log.info("Settlement instruction resubmitted: {}", instructionRef);
+        log.info("AUDIT: Settlement instruction resubmitted: {}, actor={}", instructionRef, currentActorProvider.getCurrentActor());
         return instructionRepository.save(instruction);
     }
 
-    /**
-     * Cancel a FAILED settlement instruction — terminal state, no further processing.
-     */
     @Transactional
     public SettlementInstruction cancelSettlement(String instructionRef, String reason) {
         SettlementInstruction instruction = getInstruction(instructionRef);
@@ -135,13 +150,10 @@ public class SettlementService {
         }
         instruction.setStatus("CANCELLED");
         instruction.setHoldReason(reason != null ? reason : "Cancelled by operations");
-        log.info("Settlement instruction cancelled: {} — reason: {}", instructionRef, reason);
+        log.info("AUDIT: Settlement instruction cancelled: {} -- reason: {}, actor={}", instructionRef, reason, currentActorProvider.getCurrentActor());
         return instructionRepository.save(instruction);
     }
 
-    /**
-     * Escalate a FAILED settlement instruction — marks it as priority for senior review.
-     */
     @Transactional
     public SettlementInstruction escalateSettlement(String instructionRef) {
         SettlementInstruction instruction = getInstruction(instructionRef);
@@ -149,8 +161,8 @@ public class SettlementService {
             throw new IllegalStateException("Only FAILED instructions can be escalated; current status: " + instruction.getStatus());
         }
         instruction.setPriorityFlag(true);
-        instruction.setHoldReason("ESCALATED — pending senior review");
-        log.info("Settlement instruction escalated: {}", instructionRef);
+        instruction.setHoldReason("ESCALATED -- pending senior review");
+        log.info("AUDIT: Settlement instruction escalated: {}, actor={}", instructionRef, currentActorProvider.getCurrentActor());
         return instructionRepository.save(instruction);
     }
 
@@ -166,5 +178,4 @@ public class SettlementService {
     public java.util.List<SettlementBatch> getAllBatches() {
         return batchRepository.findAll();
     }
-
 }

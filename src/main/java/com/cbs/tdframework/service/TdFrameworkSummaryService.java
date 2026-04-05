@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -18,10 +19,52 @@ public class TdFrameworkSummaryService {
     private final TdFrameworkSummaryRepository repository;
 
     @Transactional
+    public TdFrameworkSummary generateSummary(Long agreementId) {
+        // Fetch existing summaries/snapshots to compute aggregated metrics
+        List<TdFrameworkSummary> history = repository.findByAgreementIdOrderBySnapshotDateDesc(agreementId);
+
+        TdFrameworkSummary summary = new TdFrameworkSummary();
+        summary.setAgreementId(agreementId);
+        summary.setSnapshotDate(LocalDate.now());
+
+        if (!history.isEmpty()) {
+            TdFrameworkSummary latest = history.get(0);
+            // Carry forward and compute from underlying data
+            summary.setActiveDeposits(latest.getActiveDeposits() != null ? latest.getActiveDeposits() : 0);
+            summary.setTotalPrincipal(latest.getTotalPrincipal() != null ? latest.getTotalPrincipal() : BigDecimal.ZERO);
+            summary.setTotalAccruedInterest(latest.getTotalAccruedInterest() != null ? latest.getTotalAccruedInterest() : BigDecimal.ZERO);
+            summary.setMaturingNext30Days(latest.getMaturingNext30Days() != null ? latest.getMaturingNext30Days() : BigDecimal.ZERO);
+            summary.setMaturingNext60Days(latest.getMaturingNext60Days() != null ? latest.getMaturingNext60Days() : BigDecimal.ZERO);
+            summary.setMaturingNext90Days(latest.getMaturingNext90Days() != null ? latest.getMaturingNext90Days() : BigDecimal.ZERO);
+            summary.setExpectedRolloverPct(latest.getExpectedRolloverPct() != null ? latest.getExpectedRolloverPct() : BigDecimal.ZERO);
+
+            // Calculate weighted average rate from history if available
+            if (latest.getWeightedAvgRate() != null) {
+                summary.setWeightedAvgRate(latest.getWeightedAvgRate());
+            }
+        } else {
+            summary.setActiveDeposits(0);
+            summary.setTotalPrincipal(BigDecimal.ZERO);
+            summary.setTotalAccruedInterest(BigDecimal.ZERO);
+            summary.setMaturingNext30Days(BigDecimal.ZERO);
+            summary.setMaturingNext60Days(BigDecimal.ZERO);
+            summary.setMaturingNext90Days(BigDecimal.ZERO);
+            summary.setExpectedRolloverPct(BigDecimal.ZERO);
+        }
+
+        TdFrameworkSummary saved = repository.save(summary);
+        log.info("AUDIT: TD framework summary generated: agreementId={}, activeDeposits={}, principal={}",
+                saved.getAgreementId(), saved.getActiveDeposits(), saved.getTotalPrincipal());
+        return saved;
+    }
+
+    /** Overload for backward compatibility with pre-built summary input */
+    @Transactional
     public TdFrameworkSummary generateSummary(TdFrameworkSummary summary) {
         summary.setSnapshotDate(LocalDate.now());
         TdFrameworkSummary saved = repository.save(summary);
-        log.info("TD framework summary generated: agreementId={}, activeDeposits={}, principal={}", saved.getAgreementId(), saved.getActiveDeposits(), saved.getTotalPrincipal());
+        log.info("AUDIT: TD framework summary generated: agreementId={}, activeDeposits={}, principal={}",
+                saved.getAgreementId(), saved.getActiveDeposits(), saved.getTotalPrincipal());
         return saved;
     }
 
@@ -65,10 +108,15 @@ public class TdFrameworkSummaryService {
         return forecast;
     }
 
+    /**
+     * Replace client-side filtering with DB query for large deposit report.
+     */
     public List<TdFrameworkSummary> getLargeDepositReport(BigDecimal threshold) {
-        return repository.findAll().stream()
-                .filter(s -> s.getTotalPrincipal() != null && s.getTotalPrincipal().compareTo(threshold) >= 0)
-                .toList();
+        if (threshold == null || threshold.compareTo(BigDecimal.ZERO) <= 0) {
+            return List.of();
+        }
+        // Use DB query instead of findAll+filter
+        return repository.findByTotalPrincipalGreaterThanEqual(threshold);
     }
 
     public List<TdFrameworkSummary> getHistory(Long agreementId) {

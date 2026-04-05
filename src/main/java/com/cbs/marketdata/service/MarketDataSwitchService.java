@@ -1,5 +1,7 @@
 package com.cbs.marketdata.service;
 
+import com.cbs.common.audit.CurrentActorProvider;
+import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.marketdata.entity.FeedOperationLog;
 import com.cbs.marketdata.entity.FeedQualityMetric;
@@ -13,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -30,29 +33,64 @@ public class MarketDataSwitchService {
     private final MarketDataSubscriptionRepository subscriptionRepository;
     private final FeedOperationLogRepository feedLogRepository;
     private final FeedQualityMetricRepository qualityMetricRepository;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public MarketDataSwitch registerSwitch(MarketDataSwitch mds) {
-        return switchRepository.save(mds);
+        if (!StringUtils.hasText(mds.getSwitchName())) {
+            throw new BusinessException("switchName is required", "MISSING_SWITCH_NAME");
+        }
+        if (!StringUtils.hasText(mds.getSwitchType())) {
+            throw new BusinessException("switchType is required", "MISSING_SWITCH_TYPE");
+        }
+        MarketDataSwitch saved = switchRepository.save(mds);
+        log.info("AUDIT: Market data switch registered by {}: id={}, name={}, type={}",
+                currentActorProvider.getCurrentActor(), saved.getId(), saved.getSwitchName(), saved.getSwitchType());
+        return saved;
     }
 
     @Transactional
     public MarketDataSwitch startSwitch(Long switchId) {
         MarketDataSwitch mds = getSwitchById(switchId);
+        // State guard: can only start from STOPPED or initial state
+        if ("RUNNING".equals(mds.getStatus())) {
+            throw new BusinessException("Switch " + switchId + " is already RUNNING", "ALREADY_RUNNING");
+        }
         mds.setStatus("RUNNING");
+        log.info("AUDIT: Market data switch started by {}: id={}, name={}",
+                currentActorProvider.getCurrentActor(), switchId, mds.getSwitchName());
         return switchRepository.save(mds);
     }
 
     @Transactional
     public MarketDataSwitch stopSwitch(Long switchId) {
         MarketDataSwitch mds = getSwitchById(switchId);
+        // State guard: can only stop if currently RUNNING
+        if (!"RUNNING".equals(mds.getStatus())) {
+            throw new BusinessException("Switch " + switchId + " is not RUNNING; current status: " + mds.getStatus(), "NOT_RUNNING");
+        }
         mds.setStatus("STOPPED");
+        log.info("AUDIT: Market data switch stopped by {}: id={}, name={}",
+                currentActorProvider.getCurrentActor(), switchId, mds.getSwitchName());
         return switchRepository.save(mds);
     }
 
     @Transactional
     public MarketDataSubscription addSubscription(MarketDataSubscription subscription) {
-        return subscriptionRepository.save(subscription);
+        // Validate required fields
+        if (!StringUtils.hasText(subscription.getSubscriberSystem())) {
+            throw new BusinessException("subscriberSystem is required", "MISSING_SUBSCRIBER");
+        }
+        if (!StringUtils.hasText(subscription.getDeliveryMethod())) {
+            throw new BusinessException("deliveryMethod is required", "MISSING_DELIVERY_METHOD");
+        }
+        if (!StringUtils.hasText(subscription.getDeliveryFrequency())) {
+            throw new BusinessException("deliveryFrequency is required", "MISSING_DELIVERY_FREQUENCY");
+        }
+        MarketDataSubscription saved = subscriptionRepository.save(subscription);
+        log.info("AUDIT: Market data subscription added by {}: subscriber={}, method={}, frequency={}",
+                currentActorProvider.getCurrentActor(), saved.getSubscriberSystem(), saved.getDeliveryMethod(), saved.getDeliveryFrequency());
+        return saved;
     }
 
     public List<MarketDataSwitch> getSwitchDashboard() {

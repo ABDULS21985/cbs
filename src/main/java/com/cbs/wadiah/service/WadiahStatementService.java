@@ -34,11 +34,9 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -47,7 +45,6 @@ import java.util.concurrent.atomic.AtomicLong;
 public class WadiahStatementService {
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("d MMM uuuu");
-    private static final AtomicLong STATEMENT_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
 
     private final WadiahAccountRepository wadiahAccountRepository;
     private final WadiahStatementConfigRepository wadiahStatementConfigRepository;
@@ -396,7 +393,8 @@ public class WadiahStatementService {
     }
 
     private String generateStatementReference(Long accountId) {
-        return "WAD-STMT-" + accountId + "-" + String.format("%06d", STATEMENT_SEQ.incrementAndGet());
+        return "WAD-STMT-" + accountId + "-"
+                + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
     }
 
     private void persistStatementRecord(String statementRef, Long accountId, LocalDate periodFrom,

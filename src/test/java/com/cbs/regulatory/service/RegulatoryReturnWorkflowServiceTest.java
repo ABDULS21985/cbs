@@ -2,9 +2,11 @@ package com.cbs.regulatory.service;
 
 import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
+import com.cbs.regulatory.dto.RegulatoryRequests;
 import com.cbs.regulatory.entity.RegulatoryDomainEnums;
 import com.cbs.regulatory.entity.RegulatoryReturn;
 import com.cbs.regulatory.entity.RegulatoryReturnLineItem;
+import com.cbs.regulatory.entity.RegulatoryReturnTemplate;
 import com.cbs.regulatory.entity.ReturnAuditEvent;
 import com.cbs.regulatory.repository.RegulatoryReturnLineItemRepository;
 import com.cbs.regulatory.repository.RegulatoryReturnRepository;
@@ -25,6 +27,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -36,6 +39,9 @@ class RegulatoryReturnWorkflowServiceTest {
     @Mock private RegulatoryReturnTemplateRepository templateRepository;
     @Mock private ReturnAuditEventRepository auditEventRepository;
     @Mock private RegulatoryTemplateEngine templateEngine;
+    @Mock private RegulatorySubmissionClient submissionClient;
+    @Mock private RegulatoryDeadlineService deadlineService;
+    @Mock private RegulatoryReferenceService referenceService;
     @Mock private CurrentActorProvider actorProvider;
     @Mock private CurrentTenantResolver tenantResolver;
 
@@ -78,6 +84,7 @@ class RegulatoryReturnWorkflowServiceTest {
         when(returnRepository.findById(5L)).thenReturn(Optional.of(original));
         when(actorProvider.getCurrentActor()).thenReturn("checker");
         when(tenantResolver.getCurrentTenantIdOrDefault(1L)).thenReturn(1L);
+        when(referenceService.nextAmendmentRef("RET-5")).thenReturn("RET-5-AMD-001");
         when(returnRepository.save(any(RegulatoryReturn.class))).thenAnswer(invocation -> {
             RegulatoryReturn saved = invocation.getArgument(0);
             if (saved.getId() == null) {
@@ -104,5 +111,61 @@ class RegulatoryReturnWorkflowServiceTest {
         assertThat(amendment.getStatus()).isEqualTo(RegulatoryDomainEnums.ReturnStatus.DRAFT);
         verify(lineItemRepository).save(any(RegulatoryReturnLineItem.class));
         verify(auditEventRepository).save(any(ReturnAuditEvent.class));
+    }
+
+    @Test
+    void submitToRegulator_persistsSubmissionAttemptAndResponse() throws Exception {
+        RegulatoryReturn regulatoryReturn = RegulatoryReturn.builder()
+                .id(11L)
+                .templateId(9L)
+                .templateCode("SAMA-CAR-ISL-V1")
+                .returnRef("RET-11")
+                .status(RegulatoryDomainEnums.ReturnStatus.APPROVED)
+                .generatedBy("maker")
+                .filingDeadline(LocalDate.of(2026, 4, 15))
+                .build();
+        RegulatoryReturnTemplate template = RegulatoryReturnTemplate.builder()
+                .id(9L)
+                .templateCode("SAMA-CAR-ISL-V1")
+                .jurisdiction(RegulatoryDomainEnums.Jurisdiction.SA_SAMA)
+                .returnType(RegulatoryDomainEnums.ReturnType.CAPITAL_ADEQUACY)
+                .outputFormat(RegulatoryDomainEnums.OutputFormat.XBRL)
+                .regulatorPortalUrl("https://eprudential.sama.gov.sa/api/returns")
+                .submissionConfig(java.util.Map.of("defaultMethod", "API"))
+                .build();
+        RegulatoryTemplateEngine.ExportArtifact artifact = new RegulatoryTemplateEngine.ExportArtifact(
+                "<xml/>".getBytes(), "application/xml", "RET-11.xml", java.util.Map.of("returnRef", "RET-11"));
+        RegulatoryRequests.SubmissionDetails details = RegulatoryRequests.SubmissionDetails.builder()
+                .submittedBy("compliance.user")
+                .submissionMethod("API")
+                .build();
+
+        when(returnRepository.findById(11L)).thenReturn(Optional.of(regulatoryReturn));
+        when(templateRepository.findById(9L)).thenReturn(Optional.of(template));
+        when(templateEngine.prepareExportArtifact(11L, RegulatoryDomainEnums.OutputFormat.XBRL)).thenReturn(artifact);
+        when(tenantResolver.getCurrentTenantIdOrDefault(1L)).thenReturn(1L);
+        when(actorProvider.getCurrentActor()).thenReturn("compliance.user");
+        when(submissionClient.submit(eq(template), eq(regulatoryReturn), eq(artifact), eq(details), eq(1L)))
+                .thenReturn(RegulatorySubmissionClient.SubmissionResult.builder()
+                        .success(true)
+                        .preparedOnly(false)
+                        .statusCode(202)
+                        .submittedAt(LocalDateTime.of(2026, 4, 10, 10, 0))
+                        .endpoint("https://eprudential.sama.gov.sa/api/returns")
+                        .contentType("application/xml")
+                        .responseBody("{\"accepted\":true}")
+                        .regulatorReferenceNumber("SAMA-ACK-001")
+                        .responseHeaders(java.util.Map.of("X-Reference", java.util.List.of("SAMA-ACK-001")))
+                        .durationMs(45)
+                        .build());
+        when(returnRepository.save(any(RegulatoryReturn.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        workflowService.submitToRegulator(11L, details);
+
+        assertThat(regulatoryReturn.getStatus()).isEqualTo(RegulatoryDomainEnums.ReturnStatus.SUBMITTED);
+        assertThat(regulatoryReturn.getSubmissionAttemptCount()).isEqualTo(1);
+        assertThat(regulatoryReturn.getRegulatorReferenceNumber()).isEqualTo("SAMA-ACK-001");
+        assertThat(regulatoryReturn.getSubmissionPayload()).contains("<xml/>");
+        assertThat(regulatoryReturn.getSubmissionResponse()).containsEntry("statusCode", 202);
     }
 }

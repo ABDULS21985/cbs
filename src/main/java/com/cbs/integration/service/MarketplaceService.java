@@ -85,6 +85,14 @@ public class MarketplaceService {
             default -> 1000;
         };
 
+        // Duplicate subscription check: same subscriber + same product + active/pending
+        Optional<MarketplaceSubscription> existingSub = subscriptionRepository
+                .findByApiProductIdAndSubscriberEmailAndStatusIn(productId, subscriberEmail, List.of("ACTIVE", "PENDING"));
+        if (existingSub.isPresent()) {
+            throw new BusinessException("Subscriber " + subscriberEmail + " already has an active/pending subscription ("
+                    + existingSub.get().getSubscriptionId() + ") for product " + product.getProductCode());
+        }
+
         MarketplaceSubscription sub = MarketplaceSubscription.builder()
                 .subscriptionId(subId).apiProductId(productId)
                 .subscriberName(subscriberName).subscriberEmail(subscriberEmail)
@@ -197,10 +205,7 @@ public class MarketplaceService {
         Instant since = Instant.now().minus(days, ChronoUnit.DAYS);
         List<MarketplaceUsageLog> logs = productId != null
                 ? usageLogRepository.findByApiProductIdAndCreatedAtAfterOrderByCreatedAtDesc(productId, since)
-                : usageLogRepository.findAll().stream()
-                    .filter(l -> l.getCreatedAt().isAfter(since))
-                    .sorted(java.util.Comparator.comparing(MarketplaceUsageLog::getCreatedAt).reversed())
-                    .toList();
+                : usageLogRepository.findByCreatedAtAfterOrderByCreatedAtDesc(since);
 
         // Group by productId + date
         Map<String, Map<String, Object>> grouped = new LinkedHashMap<>();
@@ -238,8 +243,24 @@ public class MarketplaceService {
             result.put("successCalls", bucket.get("successCalls"));
             result.put("errorCalls", bucket.get("errorCalls"));
             result.put("avgLatencyMs", total > 0 ? Math.round((double) totalLatency / total) : 0);
-            result.put("p95LatencyMs", Math.round(maxLatency * 0.95));
+            result.put("p95LatencyMs", calculateP95(logs, bucket));
             return result;
         }).toList();
+    }
+
+    /**
+     * Calculate actual P95 latency from the subset of logs belonging to a given date bucket.
+     */
+    private long calculateP95(List<MarketplaceUsageLog> allLogs, Map<String, Object> bucket) {
+        String date = (String) bucket.get("date");
+        Long pid = (Long) bucket.get("productId");
+        List<Integer> latencies = allLogs.stream()
+                .filter(l -> l.getApiProductId().equals(pid) && l.getCreatedAt().toString().startsWith(date))
+                .map(MarketplaceUsageLog::getResponseTimeMs)
+                .sorted()
+                .toList();
+        if (latencies.isEmpty()) return 0;
+        int index = (int) Math.ceil(latencies.size() * 0.95) - 1;
+        return latencies.get(Math.max(0, Math.min(index, latencies.size() - 1)));
     }
 }

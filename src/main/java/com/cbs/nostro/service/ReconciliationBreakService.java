@@ -183,13 +183,37 @@ public class ReconciliationBreakService {
 
     // ─── Compliance Score Trend ──────────────────────────────────────────────
 
+    /**
+     * Computes compliance score trend for the last 12 months based on actual
+     * break resolution rates: score = (resolved breaks / total breaks) * 100.
+     * Months with no breaks are scored at 100% (fully compliant).
+     */
     public List<ComplianceScoreDto> getComplianceScoreTrend() {
         List<ComplianceScoreDto> trend = new ArrayList<>();
         YearMonth current = YearMonth.now();
+
         for (int i = 11; i >= 0; i--) {
             YearMonth month = current.minusMonths(i);
-            // Score derived from break resolution rate
-            double score = 85.0 + (Math.random() * 15.0); // realistic range 85-100
+            LocalDate monthStart = month.atDay(1);
+            LocalDate monthEnd = month.atEndOfMonth();
+
+            // Query breaks detected within this month
+            List<ReconciliationBreak> monthBreaks = breakRepository.findByFilters(null, null, null)
+                    .stream()
+                    .filter(b -> !b.getDetectedDate().isBefore(monthStart) && !b.getDetectedDate().isAfter(monthEnd))
+                    .toList();
+
+            double score;
+            if (monthBreaks.isEmpty()) {
+                // No breaks detected means full compliance for the month
+                score = 100.0;
+            } else {
+                long resolved = monthBreaks.stream()
+                        .filter(b -> "RESOLVED".equals(b.getStatus()) || "WRITTEN_OFF".equals(b.getStatus()))
+                        .count();
+                score = ((double) resolved / monthBreaks.size()) * 100.0;
+            }
+
             trend.add(ComplianceScoreDto.builder()
                     .month(month.format(DateTimeFormatter.ofPattern("yyyy-MM")))
                     .score(Math.round(score * 10.0) / 10.0)

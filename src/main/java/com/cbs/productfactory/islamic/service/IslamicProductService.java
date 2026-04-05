@@ -465,13 +465,56 @@ public class IslamicProductService {
     }
 
     public List<IslamicProductResponse> getEligibleProducts(Long customerId) {
+        // Pre-fetch customer data once instead of re-querying per product (O(n) -> O(1) for customer lookups)
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", customerId));
+
+        Set<String> activeSegmentCodes = customerSegmentRepository.findActiveSegmentsForCustomer(customerId).stream()
+                .map(CustomerSegment::getSegment)
+                .filter(Objects::nonNull)
+                .map(segment -> segment.getCode())
+                .filter(StringUtils::hasText)
+                .map(code -> code.toUpperCase(Locale.ROOT))
+                .collect(java.util.stream.Collectors.toSet());
+
+        String customerCountry = defaultText(customer.getCountryOfResidence(),
+                defaultText(customer.getNationality(), ""));
+
         return productRepository.findByStatusAndEffectiveFromLessThanEqual(
                         IslamicDomainEnums.IslamicProductStatus.ACTIVE,
                         LocalDate.now())
                 .stream()
-                .filter(product -> isCustomerEligible(product.getId(), customerId))
+                .filter(product -> isCustomerEligibleWithPreFetchedData(
+                        product, customer, customerCountry, activeSegmentCodes))
                 .map(this::toResponse)
                 .toList();
+    }
+
+    /**
+     * Eligibility check using pre-fetched customer data to avoid N+1 queries.
+     */
+    private boolean isCustomerEligibleWithPreFetchedData(
+            IslamicProductTemplate product, Customer customer,
+            String customerCountry, Set<String> activeSegmentCodes) {
+        if (!product.getEligibleCustomerTypes().isEmpty()
+                && product.getEligibleCustomerTypes().stream().noneMatch(type ->
+                type.equalsIgnoreCase(customer.getCustomerType().name()) || "ANY".equalsIgnoreCase(type))) {
+            return false;
+        }
+        if (!product.getEligibleCountries().isEmpty()) {
+            if (product.getEligibleCountries().stream().noneMatch(code -> code.equalsIgnoreCase(customerCountry))) {
+                return false;
+            }
+        }
+        if (!product.getEligibleSegments().isEmpty()) {
+            boolean segmentMatch = product.getEligibleSegments().stream()
+                    .map(code -> code.toUpperCase(Locale.ROOT))
+                    .anyMatch(activeSegmentCodes::contains);
+            if (!segmentMatch) {
+                return false;
+            }
+        }
+        return isProductAvailableForNewContracts(product);
     }
 
     public BigDecimal getApplicableProfitRate(Long productId, Map<String, Object> context) {

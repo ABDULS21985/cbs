@@ -71,6 +71,8 @@ public class RegulatoryTemplateEngine {
     private final RegulatoryReturnLineItemRepository lineItemRepository;
     private final ReturnAuditEventRepository auditEventRepository;
     private final RegulatoryDataExtractionService extractionService;
+    private final RegulatoryDeadlineService deadlineService;
+    private final RegulatoryReferenceService referenceService;
     private final ObjectMapper objectMapper;
     private final CurrentActorProvider actorProvider;
     private final CurrentTenantResolver tenantResolver;
@@ -95,8 +97,12 @@ public class RegulatoryTemplateEngine {
                 .xbrlTaxonomy(request.getXbrlTaxonomy())
                 .reportingFrequency(parseEnum(RegulatoryDomainEnums.ReportingPeriodType.class, request.getReportingFrequency()))
                 .filingDeadlineDaysAfterPeriod(request.getFilingDeadlineDaysAfterPeriod() != null ? request.getFilingDeadlineDaysAfterPeriod() : 15)
+                .filingDeadlineBusinessDays(request.getFilingDeadlineBusinessDays() != null && request.getFilingDeadlineBusinessDays())
+                .filingCalendarCode(StringUtils.hasText(request.getFilingCalendarCode()) ? request.getFilingCalendarCode() : "CALENDAR_DAYS")
                 .regulatorFormNumber(request.getRegulatorFormNumber())
                 .regulatorPortalUrl(request.getRegulatorPortalUrl())
+                .schemaDefinition(request.getSchemaDefinition())
+                .submissionConfig(request.getSubmissionConfig())
                 .isActive(request.getIsActive() == null || request.getIsActive())
                 .approvedBy(StringUtils.hasText(request.getApprovedBy()) ? request.getApprovedBy() : currentActor())
                 .tenantId(currentTenantId())
@@ -130,10 +136,18 @@ public class RegulatoryTemplateEngine {
                 .filingDeadlineDaysAfterPeriod(request.getFilingDeadlineDaysAfterPeriod() != null
                         ? request.getFilingDeadlineDaysAfterPeriod()
                         : existing.getFilingDeadlineDaysAfterPeriod())
+                .filingDeadlineBusinessDays(request.getFilingDeadlineBusinessDays() != null
+                        ? request.getFilingDeadlineBusinessDays()
+                        : existing.getFilingDeadlineBusinessDays())
+                .filingCalendarCode(StringUtils.hasText(request.getFilingCalendarCode())
+                        ? request.getFilingCalendarCode()
+                        : existing.getFilingCalendarCode())
                 .regulatorFormNumber(StringUtils.hasText(request.getRegulatorFormNumber())
                         ? request.getRegulatorFormNumber() : existing.getRegulatorFormNumber())
                 .regulatorPortalUrl(StringUtils.hasText(request.getRegulatorPortalUrl())
                         ? request.getRegulatorPortalUrl() : existing.getRegulatorPortalUrl())
+                .schemaDefinition(request.getSchemaDefinition() != null ? request.getSchemaDefinition() : existing.getSchemaDefinition())
+                .submissionConfig(request.getSubmissionConfig() != null ? request.getSubmissionConfig() : existing.getSubmissionConfig())
                 .isActive(request.getIsActive() == null || request.getIsActive())
                 .approvedBy(StringUtils.hasText(request.getApprovedBy()) ? request.getApprovedBy() : currentActor())
                 .tenantId(currentTenantId())
@@ -149,11 +163,13 @@ public class RegulatoryTemplateEngine {
 
     @Transactional(readOnly = true)
     public RegulatoryReturnTemplate getActiveTemplate(String jurisdiction, String returnType) {
-        return templateRepository
-                .findTopByJurisdictionAndReturnTypeAndIsActiveTrueAndEffectiveFromLessThanEqualOrderByVersionNumberDesc(
-                        parseEnum(RegulatoryDomainEnums.Jurisdiction.class, jurisdiction),
-                        parseEnum(RegulatoryDomainEnums.ReturnType.class, returnType),
-                        LocalDate.now())
+        LocalDate today = LocalDate.now();
+        return templateRepository.findByJurisdictionAndIsActiveTrueOrderByReturnTypeAscVersionNumberDesc(
+                        parseEnum(RegulatoryDomainEnums.Jurisdiction.class, jurisdiction)).stream()
+                .filter(template -> template.getReturnType() == parseEnum(RegulatoryDomainEnums.ReturnType.class, returnType))
+                .filter(template -> !template.getEffectiveFrom().isAfter(today))
+                .filter(template -> template.getEffectiveTo() == null || !template.getEffectiveTo().isBefore(today))
+                .max(Comparator.comparingInt(RegulatoryReturnTemplate::getVersionNumber))
                 .orElseThrow(() -> new ResourceNotFoundException("RegulatoryReturnTemplate", "jurisdiction/returnType",
                         jurisdiction + "/" + returnType));
     }
@@ -280,27 +296,25 @@ public class RegulatoryTemplateEngine {
     }
 
     public byte[] exportReturn(Long returnId, RegulatoryDomainEnums.OutputFormat format) {
+        return prepareExportArtifact(returnId, format).body();
+    }
+
+    @Transactional(readOnly = true)
+    public ExportArtifact prepareExportArtifact(Long returnId, RegulatoryDomainEnums.OutputFormat format) {
         RegulatoryReturn regulatoryReturn = returnRepository.findById(returnId)
                 .orElseThrow(() -> new ResourceNotFoundException("RegulatoryReturn", "id", returnId));
+        RegulatoryReturnTemplate template = getTemplate(regulatoryReturn.getTemplateCode());
         List<RegulatoryReturnLineItem> items = lineItemRepository.findByReturnIdOrderBySectionCodeAscLineNumberAsc(returnId);
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("returnRef", regulatoryReturn.getReturnRef());
-        payload.put("templateCode", regulatoryReturn.getTemplateCode());
-        payload.put("jurisdiction", regulatoryReturn.getJurisdiction().name());
-        payload.put("returnType", regulatoryReturn.getReturnType().name());
-        payload.put("periodFrom", regulatoryReturn.getPeriodFrom());
-        payload.put("periodTo", regulatoryReturn.getPeriodTo());
-        payload.put("reportingDate", regulatoryReturn.getReportingDate());
-        payload.put("currencyCode", regulatoryReturn.getCurrencyCode());
-        payload.put("lineItems", items.stream().map(this::toLineMap).toList());
-
-        return switch (format) {
+        Map<String, Object> payload = regulatorPayload(template, regulatoryReturn, items);
+        byte[] body = switch (format) {
             case JSON -> writeJsonBytes(payload);
-            case XML, XBRL -> toXml(payload).getBytes(StandardCharsets.UTF_8);
+            case XML -> toRegulatorXml(template, regulatoryReturn, items).getBytes(StandardCharsets.UTF_8);
+            case XBRL -> toXbrl(template, regulatoryReturn, items).getBytes(StandardCharsets.UTF_8);
             case CSV -> toCsv(items).getBytes(StandardCharsets.UTF_8);
             case EXCEL -> toExcel(regulatoryReturn, items);
             case PDF -> toPdf(regulatoryReturn, items);
         };
+        return new ExportArtifact(body, contentType(format), exportFilename(regulatoryReturn, format), payload);
     }
 
     @Transactional(readOnly = true)
@@ -364,8 +378,7 @@ public class RegulatoryTemplateEngine {
                 .status(RegulatoryDomainEnums.ReturnStatus.GENERATED)
                 .generatedBy(currentActor())
                 .generatedAt(LocalDateTime.now())
-                .filingDeadline((periodTo != null ? periodTo : effectiveReportingDate)
-                        .plusDays(template.getFilingDeadlineDaysAfterPeriod()))
+                .filingDeadline(deadlineService.calculateDeadline(template, periodTo != null ? periodTo : effectiveReportingDate))
                 .previousPeriodReturnId(previous != null ? previous.getId() : null)
                 .tenantId(currentTenantId())
                 .build();
@@ -446,7 +459,7 @@ public class RegulatoryTemplateEngine {
         regulatoryReturn.setValidationErrors(Map.of("errors", validationResult.getErrors()));
         regulatoryReturn.setValidationWarnings(Map.of("warnings", validationResult.getWarnings()));
         regulatoryReturn.setCrossValidationStatus(validationResult.getCrossValidationStatus());
-        regulatoryReturn.setDeadlineBreach(LocalDate.now().isAfter(regulatoryReturn.getFilingDeadline()));
+        regulatoryReturn.setDeadlineBreach(deadlineService.isOverdue(regulatoryReturn, LocalDate.now()));
         if (regeneration) {
             regulatoryReturn.setStatus(RegulatoryDomainEnums.ReturnStatus.REVISED);
         }
@@ -597,6 +610,28 @@ public class RegulatoryTemplateEngine {
             case CONSTANT -> asDecimal(extractionRule.get("value"));
             case ECL_DATA -> extractEclData(extractionRule, regulatoryReturn.getReportingDate());
             case POOL_DATA -> extractPoolData(extractionRule, regulatoryReturn.getPeriodFrom(), regulatoryReturn.getPeriodTo(), regulatoryReturn.getReportingDate());
+            case CAPITAL_DATA -> extractionService.extractCapitalMetric(
+                    string(extractionRule.get("metric")),
+                    regulatoryReturn.getReportingDate(),
+                    extractionRule.get("alphaFactor") != null ? asDecimal(extractionRule.get("alphaFactor")) : null
+            );
+            case SHARIAH_DATA -> extractionService.extractShariahMetric(
+                    string(extractionRule.get("metric")),
+                    regulatoryReturn.getPeriodFrom(),
+                    regulatoryReturn.getPeriodTo()
+            );
+            case AML_DATA -> extractionService.extractAmlMetric(
+                    string(extractionRule.get("metric")),
+                    regulatoryReturn.getPeriodFrom(),
+                    regulatoryReturn.getPeriodTo(),
+                    string(extractionRule.get("jurisdiction"))
+            );
+            case FINANCING_DATA -> extractionService.extractFinancingMetric(
+                    string(extractionRule.get("contractType")),
+                    string(extractionRule.get("metric")),
+                    string(extractionRule.get("dimension")),
+                    regulatoryReturn.getReportingDate()
+            );
             case MANUAL -> null;
         };
         return value != null ? value.setScale(2, RoundingMode.HALF_UP).toPlainString() : null;
@@ -858,27 +893,89 @@ public class RegulatoryTemplateEngine {
         return builder.toString();
     }
 
-    private String toXml(Map<String, Object> payload) {
-        StringBuilder builder = new StringBuilder("<regulatoryReturn>");
-        payload.forEach((key, value) -> {
-            if ("lineItems".equals(key) && value instanceof List<?> list) {
-                builder.append("<lineItems>");
-                for (Object item : list) {
-                    builder.append("<lineItem>");
-                    map(item).forEach((itemKey, itemValue) ->
-                            builder.append("<").append(itemKey).append(">")
-                                    .append(escapeXml(String.valueOf(itemValue)))
-                                    .append("</").append(itemKey).append(">"));
-                    builder.append("</lineItem>");
-                }
-                builder.append("</lineItems>");
-            } else {
-                builder.append("<").append(key).append(">")
-                        .append(escapeXml(String.valueOf(value)))
-                        .append("</").append(key).append(">");
+    private String toRegulatorXml(RegulatoryReturnTemplate template,
+                                  RegulatoryReturn regulatoryReturn,
+                                  List<RegulatoryReturnLineItem> items) {
+        String root = xmlRoot(template);
+        String namespace = template.getSchemaDefinition() != null
+                ? string(template.getSchemaDefinition().get("namespace"))
+                : null;
+        StringBuilder builder = new StringBuilder();
+        builder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+        builder.append("<").append(root);
+        if (StringUtils.hasText(namespace)) {
+            builder.append(" xmlns=\"").append(escapeXml(namespace)).append("\"");
+        }
+        builder.append(">");
+        builder.append("<metadata>")
+                .append(tag("returnRef", regulatoryReturn.getReturnRef()))
+                .append(tag("templateCode", regulatoryReturn.getTemplateCode()))
+                .append(tag("jurisdiction", regulatoryReturn.getJurisdiction().name()))
+                .append(tag("returnType", regulatoryReturn.getReturnType().name()))
+                .append(tag("formNumber", template.getRegulatorFormNumber()))
+                .append(tag("periodFrom", String.valueOf(regulatoryReturn.getPeriodFrom())))
+                .append(tag("periodTo", String.valueOf(regulatoryReturn.getPeriodTo())))
+                .append(tag("reportingDate", String.valueOf(regulatoryReturn.getReportingDate())))
+                .append(tag("currency", regulatoryReturn.getCurrencyCode()))
+                .append("</metadata>");
+        builder.append("<sections>");
+        Map<String, List<RegulatoryReturnLineItem>> bySection = items.stream().collect(Collectors.groupingBy(
+                RegulatoryReturnLineItem::getSectionCode, LinkedHashMap::new, Collectors.toList()));
+        bySection.forEach((section, sectionItems) -> {
+            builder.append("<section code=\"").append(escapeXml(section)).append("\">");
+            for (RegulatoryReturnLineItem item : sectionItems) {
+                builder.append("<line>")
+                        .append(tag("lineNumber", item.getLineNumber()))
+                        .append(tag("description", item.getLineDescription()))
+                        .append(tag("value", item.getValue()))
+                        .append(tag("previousValue", item.getPreviousPeriodValue()))
+                        .append(tag("variance", item.getVariance()))
+                        .append("</line>");
             }
+            builder.append("</section>");
         });
-        builder.append("</regulatoryReturn>");
+        builder.append("</sections>");
+        builder.append("</").append(root).append(">");
+        return builder.toString();
+    }
+
+    private String toXbrl(RegulatoryReturnTemplate template,
+                          RegulatoryReturn regulatoryReturn,
+                          List<RegulatoryReturnLineItem> items) {
+        String taxonomy = StringUtils.hasText(template.getXbrlTaxonomy())
+                ? template.getXbrlTaxonomy()
+                : "urn:cbs:regulatory:" + template.getJurisdiction().name().toLowerCase(Locale.ROOT)
+                + ":" + template.getTemplateCode().toLowerCase(Locale.ROOT);
+        String prefix = "reg";
+        StringBuilder builder = new StringBuilder();
+        builder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
+                .append("<xbrli:xbrl xmlns:xbrli=\"http://www.xbrl.org/2003/instance\" ")
+                .append("xmlns:iso4217=\"http://www.xbrl.org/2003/iso4217\" ")
+                .append("xmlns:").append(prefix).append("=\"").append(escapeXml(taxonomy)).append("\">")
+                .append("<xbrli:context id=\"CTX1\">")
+                .append("<xbrli:entity><xbrli:identifier scheme=\"urn:cbs:tenant\">")
+                .append(currentTenantId())
+                .append("</xbrli:identifier></xbrli:entity>")
+                .append("<xbrli:period><xbrli:startDate>").append(regulatoryReturn.getPeriodFrom())
+                .append("</xbrli:startDate><xbrli:endDate>").append(regulatoryReturn.getPeriodTo())
+                .append("</xbrli:endDate></xbrli:period>")
+                .append("</xbrli:context>")
+                .append("<xbrli:unit id=\"CUR\"><xbrli:measure>iso4217:")
+                .append(regulatoryReturn.getCurrencyCode())
+                .append("</xbrli:measure></xbrli:unit>");
+        for (RegulatoryReturnLineItem item : items) {
+            String factName = sanitizeXmlName(item.getLineNumber());
+            builder.append("<").append(prefix).append(":").append(factName)
+                    .append(" contextRef=\"CTX1\"");
+            if (item.getDataType() == RegulatoryDomainEnums.ReturnLineDataType.AMOUNT
+                    || item.getDataType() == RegulatoryDomainEnums.ReturnLineDataType.PERCENTAGE) {
+                builder.append(" unitRef=\"CUR\" decimals=\"2\"");
+            }
+            builder.append(">")
+                    .append(escapeXml(string(item.getValue())))
+                    .append("</").append(prefix).append(":").append(factName).append(">");
+        }
+        builder.append("</xbrli:xbrl>");
         return builder.toString();
     }
 
@@ -947,6 +1044,39 @@ public class RegulatoryTemplateEngine {
         return pdf.getBytes(StandardCharsets.UTF_8);
     }
 
+    private Map<String, Object> regulatorPayload(RegulatoryReturnTemplate template,
+                                                 RegulatoryReturn regulatoryReturn,
+                                                 List<RegulatoryReturnLineItem> items) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("returnRef", regulatoryReturn.getReturnRef());
+        payload.put("templateCode", regulatoryReturn.getTemplateCode());
+        payload.put("jurisdiction", regulatoryReturn.getJurisdiction().name());
+        payload.put("returnType", regulatoryReturn.getReturnType().name());
+        payload.put("formNumber", template.getRegulatorFormNumber());
+        payload.put("schema", template.getSchemaDefinition());
+        payload.put("periodFrom", regulatoryReturn.getPeriodFrom());
+        payload.put("periodTo", regulatoryReturn.getPeriodTo());
+        payload.put("reportingDate", regulatoryReturn.getReportingDate());
+        payload.put("currencyCode", regulatoryReturn.getCurrencyCode());
+        payload.put("lineItems", items.stream().map(this::toLineMap).toList());
+        return payload;
+    }
+
+    private String xmlRoot(RegulatoryReturnTemplate template) {
+        if (template.getSchemaDefinition() != null && template.getSchemaDefinition().get("rootElement") != null) {
+            return sanitizeXmlName(String.valueOf(template.getSchemaDefinition().get("rootElement")));
+        }
+        return switch (template.getJurisdiction()) {
+            case SA_SAMA -> "SamaRegulatoryReturn";
+            case AE_CBUAE -> "CbuaeEprsReturn";
+            default -> "RegulatoryReturn";
+        };
+    }
+
+    private String tag(String name, String value) {
+        return "<" + name + ">" + escapeXml(value != null ? value : "") + "</" + name + ">";
+    }
+
     private byte[] writeJsonBytes(Map<String, Object> payload) {
         try {
             return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(payload);
@@ -981,8 +1111,22 @@ public class RegulatoryTemplateEngine {
     }
 
     private String buildReturnRef(RegulatoryReturnTemplate template, LocalDate reportingDate, LocalDate periodFrom, LocalDate periodTo) {
-        return template.getJurisdiction().name() + "-" + template.getReturnType().name() + "-" +
-                (periodTo != null ? periodTo : reportingDate) + "-" + System.nanoTime();
+        return referenceService.nextReturnRef(template, periodTo != null ? periodTo : reportingDate);
+    }
+
+    private String exportFilename(RegulatoryReturn regulatoryReturn, RegulatoryDomainEnums.OutputFormat format) {
+        return regulatoryReturn.getReturnRef() + "." + format.name().toLowerCase(Locale.ROOT);
+    }
+
+    private String contentType(RegulatoryDomainEnums.OutputFormat format) {
+        return switch (format) {
+            case JSON -> "application/json";
+            case XML -> "application/xml";
+            case XBRL -> "application/xbrl+xml";
+            case CSV -> "text/csv";
+            case EXCEL -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            case PDF -> "application/pdf";
+        };
     }
 
     private String defaultCurrency(RegulatoryDomainEnums.Jurisdiction jurisdiction) {
@@ -1056,10 +1200,24 @@ public class RegulatoryTemplateEngine {
     }
 
     private String escapeXml(String value) {
+        if (value == null) {
+            return "";
+        }
         return value.replace("&", "&amp;")
                 .replace("<", "&lt;")
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;");
+    }
+
+    private String sanitizeXmlName(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "value";
+        }
+        String sanitized = value.replaceAll("[^A-Za-z0-9_.-]", "_");
+        if (!Character.isLetter(sanitized.charAt(0)) && sanitized.charAt(0) != '_') {
+            sanitized = "n_" + sanitized;
+        }
+        return sanitized;
     }
 
     private int intValue(Object value, int defaultValue) {
@@ -1085,5 +1243,13 @@ public class RegulatoryTemplateEngine {
 
     private <E extends Enum<E>> E parseEnum(Class<E> enumClass, E value, E defaultValue) {
         return value != null ? value : defaultValue;
+    }
+
+    public record ExportArtifact(
+            byte[] body,
+            String contentType,
+            String filename,
+            Map<String, Object> payload
+    ) {
     }
 }

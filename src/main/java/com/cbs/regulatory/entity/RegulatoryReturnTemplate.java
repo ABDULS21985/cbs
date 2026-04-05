@@ -90,11 +90,26 @@ public class RegulatoryReturnTemplate extends AuditableEntity {
     @Column(name = "filing_deadline_days_after_period", nullable = false)
     private Integer filingDeadlineDaysAfterPeriod;
 
+    @Column(name = "filing_deadline_business_days", nullable = false)
+    @Builder.Default
+    private Boolean filingDeadlineBusinessDays = false;
+
+    @Column(name = "filing_calendar_code", length = 40)
+    private String filingCalendarCode;
+
     @Column(name = "regulator_form_number", length = 80)
     private String regulatorFormNumber;
 
     @Column(name = "regulator_portal_url", length = 255)
     private String regulatorPortalUrl;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "schema_definition", columnDefinition = "jsonb")
+    private Map<String, Object> schemaDefinition;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "submission_config", columnDefinition = "jsonb")
+    private Map<String, Object> submissionConfig;
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default

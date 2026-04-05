@@ -25,4 +25,10 @@ public interface IjarahRentalInstallmentRepository extends JpaRepository<IjarahR
     List<IjarahRentalInstallment> findByStatusInAndDueDateBefore(
             List<IjarahDomainEnums.RentalInstallmentStatus> statuses,
             LocalDate dueDate);
+
+    /** Find installments paid within a date range */
+    List<IjarahRentalInstallment> findByPaidDateBetween(LocalDate fromDate, LocalDate toDate);
+
+    /** Find installments for a specific contract paid within a date range */
+    List<IjarahRentalInstallment> findByContractIdAndPaidDateBetween(Long contractId, LocalDate fromDate, LocalDate toDate);
 }

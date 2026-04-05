@@ -145,6 +145,8 @@ public class CbsProperties {
     @Getter @Setter
     public static class LifecycleConfig {
         private int defaultDormancyDays = 365;
+        /** Minimum dormancy threshold across all products, used to pre-filter DB queries efficiently */
+        private int minDormancyDays = 90;
         private int escheatmentYears = 6;
         private String interestAccrualCron = "0 30 23 * * *";
         private String dormancyDetectionCron = "0 0 0 * * *";

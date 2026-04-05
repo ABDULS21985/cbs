@@ -85,15 +85,26 @@ public class InternetBankingService {
 
     @Transactional
     public int expireIdleSessions() {
-        List<InternetBankingSession> active = sessionRepository.findBySessionStatusOrderByLastActivityAtAsc("ACTIVE");
+        // Use paginated query with a pre-filter on lastActivityAt to avoid loading all active sessions.
+        // The idle timeout default is 15 minutes; use a conservative threshold to pre-filter at DB level.
+        Instant idleThreshold = Instant.now().minusSeconds(15 * 60L);
         int expired = 0;
-        for (InternetBankingSession s : active) {
-            if (s.isIdle() || s.isAbsoluteExpired()) {
-                s.setSessionStatus("EXPIRED");
-                sessionRepository.save(s);
-                expired++;
+        int pageNumber = 0;
+        final int batchSize = 500;
+        org.springframework.data.domain.Page<InternetBankingSession> page;
+        do {
+            page = sessionRepository.findBySessionStatusAndLastActivityAtBefore(
+                    "ACTIVE", idleThreshold,
+                    org.springframework.data.domain.PageRequest.of(pageNumber, batchSize));
+            for (InternetBankingSession s : page.getContent()) {
+                if (s.isIdle() || s.isAbsoluteExpired()) {
+                    s.setSessionStatus("EXPIRED");
+                    sessionRepository.save(s);
+                    expired++;
+                }
             }
-        }
+            pageNumber++;
+        } while (page.hasNext());
         if (expired > 0) log.info("Expired {} idle/absolute-timeout sessions", expired);
         return expired;
     }

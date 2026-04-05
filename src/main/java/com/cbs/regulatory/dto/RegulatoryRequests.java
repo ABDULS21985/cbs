@@ -37,8 +37,12 @@ public final class RegulatoryRequests {
         private String xbrlTaxonomy;
         private String reportingFrequency;
         private Integer filingDeadlineDaysAfterPeriod;
+        private Boolean filingDeadlineBusinessDays;
+        private String filingCalendarCode;
         private String regulatorFormNumber;
         private String regulatorPortalUrl;
+        private Map<String, Object> schemaDefinition;
+        private Map<String, Object> submissionConfig;
         private Boolean isActive;
         private String approvedBy;
     }
@@ -61,8 +65,12 @@ public final class RegulatoryRequests {
         private String xbrlTaxonomy;
         private String reportingFrequency;
         private Integer filingDeadlineDaysAfterPeriod;
+        private Boolean filingDeadlineBusinessDays;
+        private String filingCalendarCode;
         private String regulatorFormNumber;
         private String regulatorPortalUrl;
+        private Map<String, Object> schemaDefinition;
+        private Map<String, Object> submissionConfig;
         private Boolean isActive;
         private String approvedBy;
     }
@@ -111,6 +119,9 @@ public final class RegulatoryRequests {
         private String submissionMethod;
         private String regulatorReferenceNumber;
         private String regulatorPortal;
+        private String endpointOverride;
+        private Map<String, String> headers;
+        private Boolean dryRun;
     }
 
     @Getter

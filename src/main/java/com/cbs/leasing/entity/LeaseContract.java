@@ -46,6 +46,7 @@ public class LeaseContract {
     private LocalDate commencementDate;
     private LocalDate maturityDate;
     private BigDecimal earlyTerminationFee;
+    @Column(length = 7) private String lastDepreciationMonth;
     @Builder.Default private Instant createdAt = Instant.now();
     @Builder.Default private Instant updatedAt = Instant.now();
 }

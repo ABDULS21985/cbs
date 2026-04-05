@@ -2,6 +2,10 @@ package com.cbs.payments.islamic.service;
 
 import com.cbs.common.exception.BusinessException;
 import com.cbs.hijri.service.HijriCalendarService;
+import com.cbs.achops.entity.AchBatch;
+import com.cbs.achops.entity.AchItem;
+import com.cbs.achops.repository.AchItemRepository;
+import com.cbs.achops.service.AchService;
 import com.cbs.payments.entity.PaymentInstruction;
 import com.cbs.payments.islamic.dto.IslamicPaymentResponses;
 import com.cbs.payments.islamic.entity.DomesticPaymentConfig;
@@ -23,8 +27,11 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +44,8 @@ public class DomesticPaymentService {
     private final PaymentInstructionRepository paymentInstructionRepository;
     private final PaymentIslamicExtensionRepository extensionRepository;
     private final HijriCalendarService hijriCalendarService;
+    private final AchService achService;
+    private final AchItemRepository achItemRepository;
     private final IslamicPaymentSupport paymentSupport;
 
     public IslamicPaymentResponses.DomesticPaymentResult processDomesticPayment(Long paymentId) {
@@ -180,44 +189,114 @@ public class DomesticPaymentService {
         int successCount = 0;
         int failureCount = 0;
         BigDecimal totalAmount = BigDecimal.ZERO;
-        String batchRef = countryCode + "-ACH-" + valueDate + "-" + System.currentTimeMillis();
+        List<String> batchRefs = new ArrayList<>();
 
+        Map<Long, List<DomesticPaymentMessage>> messagesByOriginator = new LinkedHashMap<>();
         for (DomesticPaymentMessage message : pendingMessages) {
+            PaymentInstruction payment = paymentInstructionRepository.findById(message.getPaymentId()).orElse(null);
+            Long originatorAccountId = payment != null && payment.getDebitAccount() != null ? payment.getDebitAccount().getId() : -1L;
+            messagesByOriginator.computeIfAbsent(originatorAccountId, ignored -> new ArrayList<>()).add(message);
+        }
+
+        for (Map.Entry<Long, List<DomesticPaymentMessage>> groupedEntry : messagesByOriginator.entrySet()) {
             try {
-                PaymentIslamicExtension extension = extensionRepository.findByPaymentId(message.getPaymentId())
-                        .orElse(null);
-                if (extension != null && !Boolean.TRUE.equals(extension.isShariahScreened())) {
+                List<DomesticPaymentMessage> groupedMessages = groupedEntry.getValue();
+                List<PaymentInstruction> groupedPayments = groupedMessages.stream()
+                        .map(message -> paymentInstructionRepository.findById(message.getPaymentId()).orElse(null))
+                        .filter(java.util.Objects::nonNull)
+                        .toList();
+                if (groupedPayments.isEmpty()) {
+                    failureCount += groupedMessages.size();
+                    continue;
+                }
+
+                for (DomesticPaymentMessage message : groupedMessages) {
+                    PaymentIslamicExtension extension = extensionRepository.findByPaymentId(message.getPaymentId()).orElse(null);
+                    if (extension != null && !extension.isShariahScreened()) {
+                        throw new BusinessException("Payment not Shariah-screened before ACH submission", "PAYMENT_NOT_SCREENED");
+                    }
+                }
+
+                PaymentInstruction originatorPayment = groupedPayments.getFirst();
+                String originatorId = config.getBankParticipantCode() != null
+                        ? config.getBankParticipantCode()
+                        : originatorPayment.getDebitAccountNumber();
+                String originatorName = originatorPayment.getDebitAccount() != null
+                        ? originatorPayment.getDebitAccount().getAccountName()
+                        : "CBS Domestic Payments";
+                BigDecimal batchAmount = groupedPayments.stream()
+                        .map(PaymentInstruction::getAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                AchBatch batch = achService.createBatch(AchBatch.builder()
+                        .achOperator(resolveAchOperator(countryCode))
+                        .batchType("OUTBOUND")
+                        .originatorId(originatorId)
+                        .originatorName(originatorName)
+                        .originatorAccountId(groupedEntry.getKey())
+                        .currency(originatorPayment.getCurrencyCode())
+                        .totalTransactions(groupedMessages.size())
+                        .totalAmount(batchAmount)
+                        .effectiveDate(valueDate)
+                        .fileReference(countryCode + "-" + valueDate + "-" + Math.abs(groupedEntry.getKey()))
+                        .status("VALIDATED")
+                        .build());
+
+                List<AchItem> items = new ArrayList<>();
+                int sequence = 1;
+                for (DomesticPaymentMessage message : groupedMessages) {
+                    PaymentInstruction payment = groupedPayments.stream()
+                            .filter(candidate -> candidate.getId().equals(message.getPaymentId()))
+                            .findFirst()
+                            .orElse(null);
+                    if (payment == null) {
+                        continue;
+                    }
+                    items.add(AchItem.builder()
+                            .batch(batch)
+                            .sequenceNumber(sequence)
+                            .accountNumber(payment.getCreditAccountNumber())
+                            .routingNumber(payment.getBeneficiaryBankCode())
+                            .accountName(payment.getBeneficiaryName())
+                            .transactionCode("22")
+                            .amount(payment.getAmount())
+                            .addenda(payment.getInstructionRef())
+                            .status("PENDING")
+                            .build());
+
+                    message.setStatus(IslamicPaymentDomainEnums.MessageStatus.SUBMITTED);
+                    message.setSubmittedAt(LocalDateTime.now());
+                    message.setRejectedAt(null);
+                    message.setRejectionCode(null);
+                    message.setRejectionReason(null);
+                    message.setMessageContent(appendAchBatchMetadata(message.getMessageContent(), batch.getBatchId(), sequence));
+                    messageRepository.save(message);
+                    sequence++;
+                }
+
+                achItemRepository.saveAll(items);
+                AchBatch submittedBatch = achService.submit(batch.getBatchId());
+                batchRefs.add(submittedBatch.getBatchId());
+                totalAmount = totalAmount.add(batchAmount);
+                successCount += groupedMessages.size();
+            } catch (Exception e) {
+                log.error("Failed to submit ACH messages for originator {}: {}", groupedEntry.getKey(), e.getMessage());
+                for (DomesticPaymentMessage message : groupedEntry.getValue()) {
                     message.setStatus(IslamicPaymentDomainEnums.MessageStatus.REJECTED);
-                    message.setRejectionReason("Payment not Shariah-screened before ACH submission");
+                    message.setRejectionReason(e.getMessage());
                     message.setRejectedAt(LocalDateTime.now());
                     messageRepository.save(message);
                     failureCount++;
-                    continue;
                 }
-                message.setStatus(IslamicPaymentDomainEnums.MessageStatus.SUBMITTED);
-                message.setSubmittedAt(LocalDateTime.now());
-                messageRepository.save(message);
-
-                PaymentInstruction payment = paymentInstructionRepository.findById(message.getPaymentId()).orElse(null);
-                if (payment != null && payment.getAmount() != null) {
-                    totalAmount = totalAmount.add(payment.getAmount());
-                }
-                successCount++;
-            } catch (Exception e) {
-                log.error("Failed to submit ACH message id={}: {}", message.getId(), e.getMessage());
-                message.setStatus(IslamicPaymentDomainEnums.MessageStatus.REJECTED);
-                message.setRejectionReason(e.getMessage());
-                message.setRejectedAt(LocalDateTime.now());
-                messageRepository.save(message);
-                failureCount++;
             }
         }
 
-        log.info("ACH batch submitted: country={}, valueDate={}, batch={}, total={}, success={}, failed={}",
-                countryCode, valueDate, batchRef, pendingMessages.size(), successCount, failureCount);
+        log.info("ACH batch submitted: country={}, valueDate={}, batches={}, total={}, success={}, failed={}",
+                countryCode, valueDate, batchRefs, pendingMessages.size(), successCount, failureCount);
 
         return IslamicPaymentResponses.AchBatchResult.builder()
                 .countryCode(countryCode).valueDate(valueDate)
+                .batchRefs(batchRefs)
                 .totalMessages(pendingMessages.size()).successCount(successCount).failureCount(failureCount)
                 .totalAmount(totalAmount)
                 .build();
@@ -343,5 +422,26 @@ public class DomesticPaymentService {
     private PaymentIslamicExtension loadExtension(Long paymentId) {
         return extensionRepository.findByPaymentId(paymentId)
                 .orElseThrow(() -> new BusinessException("Islamic payment extension not found", "PAYMENT_ISLAMIC_EXTENSION_NOT_FOUND"));
+    }
+
+    private String resolveAchOperator(String countryCode) {
+        return switch (paymentSupport.uppercase(countryCode)) {
+            case "NG" -> "NIBSS";
+            case "US" -> "FEDACH";
+            case "GB" -> "BACS";
+            default -> "SEPA";
+        };
+    }
+
+    private String appendAchBatchMetadata(String messageContent, String batchRef, int sequenceNumber) {
+        if (!StringUtils.hasText(messageContent)) {
+            return "{\"achBatchRef\":\"" + batchRef + "\",\"sequenceNumber\":" + sequenceNumber + "}";
+        }
+        String trimmed = messageContent.trim();
+        if (trimmed.endsWith("}")) {
+            return trimmed.substring(0, trimmed.length() - 1)
+                    + ",\"achBatchRef\":\"" + batchRef + "\",\"sequenceNumber\":" + sequenceNumber + "}";
+        }
+        return trimmed + System.lineSeparator() + "ACH_BATCH_REF=" + batchRef + System.lineSeparator() + "SEQ=" + sequenceNumber;
     }
 }

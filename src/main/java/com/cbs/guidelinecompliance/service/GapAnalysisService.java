@@ -1,5 +1,7 @@
 package com.cbs.guidelinecompliance.service;
 
+import com.cbs.common.audit.CurrentActorProvider;
+import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.guidelinecompliance.entity.ComplianceGapAnalysis;
 import com.cbs.guidelinecompliance.repository.ComplianceGapAnalysisRepository;
@@ -17,13 +19,30 @@ import java.util.stream.Collectors;
 public class GapAnalysisService {
 
     private final ComplianceGapAnalysisRepository repository;
+    private final CurrentActorProvider currentActorProvider;
+
+    private static final Set<String> VALID_SEVERITIES = Set.of("CRITICAL", "HIGH", "MEDIUM", "LOW");
+    private static final Set<String> TERMINAL_STATUSES = Set.of("REMEDIATED", "VERIFIED", "ACCEPTED_RISK");
 
     @Transactional
     public ComplianceGapAnalysis identifyGap(ComplianceGapAnalysis gap) {
+        if (gap.getGapCategory() == null || gap.getGapCategory().isBlank()) {
+            throw new BusinessException("Gap category is required");
+        }
+        if (gap.getGapSeverity() == null || gap.getGapSeverity().isBlank()) {
+            throw new BusinessException("Gap severity is required");
+        }
+        if (!VALID_SEVERITIES.contains(gap.getGapSeverity())) {
+            throw new BusinessException("Invalid severity: " + gap.getGapSeverity() + ". Must be one of " + VALID_SEVERITIES);
+        }
+        if (gap.getGapDescription() == null || gap.getGapDescription().isBlank()) {
+            throw new BusinessException("Gap description is required");
+        }
         gap.setAnalysisCode("GA-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
         gap.setStatus("IDENTIFIED");
         ComplianceGapAnalysis saved = repository.save(gap);
-        log.info("Gap identified: code={}, severity={}, category={}", saved.getAnalysisCode(), saved.getGapSeverity(), saved.getGapCategory());
+        String actor = currentActorProvider.getCurrentActor();
+        log.info("AUDIT: Gap identified: code={}, severity={}, category={}, actor={}", saved.getAnalysisCode(), saved.getGapSeverity(), saved.getGapCategory(), actor);
         return saved;
     }
 
@@ -40,36 +59,68 @@ public class GapAnalysisService {
     }
 
     @Transactional
-    public ComplianceGapAnalysis updateProgress(Long gapId) {
+    public ComplianceGapAnalysis updateProgress(Long gapId, int percentageComplete, String progressNotes) {
         ComplianceGapAnalysis gap = getById(gapId);
+        if (TERMINAL_STATUSES.contains(gap.getStatus())) {
+            throw new BusinessException("Cannot update progress on gap " + gap.getAnalysisCode() + " in terminal status: " + gap.getStatus());
+        }
+        if (percentageComplete < 0 || percentageComplete > 100) {
+            throw new BusinessException("Percentage must be between 0 and 100");
+        }
+        if (progressNotes == null || progressNotes.isBlank()) {
+            throw new BusinessException("Progress notes are required when updating progress");
+        }
         gap.setStatus("IN_PROGRESS");
+        // Store progress in milestones map
+        Map<String, Object> milestones = gap.getRemediationMilestones() != null
+                ? new java.util.HashMap<>(gap.getRemediationMilestones()) : new java.util.HashMap<>();
+        milestones.put("percentageComplete", percentageComplete);
+        milestones.put("lastProgressNotes", progressNotes);
+        milestones.put("lastProgressAt", java.time.Instant.now().toString());
+        gap.setRemediationMilestones(milestones);
+        String actor = currentActorProvider.getCurrentActor();
+        log.info("AUDIT: Gap progress updated: code={}, progress={}%, actor={}", gap.getAnalysisCode(), percentageComplete, actor);
         return repository.save(gap);
     }
 
     @Transactional
     public ComplianceGapAnalysis closeGap(Long gapId) {
         ComplianceGapAnalysis gap = getById(gapId);
+        if (TERMINAL_STATUSES.contains(gap.getStatus())) {
+            throw new BusinessException("Gap " + gap.getAnalysisCode() + " is already in terminal status: " + gap.getStatus());
+        }
+        if (!"IN_PROGRESS".equals(gap.getStatus()) && !"REMEDIATION_PLANNED".equals(gap.getStatus())) {
+            throw new BusinessException("Gap " + gap.getAnalysisCode() + " must be IN_PROGRESS or REMEDIATION_PLANNED to close; current: " + gap.getStatus());
+        }
         gap.setRemediationActualDate(LocalDate.now());
         gap.setStatus("REMEDIATED");
-        log.info("Gap closed: code={}", gap.getAnalysisCode());
+        String actor = currentActorProvider.getCurrentActor();
+        log.info("AUDIT: Gap closed: code={}, actor={}", gap.getAnalysisCode(), actor);
         return repository.save(gap);
     }
 
     @Transactional
     public ComplianceGapAnalysis verifyGap(Long gapId, String verifiedBy) {
         ComplianceGapAnalysis gap = getById(gapId);
+        if (!"REMEDIATED".equals(gap.getStatus())) {
+            throw new BusinessException("Gap " + gap.getAnalysisCode() + " must be REMEDIATED to verify; current: " + gap.getStatus());
+        }
         gap.setVerifiedBy(verifiedBy);
         gap.setVerifiedAt(Instant.now());
         gap.setStatus("VERIFIED");
-        log.info("Gap verified: code={}, by={}", gap.getAnalysisCode(), verifiedBy);
+        log.info("AUDIT: Gap verified: code={}, by={}", gap.getAnalysisCode(), verifiedBy);
         return repository.save(gap);
     }
 
     @Transactional
     public ComplianceGapAnalysis acceptRisk(Long gapId) {
         ComplianceGapAnalysis gap = getById(gapId);
+        if (TERMINAL_STATUSES.contains(gap.getStatus())) {
+            throw new BusinessException("Gap " + gap.getAnalysisCode() + " is already in terminal status: " + gap.getStatus());
+        }
         gap.setStatus("ACCEPTED_RISK");
-        log.info("Risk accepted for gap: code={}", gap.getAnalysisCode());
+        String actor = currentActorProvider.getCurrentActor();
+        log.info("AUDIT: Risk accepted for gap: code={}, actor={}", gap.getAnalysisCode(), actor);
         return repository.save(gap);
     }
 
@@ -85,11 +136,9 @@ public class GapAnalysisService {
     }
 
     public List<ComplianceGapAnalysis> getOverdueRemediations() {
-        return repository.findAll().stream()
-                .filter(g -> g.getRemediationTargetDate() != null)
-                .filter(g -> g.getRemediationTargetDate().isBefore(LocalDate.now()))
-                .filter(g -> !"REMEDIATED".equals(g.getStatus()) && !"VERIFIED".equals(g.getStatus()) && !"ACCEPTED_RISK".equals(g.getStatus()))
-                .toList();
+        return repository.findByRemediationTargetDateBeforeAndStatusNotIn(
+                LocalDate.now(),
+                List.of("REMEDIATED", "VERIFIED", "ACCEPTED_RISK"));
     }
 
     public ComplianceGapAnalysis getByCode(String code) {

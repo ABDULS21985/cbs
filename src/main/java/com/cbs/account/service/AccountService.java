@@ -399,16 +399,23 @@ public class AccountService {
 
     @Transactional
     public int batchAccrueInterest() {
-        List<Account> accounts = accountRepository.findActiveInterestBearingAccounts();
         int processed = 0;
-        for (Account account : accounts) {
-            try {
-                accrueInterestForAccount(account.getId());
-                processed++;
-            } catch (Exception e) {
-                log.error("Interest accrual failed for account {}: {}", account.getAccountNumber(), e.getMessage());
+        int pageNumber = 0;
+        final int batchSize = 500;
+        Page<Account> page;
+        do {
+            page = accountRepository.findActiveInterestBearingAccounts(
+                    org.springframework.data.domain.PageRequest.of(pageNumber, batchSize));
+            for (Account account : page.getContent()) {
+                try {
+                    accrueInterestForAccount(account.getId());
+                    processed++;
+                } catch (Exception e) {
+                    log.error("Interest accrual failed for account {}: {}", account.getAccountNumber(), e.getMessage());
+                }
             }
-        }
+            pageNumber++;
+        } while (page.hasNext());
         log.info("Batch interest accrual: processed={}, convention={}",
                 processed, cbsProperties.getInterest().getDayCountConvention());
         return processed;

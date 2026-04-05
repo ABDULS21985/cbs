@@ -1,5 +1,7 @@
 package com.cbs.openitem.service;
 
+import com.cbs.common.audit.CurrentActorProvider;
+import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.openitem.entity.SecuritiesFail;
 import com.cbs.openitem.repository.SecuritiesFailRepository;
@@ -20,16 +22,40 @@ import java.util.stream.Collectors;
 public class SecuritiesFailService {
 
     private final SecuritiesFailRepository repository;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public SecuritiesFail recordFail(SecuritiesFail fail) {
+        if (fail.getFailType() == null || fail.getFailType().isBlank()) {
+            throw new BusinessException("Fail type is required");
+        }
+        if (fail.getInstrumentCode() == null || fail.getInstrumentCode().isBlank()) {
+            throw new BusinessException("Instrument code is required");
+        }
+        if (fail.getAmount() == null || fail.getAmount().signum() <= 0) {
+            throw new BusinessException("Fail amount must be positive");
+        }
+        if (fail.getFailStartDate() == null) {
+            throw new BusinessException("Fail start date is required");
+        }
+        // Duplicate check: same instrument, counterparty, date, and amount
+        if (fail.getCounterpartyCode() != null) {
+            Optional<SecuritiesFail> existing = repository.findByInstrumentCodeAndCounterpartyCodeAndFailStartDateAndAmount(
+                    fail.getInstrumentCode(), fail.getCounterpartyCode(), fail.getFailStartDate(), fail.getAmount());
+            if (existing.isPresent() && !"RESOLVED".equals(existing.get().getStatus()) && !"WRITTEN_OFF".equals(existing.get().getStatus())) {
+                throw new BusinessException("Duplicate fail already exists: " + existing.get().getFailRef()
+                        + " for instrument " + fail.getInstrumentCode() + " with counterparty " + fail.getCounterpartyCode());
+            }
+        }
         fail.setFailRef("SF-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
         fail.setStatus("OPEN");
         fail.setEscalationLevel("OPERATIONS");
         fail.setPenaltyAccrued(BigDecimal.ZERO);
         updateAging(fail);
         SecuritiesFail saved = repository.save(fail);
-        log.info("Securities fail recorded: ref={}, type={}, instrument={}", saved.getFailRef(), saved.getFailType(), saved.getInstrumentCode());
+        String actor = currentActorProvider.getCurrentActor();
+        log.info("AUDIT: Securities fail recorded: ref={}, type={}, instrument={}, amount={}, actor={}",
+                saved.getFailRef(), saved.getFailType(), saved.getInstrumentCode(), saved.getAmount(), actor);
         return saved;
     }
 
@@ -78,11 +104,18 @@ public class SecuritiesFailService {
     @Transactional
     public SecuritiesFail resolveFail(Long failId, String resolutionAction, String notes) {
         SecuritiesFail fail = getById(failId);
+        if ("RESOLVED".equals(fail.getStatus()) || "WRITTEN_OFF".equals(fail.getStatus())) {
+            throw new BusinessException("Fail " + fail.getFailRef() + " is already in terminal status: " + fail.getStatus());
+        }
+        if (resolutionAction == null || resolutionAction.isBlank()) {
+            throw new BusinessException("Resolution action is required");
+        }
         fail.setResolutionAction(resolutionAction);
         fail.setResolutionNotes(notes);
         fail.setResolvedAt(Instant.now());
         fail.setStatus("RESOLVED");
-        log.info("Fail resolved: ref={}, action={}", fail.getFailRef(), resolutionAction);
+        String actor = currentActorProvider.getCurrentActor();
+        log.info("AUDIT: Fail resolved: ref={}, action={}, actor={}", fail.getFailRef(), resolutionAction, actor);
         return repository.save(fail);
     }
 

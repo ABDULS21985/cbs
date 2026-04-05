@@ -2,10 +2,12 @@ package com.cbs.channel.service;
 
 import com.cbs.channel.entity.*;
 import com.cbs.channel.repository.*;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -17,16 +19,16 @@ import java.util.*;
 
 /**
  * Omnichannel Orchestration (Cap 52) — manages session continuity across all channels.
- * Also provides channel configuration for:
- * - Cap 53 (Mobile Banking SDK): channel=MOBILE with feature flags, limits, biometric config
- * - Cap 54 (Internet Banking Portal): channel=WEB with maker-checker, bulk upload config
- * - Cap 56 (Conversational Banking): channel=WHATSAPP/IVR with NLP service code mapping
  */
 @Service @RequiredArgsConstructor @Slf4j @Transactional(readOnly = true)
 public class OmnichannelService {
 
     private final ChannelSessionRepository sessionRepository;
     private final ChannelConfigRepository configRepository;
+    private final CurrentActorProvider currentActorProvider;
+
+    @Value("${cbs.channel.max-concurrent-sessions:5}")
+    private int maxConcurrentSessions;
 
     @Transactional
     public ChannelSession createSession(String channel, Long customerId, String deviceId,
@@ -34,6 +36,13 @@ public class OmnichannelService {
         ChannelConfig config = configRepository.findByChannel(channel).orElse(null);
         if (config != null && !Boolean.TRUE.equals(config.getIsEnabled())) {
             throw new BusinessException("Channel " + channel + " is currently disabled", "CHANNEL_DISABLED");
+        }
+
+        // Max concurrent sessions check
+        long activeSessions = sessionRepository.countByCustomerIdAndStatus(customerId, "ACTIVE");
+        if (activeSessions >= maxConcurrentSessions) {
+            throw new BusinessException("Customer " + customerId + " has reached the maximum concurrent session limit ("
+                    + maxConcurrentSessions + ")", "MAX_SESSIONS_EXCEEDED");
         }
 
         String sessionId = "SES-" + UUID.randomUUID().toString().substring(0, 16).toUpperCase();
@@ -45,19 +54,25 @@ public class OmnichannelService {
                 .timeoutSeconds(timeout).status("ACTIVE").build();
 
         ChannelSession saved = sessionRepository.save(session);
-        log.info("Channel session created: id={}, channel={}, customer={}", sessionId, channel, customerId);
+        log.info("AUDIT: Channel session created: id={}, channel={}, customer={}, actor={}",
+                sessionId, channel, customerId, currentActorProvider.getCurrentActor());
         return saved;
     }
 
     /**
      * Cross-channel handoff: transfers session context from one channel to another.
-     * E.g., customer starts on USSD, hands off to MOBILE to complete with biometrics.
      */
     @Transactional
     public ChannelSession handoffSession(String sourceSessionId, String targetChannel,
                                            String deviceId, String ipAddress) {
         ChannelSession source = sessionRepository.findBySessionId(sourceSessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("ChannelSession", "sessionId", sourceSessionId));
+
+        // Session status validation: reject handoff if session is already ENDED or EXPIRED
+        if ("ENDED".equals(source.getStatus()) || "EXPIRED".equals(source.getStatus())) {
+            throw new BusinessException("Cannot hand off session " + sourceSessionId
+                    + " with status " + source.getStatus(), "INVALID_SESSION_STATUS");
+        }
 
         source.setStatus("HANDED_OFF");
         source.setEndedAt(Instant.now());
@@ -66,10 +81,11 @@ public class OmnichannelService {
         ChannelSession target = createSession(targetChannel, source.getCustomerId(), deviceId, null, ipAddress, null);
         target.setParentSessionId(sourceSessionId);
         target.setHandoffFromChannel(source.getChannel());
-        target.setContextData(source.getContextData()); // Carry forward context
+        target.setContextData(source.getContextData());
         sessionRepository.save(target);
 
-        log.info("Session handoff: {} ({}) → {} ({})", sourceSessionId, source.getChannel(), target.getSessionId(), targetChannel);
+        log.info("AUDIT: Session handoff: {} ({}) -> {} ({}), actor={}",
+                sourceSessionId, source.getChannel(), target.getSessionId(), targetChannel, currentActorProvider.getCurrentActor());
         return target;
     }
 
@@ -87,6 +103,7 @@ public class OmnichannelService {
             s.setStatus("ENDED");
             s.setEndedAt(Instant.now());
             sessionRepository.save(s);
+            log.info("AUDIT: Session ended: id={}, actor={}", sessionId, currentActorProvider.getCurrentActor());
         });
     }
 

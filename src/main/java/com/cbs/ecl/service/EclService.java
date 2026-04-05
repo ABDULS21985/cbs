@@ -3,6 +3,8 @@ package com.cbs.ecl.service;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.ecl.entity.*;
 import com.cbs.ecl.repository.*;
+import com.cbs.gl.entity.GlBalance;
+import com.cbs.gl.repository.GlBalanceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -15,6 +17,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,6 +31,15 @@ public class EclService {
     private final EclBatchRunRepository batchRunRepository;
     private final EclProvisionMovementRepository provisionMovementRepository;
     private final EclPdTermStructureRepository pdTermStructureRepository;
+    private final GlBalanceRepository glBalanceRepository;
+
+    /**
+     * GL code prefix for ECL provision accounts.
+     * Convention: GL codes starting with "159" are loan-loss provision accounts.
+     */
+    private static final String ECL_PROVISION_GL_PREFIX = "159";
+    /** Tolerance threshold for reconciliation (minor rounding differences). */
+    private static final BigDecimal RECONCILIATION_TOLERANCE = new BigDecimal("0.05");
 
     /**
      * Calculates ECL for a single loan using IFRS 9 methodology:
@@ -282,14 +294,48 @@ public class EclService {
         }).toList();
     }
 
+    /**
+     * Reconciles the total ECL provision calculated by the CBS engine against the
+     * actual GL provision balance. Returns reconciled=true only if the amounts
+     * match within a small tolerance threshold (to allow for rounding).
+     */
     public Map<String, Object> getGlReconciliation() {
-        BigDecimal totalEcl = calcRepository.totalEclForDate(LocalDate.now());
+        LocalDate today = LocalDate.now();
+
+        // 1. Total ECL as calculated by the CBS ECL engine
+        BigDecimal totalEcl = calcRepository.totalEclForDate(today);
         if (totalEcl == null) totalEcl = BigDecimal.ZERO;
+
+        // 2. Actual GL provision balance: sum closing balances of all provision GL accounts
+        //    Provision accounts are identified by GL codes starting with the provision prefix (e.g., "159x")
+        List<GlBalance> provisionBalances = glBalanceRepository.findByBalanceDateOrderByGlCodeAsc(today)
+                .stream()
+                .filter(b -> b.getGlCode() != null && b.getGlCode().startsWith(ECL_PROVISION_GL_PREFIX))
+                .toList();
+
+        BigDecimal glProvisionBalance = provisionBalances.stream()
+                .map(GlBalance::getClosingBalance)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .abs(); // Provision balances are typically credit (negative in normal-debit convention)
+
+        // 3. Calculate difference and determine if reconciled within tolerance
+        BigDecimal difference = totalEcl.subtract(glProvisionBalance).setScale(2, RoundingMode.HALF_UP);
+        boolean reconciled = difference.abs().compareTo(RECONCILIATION_TOLERANCE) <= 0;
+
+        if (!reconciled) {
+            log.warn("ECL GL reconciliation mismatch: cbsEcl={}, glProvision={}, difference={}",
+                    totalEcl, glProvisionBalance, difference);
+        }
+
         return Map.of(
                 "cbsEclTotal", totalEcl,
-                "glProvisionBalance", totalEcl,
-                "difference", BigDecimal.ZERO,
-                "reconciled", true
+                "glProvisionBalance", glProvisionBalance,
+                "difference", difference,
+                "reconciled", reconciled,
+                "provisionGlAccounts", provisionBalances.stream().map(GlBalance::getGlCode).distinct().toList(),
+                "reconciliationDate", today.toString(),
+                "toleranceThreshold", RECONCILIATION_TOLERANCE
         );
     }
 

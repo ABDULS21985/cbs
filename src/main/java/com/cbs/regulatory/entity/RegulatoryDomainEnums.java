@@ -109,7 +109,11 @@ public final class RegulatoryDomainEnums {
         ENTITY_QUERY,
         ENTITY_COUNT,
         ECL_DATA,
-        POOL_DATA
+        POOL_DATA,
+        CAPITAL_DATA,
+        SHARIAH_DATA,
+        AML_DATA,
+        FINANCING_DATA
     }
 
     public enum AuditEventType {

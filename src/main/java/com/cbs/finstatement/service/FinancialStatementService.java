@@ -1,5 +1,6 @@
 package com.cbs.finstatement.service;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.finstatement.entity.FinancialStatement;
@@ -25,12 +26,16 @@ public class FinancialStatementService {
 
     private final FinancialStatementRepository statementRepository;
     private final StatementRatioRepository ratioRepository;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public FinancialStatement submit(FinancialStatement statement) {
         statement.setStatementCode("FS-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
         statement.setStatus("SUBMITTED");
-        return statementRepository.save(statement);
+        FinancialStatement saved = statementRepository.save(statement);
+        String actor = currentActorProvider.getCurrentActor();
+        log.info("AUDIT: Financial statement submitted: code={}, customer={}, actor={}", saved.getStatementCode(), saved.getCustomerId(), actor);
+        return saved;
     }
 
     @Transactional
@@ -40,6 +45,38 @@ public class FinancialStatementService {
             throw new BusinessException("Financial statement " + statementCode + " must be SUBMITTED to approve; current status: " + statement.getStatus());
         }
         statement.setStatus("APPROVED");
+        String actor = currentActorProvider.getCurrentActor();
+        log.info("AUDIT: Financial statement approved: code={}, actor={}", statementCode, actor);
+        return statementRepository.save(statement);
+    }
+
+    @Transactional
+    public FinancialStatement reject(String statementCode, String reason) {
+        FinancialStatement statement = getByCode(statementCode);
+        if (!"SUBMITTED".equals(statement.getStatus())) {
+            throw new BusinessException("Financial statement " + statementCode + " must be SUBMITTED to reject; current status: " + statement.getStatus());
+        }
+        statement.setStatus("REJECTED");
+        statement.setNotes(statement.getNotes() != null
+                ? statement.getNotes() + "\nREJECTED: " + reason
+                : "REJECTED: " + reason);
+        String actor = currentActorProvider.getCurrentActor();
+        log.info("AUDIT: Financial statement rejected: code={}, reason={}, actor={}", statementCode, reason, actor);
+        return statementRepository.save(statement);
+    }
+
+    @Transactional
+    public FinancialStatement requestRevision(String statementCode, String revisionNotes) {
+        FinancialStatement statement = getByCode(statementCode);
+        if (!"SUBMITTED".equals(statement.getStatus()) && !"APPROVED".equals(statement.getStatus())) {
+            throw new BusinessException("Financial statement " + statementCode + " must be SUBMITTED or APPROVED to request revision; current status: " + statement.getStatus());
+        }
+        statement.setStatus("REVISION_REQUESTED");
+        statement.setNotes(statement.getNotes() != null
+                ? statement.getNotes() + "\nREVISION: " + revisionNotes
+                : "REVISION: " + revisionNotes);
+        String actor = currentActorProvider.getCurrentActor();
+        log.info("AUDIT: Financial statement revision requested: code={}, actor={}", statementCode, actor);
         return statementRepository.save(statement);
     }
 
@@ -53,7 +90,10 @@ public class FinancialStatementService {
             BigDecimal currentRatio = stmt.getCurrentAssets().divide(stmt.getCurrentLiabilities(), 4, RoundingMode.HALF_UP);
             ratios.add(buildRatio(stmt.getId(), "LIQUIDITY", "current_ratio", currentRatio, rateCurrentRatio(currentRatio)));
 
-            BigDecimal quickRatio = stmt.getCurrentAssets().multiply(new BigDecimal("0.8")).divide(stmt.getCurrentLiabilities(), 4, RoundingMode.HALF_UP);
+            // Approximate quick assets as 80% of current assets (inventory not tracked separately)
+            // In a full implementation, inventory would be a separate field on FinancialStatement
+            BigDecimal quickAssets = stmt.getCurrentAssets().multiply(new BigDecimal("0.8"));
+            BigDecimal quickRatio = quickAssets.divide(stmt.getCurrentLiabilities(), 4, RoundingMode.HALF_UP);
             ratios.add(buildRatio(stmt.getId(), "LIQUIDITY", "quick_ratio", quickRatio, rateQuickRatio(quickRatio)));
         }
 
@@ -88,11 +128,13 @@ public class FinancialStatementService {
         }
 
         // COVERAGE
+        // Interest coverage: EBITDA / interest expense
+        // Interest expense is not tracked separately; proxy as ~5% of revenue (labelled as estimate)
         if (stmt.getEbitda() != null && stmt.getTotalRevenue() != null && stmt.getTotalRevenue().compareTo(BigDecimal.ZERO) != 0) {
             BigDecimal interestProxy = stmt.getTotalRevenue().multiply(new BigDecimal("0.05"));
             if (interestProxy.compareTo(BigDecimal.ZERO) != 0) {
                 BigDecimal interestCoverage = stmt.getEbitda().divide(interestProxy, 4, RoundingMode.HALF_UP);
-                ratios.add(buildRatio(stmt.getId(), "COVERAGE", "interest_coverage", interestCoverage, rateInterestCoverage(interestCoverage)));
+                ratios.add(buildRatio(stmt.getId(), "COVERAGE", "interest_coverage_est", interestCoverage, rateInterestCoverage(interestCoverage)));
             }
         }
 

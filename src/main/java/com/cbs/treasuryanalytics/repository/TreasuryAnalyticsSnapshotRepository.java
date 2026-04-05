@@ -5,4 +5,6 @@ import java.time.LocalDate; import java.util.List; import java.util.Optional;
 public interface TreasuryAnalyticsSnapshotRepository extends JpaRepository<TreasuryAnalyticsSnapshot, Long> {
     Optional<TreasuryAnalyticsSnapshot> findBySnapshotDateAndCurrency(LocalDate date, String currency);
     List<TreasuryAnalyticsSnapshot> findByCurrencyOrderBySnapshotDateDesc(String currency);
+    List<TreasuryAnalyticsSnapshot> findBySnapshotDateBetweenOrderBySnapshotDateDesc(LocalDate from, LocalDate to);
+    List<TreasuryAnalyticsSnapshot> findByCurrencyIgnoreCaseAndSnapshotDateBetweenOrderBySnapshotDateDesc(String currency, LocalDate from, LocalDate to);
 }

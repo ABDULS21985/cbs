@@ -54,10 +54,11 @@ class PricingServiceTest {
         when(discountRepo.findByStatusOrderByPriorityOrderAsc("ACTIVE"))
                 .thenReturn(List.of(scheme2, scheme1));
 
-        DiscountScheme result = service.evaluateDiscounts(1L, "FEE-001", new BigDecimal("500"));
+        PricingService.DiscountResult result = service.evaluateDiscounts(1L, "FEE-001", new BigDecimal("500"));
 
-        assertThat(result).isEqualTo(scheme2);
-        assertThat(result.getPriorityOrder()).isEqualTo(1);
+        assertThat(result.scheme()).isEqualTo(scheme2);
+        assertThat(result.scheme().getPriorityOrder()).isEqualTo(1);
+        assertThat(result.discountAmount()).isNotNull();
     }
 
     @Test
@@ -80,9 +81,11 @@ class PricingServiceTest {
         when(discountRepo.save(any(DiscountScheme.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
 
-        DiscountScheme result = service.evaluateDiscounts(1L, "FEE-001", new BigDecimal("500"));
+        PricingService.DiscountResult result = service.evaluateDiscounts(1L, "FEE-001", new BigDecimal("500"));
 
-        assertThat(result).isNull();
+        assertThat(result.scheme()).isNull();
+        assertThat(result.discountAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.netAmount()).isEqualByComparingTo("500");
         assertThat(scheme.getStatus()).isEqualTo("EXHAUSTED");
         verify(discountRepo).save(scheme);
     }

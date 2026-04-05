@@ -1,5 +1,6 @@
 package com.cbs.marketorder;
 
+import com.cbs.account.repository.AccountRepository;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.marketorder.entity.MarketOrder;
 import com.cbs.marketorder.repository.MarketOrderRepository;
@@ -24,6 +25,8 @@ class MarketOrderServiceTest {
 
     @Mock
     private MarketOrderRepository repository;
+    @Mock
+    private AccountRepository accountRepository;
 
     @InjectMocks
     private MarketOrderService service;

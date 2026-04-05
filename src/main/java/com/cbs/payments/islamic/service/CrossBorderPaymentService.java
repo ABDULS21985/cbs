@@ -13,6 +13,9 @@ import com.cbs.payments.islamic.repository.PaymentIslamicExtensionRepository;
 import com.cbs.payments.repository.BankDirectoryRepository;
 import com.cbs.payments.repository.FxRateRepository;
 import com.cbs.payments.repository.PaymentInstructionRepository;
+import com.cbs.fingateway.entity.FinancialGateway;
+import com.cbs.fingateway.entity.GatewayMessage;
+import com.cbs.fingateway.service.FinancialGatewayService;
 import com.cbs.shariahcompliance.entity.ShariahExclusionList;
 import com.cbs.shariahcompliance.repository.ShariahExclusionListEntryRepository;
 import com.cbs.shariahcompliance.repository.ShariahExclusionListRepository;
@@ -44,6 +47,7 @@ public class CrossBorderPaymentService {
     private final BankDirectoryRepository bankDirectoryRepository;
     private final ShariahExclusionListRepository exclusionListRepository;
     private final ShariahExclusionListEntryRepository exclusionListEntryRepository;
+        private final FinancialGatewayService financialGatewayService;
     private final IslamicPaymentSupport paymentSupport;
 
     public IslamicPaymentResponses.CrossBorderPaymentResult processCrossBorderPayment(Long paymentId) {
@@ -247,9 +251,10 @@ public class CrossBorderPaymentService {
         extension.setFxSpotDate(fxQuote.getValueDate());
         extension.setFxDealRef(payment.getInstructionRef());
         extension.setFxSettlementAmount(fxQuote.getDestinationAmount());
-        extension.setSwiftStatus(IslamicPaymentDomainEnums.SwiftStatus.SENT);
+        GatewayMessage gatewayMessage = handoffToSwiftGateway(payment, extension);
+        extension.setSwiftStatus(resolveSwiftStatus(gatewayMessage));
         extension.setSwiftStatusTimestamp(LocalDateTime.now());
-        extension.setSwiftTrackingUrl("https://swift.example.local/tracker/" + extension.getSwiftMessageRef());
+        extension.setSwiftTrackingUrl(gatewayMessage != null ? "gateway-message:" + gatewayMessage.getMessageRef() : null);
         extensionRepository.save(extension);
 
         return IslamicPaymentResponses.CrossBorderPaymentResult.builder()
@@ -262,6 +267,44 @@ public class CrossBorderPaymentService {
                 .fxSpotDate(extension.getFxSpotDate())
                 .build();
     }
+
+        private GatewayMessage handoffToSwiftGateway(PaymentInstruction payment, CrossBorderPaymentExtension extension) {
+                List<FinancialGateway> gateways = financialGatewayService.getByType("SWIFT");
+                if (gateways.isEmpty()) {
+                        log.warn("No active SWIFT gateway configured for payment {} - leaving message in PENDING state", payment.getInstructionRef());
+                        return null;
+                }
+
+                FinancialGateway gateway = gateways.getFirst();
+                try {
+                        return financialGatewayService.sendMessage(GatewayMessage.builder()
+                                        .gatewayId(gateway.getId())
+                                        .direction("OUTBOUND")
+                                        .messageType(extension.getMessageType())
+                                        .messageFormat("SWIFT_MT")
+                                        .senderBic(gateway.getBicCode())
+                                        .receiverBic(extension.getBeneficiaryBankSwift())
+                                        .amount(payment.getAmount())
+                                        .currency(payment.getCurrencyCode())
+                                        .valueDate(payment.getValueDate())
+                                        .build());
+                } catch (Exception ex) {
+                        log.error("SWIFT gateway handoff failed for payment {}: {}", payment.getInstructionRef(), ex.getMessage());
+                        return null;
+                }
+        }
+
+        private IslamicPaymentDomainEnums.SwiftStatus resolveSwiftStatus(GatewayMessage gatewayMessage) {
+                if (gatewayMessage == null || !StringUtils.hasText(gatewayMessage.getDeliveryStatus())) {
+                        return IslamicPaymentDomainEnums.SwiftStatus.PENDING;
+                }
+                return switch (gatewayMessage.getDeliveryStatus().toUpperCase(Locale.ROOT)) {
+                        case "SENT" -> IslamicPaymentDomainEnums.SwiftStatus.SENT;
+                        case "ACKNOWLEDGED" -> IslamicPaymentDomainEnums.SwiftStatus.ACKNOWLEDGED;
+                        case "BLOCKED", "NACKED" -> IslamicPaymentDomainEnums.SwiftStatus.REJECTED;
+                        default -> IslamicPaymentDomainEnums.SwiftStatus.PENDING;
+                };
+        }
 
     private String buildField72Narrative(PaymentIslamicExtension extension) {
         return "/ISLM/SHARIAH_COMPLIANT\n"

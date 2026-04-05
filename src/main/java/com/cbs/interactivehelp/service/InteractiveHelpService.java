@@ -28,7 +28,30 @@ public class InteractiveHelpService {
 
     @Transactional
     public HelpArticle createArticle(HelpArticle article) {
+        if (article.getTitle() == null || article.getTitle().isBlank()) {
+            throw new BusinessException("Article title is required");
+        }
+        if (article.getContent() == null || article.getContent().isBlank()) {
+            throw new BusinessException("Article content is required");
+        }
+        if (article.getCategory() == null || article.getCategory().isBlank()) {
+            throw new BusinessException("Article category is required");
+        }
         article.setArticleCode("HA-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
+        article.setStatus("DRAFT");
+        HelpArticle saved = articleRepository.save(article);
+        log.info("AUDIT: Help article created: code={}, title={}", saved.getArticleCode(), saved.getTitle());
+        return saved;
+    }
+
+    @Transactional
+    public HelpArticle reviewArticle(String articleCode) {
+        HelpArticle article = getArticleByCode(articleCode);
+        if (!"DRAFT".equals(article.getStatus())) {
+            throw new BusinessException("Article " + articleCode + " must be DRAFT to review; current status: " + article.getStatus());
+        }
+        article.setStatus("REVIEWED");
+        log.info("AUDIT: Help article reviewed: code={}", articleCode);
         return articleRepository.save(article);
     }
 

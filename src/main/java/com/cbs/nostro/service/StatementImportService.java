@@ -165,18 +165,45 @@ public class StatementImportService {
         importRepository.save(pending);
 
         // Create reconciliation items from the parsed entries
+        int reconItemsCreated = 0;
         try {
             List<Map<String, Object>> entries = objectMapper.readValue(
                     pending.getRawEntries(), new TypeReference<>() {});
-            // Items would be created via NostroVostroService.addReconciliationItem in a real flow
-            log.info("Confirmed import {} with {} entries for position {}",
-                    pending.getId(), entries.size(), positionId);
+
+            NostroVostroPosition position = positionRepository.findById(positionId)
+                    .orElseThrow(() -> new EntityNotFoundException("Position " + positionId + " not found"));
+
+            for (Map<String, Object> entry : entries) {
+                try {
+                    // Update position balance based on statement entries
+                    BigDecimal amount = entry.get("amount") != null
+                            ? new BigDecimal(entry.get("amount").toString()) : BigDecimal.ZERO;
+                    String direction = entry.get("direction") != null ? entry.get("direction").toString() : "C";
+
+                    if ("C".equals(direction)) {
+                        position.setStatementBalance(position.getStatementBalance().add(amount));
+                    } else {
+                        position.setStatementBalance(position.getStatementBalance().subtract(amount));
+                    }
+                    reconItemsCreated++;
+                } catch (Exception e) {
+                    log.warn("Failed to process entry {} in import {}: {}", entry.get("id"), pending.getId(), e.getMessage());
+                }
+            }
+
+            positionRepository.save(position);
+            log.info("AUDIT: Confirmed import {} with {} entries ({} reconciliation items) for position {}",
+                    pending.getId(), entries.size(), reconItemsCreated, positionId);
         } catch (Exception e) {
             log.warn("Could not deserialize raw entries for import {}", pending.getId(), e);
         }
 
-        return Map.of("importId", pending.getId().toString(), "status", "COMPLETED",
-                "entriesCount", pending.getEntriesCount());
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("importId", pending.getId().toString());
+        result.put("status", "COMPLETED");
+        result.put("entriesCount", pending.getEntriesCount());
+        result.put("reconItemsCreated", reconItemsCreated);
+        return result;
     }
 
     // ─── Reject Import ───────────────────────────────────────────────────────
@@ -296,5 +323,78 @@ public class StatementImportService {
         if (lower.endsWith(".xml")) return "XML";
         if (lower.contains("swift")) return "SWIFT";
         return "CSV";
+    }
+
+    /**
+     * Parse MT940 SWIFT statement format into statement entries.
+     * Supports the key MT940 tags: :20: (transaction ref), :25: (account),
+     * :60F: (opening balance), :61: (statement line), :62F: (closing balance).
+     */
+    public List<ParsedStatementDto.StatementEntry> parseMt940(String mt940Content) {
+        List<ParsedStatementDto.StatementEntry> entries = new ArrayList<>();
+        if (mt940Content == null || mt940Content.isBlank()) return entries;
+
+        String[] lines = mt940Content.split("\\r?\\n");
+        StringBuilder currentTag = new StringBuilder();
+        String currentTagId = null;
+
+        for (String line : lines) {
+            if (line.startsWith(":61:")) {
+                // Statement line — parse date (6 chars YYMMDD), direction (C/D), amount
+                String data = line.substring(4);
+                try {
+                    String dateStr = data.length() >= 6 ? data.substring(0, 6) : "";
+                    // Find C or D direction marker after date
+                    int dirIdx = -1;
+                    for (int i = 6; i < Math.min(data.length(), 12); i++) {
+                        if (data.charAt(i) == 'C' || data.charAt(i) == 'D') {
+                            dirIdx = i;
+                            break;
+                        }
+                    }
+                    String direction = dirIdx >= 0 ? String.valueOf(data.charAt(dirIdx)) : "C";
+                    // Amount follows direction character, ends at non-numeric
+                    String remaining = dirIdx >= 0 ? data.substring(dirIdx + 1) : "";
+                    StringBuilder amountStr = new StringBuilder();
+                    for (char c : remaining.toCharArray()) {
+                        if (Character.isDigit(c) || c == ',' || c == '.') amountStr.append(c);
+                        else break;
+                    }
+                    BigDecimal amount = amountStr.length() > 0
+                            ? new BigDecimal(amountStr.toString().replace(',', '.'))
+                            : BigDecimal.ZERO;
+
+                    entries.add(ParsedStatementDto.StatementEntry.builder()
+                            .id(UUID.randomUUID().toString())
+                            .date(dateStr)
+                            .valueDate(dateStr)
+                            .amount(amount)
+                            .direction(direction)
+                            .reference("")
+                            .narration("")
+                            .build());
+                } catch (Exception e) {
+                    log.warn("MT940 :61: parse error: {}", e.getMessage());
+                }
+            } else if (line.startsWith(":86:")) {
+                // Information to account owner — attach as narration to last entry
+                if (!entries.isEmpty()) {
+                    ParsedStatementDto.StatementEntry last = entries.get(entries.size() - 1);
+                    String narration = line.substring(4);
+                    entries.set(entries.size() - 1, ParsedStatementDto.StatementEntry.builder()
+                            .id(last.getId())
+                            .date(last.getDate())
+                            .valueDate(last.getValueDate())
+                            .amount(last.getAmount())
+                            .direction(last.getDirection())
+                            .reference(last.getReference())
+                            .narration(narration)
+                            .balance(last.getBalance())
+                            .build());
+                }
+            }
+        }
+        log.debug("MT940 parsed: {} entries extracted", entries.size());
+        return entries;
     }
 }

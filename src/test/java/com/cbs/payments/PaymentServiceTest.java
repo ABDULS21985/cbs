@@ -3,6 +3,7 @@ package com.cbs.payments;
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.customer.entity.Customer;
@@ -10,6 +11,7 @@ import com.cbs.customer.entity.CustomerType;
 import com.cbs.payments.entity.*;
 import com.cbs.payments.repository.*;
 import com.cbs.payments.service.PaymentService;
+import com.cbs.sanctions.service.SanctionsScreeningService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,6 +41,8 @@ class PaymentServiceTest {
     @Mock private AccountRepository accountRepository;
     @Mock private AccountPostingService accountPostingService;
     @Mock private CbsProperties cbsProperties;
+    @Mock private CurrentActorProvider currentActorProvider;
+    @Mock private SanctionsScreeningService sanctionsScreeningService;
 
     @InjectMocks private PaymentService paymentService;
 

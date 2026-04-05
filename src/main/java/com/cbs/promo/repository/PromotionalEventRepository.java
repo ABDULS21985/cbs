@@ -8,4 +8,5 @@ public interface PromotionalEventRepository extends JpaRepository<PromotionalEve
     Optional<PromotionalEvent> findByEventCode(String code);
     List<PromotionalEvent> findByStatusOrderByStartDateAsc(String status);
     List<PromotionalEvent> findByEventTypeAndStatusOrderByStartDateAsc(String type, String status);
+    boolean existsByPromoCodeAndStatus(String promoCode, String status);
 }

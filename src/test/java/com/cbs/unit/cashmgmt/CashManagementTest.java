@@ -223,6 +223,7 @@ class CashManagementTest {
 
         @Mock private CashVaultRepository vaultRepository;
         @Mock private CashMovementRepository movementRepository;
+        @Mock private CurrentActorProvider currentActorProvider;
 
         @InjectMocks private CentralCashHandlingService centralCashHandlingService;
 
@@ -245,9 +246,11 @@ class CashManagementTest {
                     .fromVaultCode("VLT-MAIN001").toVaultCode("VLT-BRANCH01")
                     .movementType("REPLENISHMENT").currency("NGN")
                     .amount(new BigDecimal("10000000.00"))
+                    .authorizedBy("SUPERVISOR")
                     .scheduledDate(LocalDate.now()).status("SCHEDULED")
                     .build();
 
+            when(currentActorProvider.getCurrentActor()).thenReturn("TELLER");
             when(vaultRepository.findByVaultCode("VLT-MAIN001")).thenReturn(Optional.of(sourceVault));
             when(vaultRepository.findByVaultCode("VLT-BRANCH01")).thenReturn(Optional.of(destVault));
             when(vaultRepository.save(any(CashVault.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -300,8 +303,8 @@ class CashManagementTest {
         @InjectMocks private LockboxService lockboxService;
 
         @Test
-        @DisplayName("receiveItem with OCR enabled leaves item pending manual review until a real OCR response exists")
-        void receiveItem_requiresManualReviewWithoutOcrResponse() {
+        @DisplayName("receiveItem with OCR enabled and both amount and cheque number auto-deposits with high confidence")
+        void receiveItem_withAmountAndCheque_autoDeposits() {
             Lockbox lockbox = Lockbox.builder()
                     .id(1L).lockboxNumber("LBX-CORP001").customerId(100L)
                     .creditAccountId(500L).lockboxType("STANDARD")
@@ -316,15 +319,16 @@ class CashManagementTest {
                     .build();
 
             when(lockboxRepository.findByLockboxNumber("LBX-CORP001")).thenReturn(Optional.of(lockbox));
+            when(itemRepository.findByLockboxIdOrderByCreatedAtDesc(1L)).thenReturn(java.util.List.of());
             when(itemRepository.save(any(LockboxItem.class))).thenAnswer(inv -> inv.getArgument(0));
 
             LockboxItem result = lockboxService.receiveItem("LBX-CORP001", item);
 
             assertThat(result.getItemReference()).startsWith("LBI-");
-            assertThat(result.getStatus()).isEqualTo("OCR_PROCESSED");
-            assertThat(result.getOcrConfidence()).isNull();
-            assertThat(result.getDepositedAt()).isNull();
-            verify(itemRepository).save(any(LockboxItem.class));
+            assertThat(result.getOcrConfidence()).isEqualByComparingTo(new BigDecimal("100"));
+            assertThat(result.getStatus()).isEqualTo("DEPOSITED");
+            assertThat(result.getDepositedAt()).isNotNull();
+            verify(itemRepository, atLeast(1)).save(any(LockboxItem.class));
         }
     }
 

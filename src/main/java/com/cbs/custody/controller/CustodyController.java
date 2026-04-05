@@ -21,7 +21,7 @@ public class CustodyController {
     @GetMapping
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<CustodyAccount>>> listAll() {
-        return ResponseEntity.ok(ApiResponse.ok(service.getAllAccounts()));
+        return ResponseEntity.ok(ApiResponse.ok(service.getAll()));
     }
 
     @PostMapping

@@ -48,6 +48,8 @@ class RegulatoryTemplateEngineTest {
     @Mock private RegulatoryReturnLineItemRepository lineItemRepository;
     @Mock private ReturnAuditEventRepository auditEventRepository;
     @Mock private RegulatoryDataExtractionService extractionService;
+    @Mock private RegulatoryDeadlineService deadlineService;
+    @Mock private RegulatoryReferenceService referenceService;
     @Mock private CurrentActorProvider actorProvider;
     @Mock private CurrentTenantResolver tenantResolver;
 
@@ -96,6 +98,11 @@ class RegulatoryTemplateEngineTest {
         lenient().when(templateRepository.findByTemplateCode("TEST-BS-V1")).thenReturn(Optional.of(template));
         lenient().when(returnRepository.findTopByTemplateCodeAndPeriodToBeforeOrderByPeriodToDesc(anyString(), any(LocalDate.class)))
                 .thenReturn(Optional.empty());
+        lenient().when(deadlineService.calculateDeadline(any(RegulatoryReturnTemplate.class), any(LocalDate.class)))
+                .thenReturn(LocalDate.of(2026, 4, 15));
+        lenient().when(deadlineService.isOverdue(any(RegulatoryReturn.class), any(LocalDate.class))).thenReturn(false);
+        lenient().when(referenceService.nextReturnRef(any(RegulatoryReturnTemplate.class), any(LocalDate.class)))
+                .thenReturn("SA_SAMA-BALANCE_SHEET-20260331-000001");
         lenient().when(returnRepository.findById(any())).thenAnswer(invocation ->
                 Optional.ofNullable(savedReturn.get()).filter(item -> item.getId().equals(invocation.getArgument(0, Long.class))));
         lenient().when(returnRepository.findByTemplateCodeAndPeriodFromAndPeriodToOrderByReturnDataVersionDesc(anyString(), any(), any()))
@@ -194,6 +201,37 @@ class RegulatoryTemplateEngineTest {
 
         assertThat(workbook).isNotEmpty();
         assertThat(new String(workbook, 0, 2)).isEqualTo("PK");
+    }
+
+    @Test
+    void exportReturn_xbrlProducesInstanceDocument() {
+        template.setXbrlTaxonomy("urn:test:xbrl");
+        RegulatoryReturn regulatoryReturn = RegulatoryReturn.builder()
+                .id(8L)
+                .returnRef("RET-8")
+                .templateCode("TEST-BS-V1")
+                .jurisdiction(RegulatoryDomainEnums.Jurisdiction.SA_SAMA)
+                .returnType(RegulatoryDomainEnums.ReturnType.BALANCE_SHEET)
+                .periodFrom(LocalDate.of(2026, 3, 1))
+                .periodTo(LocalDate.of(2026, 3, 31))
+                .reportingDate(LocalDate.of(2026, 3, 31))
+                .currencyCode("SAR")
+                .build();
+        savedReturn.set(regulatoryReturn);
+        savedLineItems.clear();
+        savedLineItems.add(RegulatoryReturnLineItem.builder()
+                .id(1L)
+                .returnId(8L)
+                .sectionCode("ASSETS")
+                .lineNumber("L001")
+                .lineDescription("Cash")
+                .dataType(RegulatoryDomainEnums.ReturnLineDataType.AMOUNT)
+                .value("100.00")
+                .build());
+
+        byte[] payload = templateEngine.exportReturn(8L, RegulatoryDomainEnums.OutputFormat.XBRL);
+
+        assertThat(new String(payload)).contains("<xbrli:xbrl").contains("urn:test:xbrl").contains("<reg:L001");
     }
 
     @SuppressWarnings("unchecked")

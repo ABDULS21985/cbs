@@ -36,7 +36,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -47,7 +47,6 @@ public class QardHasanService {
     private static final String CASH_GL = "1100-000-001";
     private static final String QARD_WRITE_OFF_EXPENSE_GL = "6200-QRD-001";
     private static final String QARD_ADMIN_FEE_INCOME_GL = "4200-QRD-001";
-    private static final AtomicLong CONTRACT_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
 
     private final QardHasanAccountRepository qardHasanAccountRepository;
     private final QardRepaymentScheduleRepository qardRepaymentScheduleRepository;
@@ -832,7 +831,8 @@ public class QardHasanService {
     }
 
     private String generateContractReference(String prefix) {
-        return prefix + "-" + LocalDate.now().getYear() + "-" + String.format("%06d", CONTRACT_SEQ.incrementAndGet());
+                return prefix + "-" + LocalDate.now().getYear() + "-"
+                                + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
     }
 
     private TransactionResponse toTransactionResponse(TransactionJournal journal) {

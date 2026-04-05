@@ -2,6 +2,7 @@ package com.cbs.mudarabah.service;
 
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.mudarabah.dto.CreatePsrScheduleRequest;
 import com.cbs.mudarabah.dto.CustomerConsentDetails;
 import com.cbs.mudarabah.dto.InitiatePsrChangeRequest;
@@ -44,6 +45,7 @@ public class PsrService {
     private final PsrChangeRequestRepository changeRequestRepository;
     private final MudarabahAccountRepository mudarabahAccountRepository;
     private final DecisionTableEvaluator decisionTableEvaluator;
+    private final CurrentActorProvider currentActorProvider;
 
     public PsrResolution resolvePsr(Long productTemplateId, Map<String, Object> context) {
         // 1. Try to find active schedule for product
@@ -159,6 +161,7 @@ public class PsrService {
                 .customerConsentGiven(false)
                 .effectiveDate(request.getEffectiveDate())
                 .status(PsrChangeStatus.DRAFT)
+                .initiatedBy(currentActorProvider.getCurrentActor())
                 .build();
 
         changeRequest = changeRequestRepository.save(changeRequest);

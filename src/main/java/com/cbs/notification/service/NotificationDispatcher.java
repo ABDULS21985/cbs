@@ -145,9 +145,12 @@ public class NotificationDispatcher {
         String provider = cfg != null ? cfg.getProvider() : "SMS_DEFAULT";
         String senderId = cfg != null && cfg.getSenderAddress() != null ? cfg.getSenderAddress() : "DigiCore";
 
-        // Integration point: Twilio / Africa's Talking / SMPP gateway
-        // When a provider SDK is configured, the provider field from ChannelConfig
-        // determines which SDK to use. API credentials come from cfg.getApiKey() / cfg.getApiSecret().
+        // TODO: Integrate SMS provider SDK (Twilio, Africa's Talking, or SMPP gateway).
+        //   When a provider SDK is added:
+        //   1. Read provider type from cfg.getProvider()
+        //   2. Initialize SDK with cfg.getApiKey() / cfg.getApiSecret()
+        //   3. Send message via SDK and capture provider message ID
+        //   4. Mark as SENT on submission; update to DELIVERED via delivery receipt webhook
         //
         // Example with Twilio (when provider == "TWILIO"):
         //   Twilio.init(cfg.getApiKey(), cfg.getApiSecret());
@@ -177,8 +180,12 @@ public class NotificationDispatcher {
     private void dispatchPush(NotificationLog n, ChannelConfig cfg) {
         String provider = cfg != null ? cfg.getProvider() : "FCM";
 
-        // Integration point: Firebase Cloud Messaging (FCM)
-        // When Firebase Admin SDK is added, use cfg.getConfig().get("projectId") for initialization.
+        // TODO: Integrate Firebase Cloud Messaging (FCM) or Apple Push Notification service (APNs).
+        //   When Firebase Admin SDK is added:
+        //   1. Initialize with project credentials from cfg.getConfig()
+        //   2. Build FCM Message with token, title, body
+        //   3. Send via FirebaseMessaging.getInstance().send()
+        //   4. Mark as SENT on submission; update to DELIVERED when FCM confirms
         //
         //   FirebaseOptions options = FirebaseOptions.builder()
         //       .setCredentials(GoogleCredentials.fromStream(...))

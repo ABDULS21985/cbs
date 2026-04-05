@@ -8,7 +8,6 @@ import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
 import com.cbs.branch.entity.Branch;
 import com.cbs.branch.repository.BranchRepository;
-import com.cbs.capitalmarkets.entity.CapitalMarketDeal;
 import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
@@ -27,6 +26,8 @@ import com.cbs.ftp.entity.FtpRateCurve;
 import com.cbs.ftp.repository.FtpAllocationRepository;
 import com.cbs.ftp.repository.FtpRateCurveRepository;
 import com.cbs.ftp.service.FtpService;
+import com.cbs.islamicaml.dto.EntityScreeningRequest;
+import com.cbs.islamicaml.service.CombinedEntityScreeningService;
 import com.cbs.marketmaking.entity.MarketMakingActivity;
 import com.cbs.marketmaking.entity.MarketMakingMandate;
 import com.cbs.marketmaking.repository.MarketMakingActivityRepository;
@@ -40,9 +41,7 @@ import com.cbs.nostro.repository.CorrespondentBankRepository;
 import com.cbs.orderexecution.entity.OrderExecution;
 import com.cbs.orderexecution.repository.OrderExecutionRepository;
 import com.cbs.traderposition.entity.TraderPosition;
-import com.cbs.traderposition.repository.TraderPositionLimitRepository;
 import com.cbs.traderposition.repository.TraderPositionRepository;
-import com.cbs.tradingbook.entity.TradingBook;
 import com.cbs.tradingbook.entity.TradingBookSnapshot;
 import com.cbs.tradingbook.repository.TradingBookRepository;
 import com.cbs.tradingbook.repository.TradingBookSnapshotRepository;
@@ -74,7 +73,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -96,7 +94,6 @@ public class TreasuryService {
     private final DeskDealerRepository deskDealerRepository;
     private final DeskPnlRepository deskPnlRepository;
     private final TraderPositionRepository traderPositionRepository;
-    private final TraderPositionLimitRepository traderPositionLimitRepository;
     private final MarketOrderService marketOrderService;
     private final MarketOrderRepository marketOrderRepository;
     private final OrderExecutionRepository orderExecutionRepository;
@@ -112,6 +109,7 @@ public class TreasuryService {
     private final TreasuryAnalyticsSnapshotRepository treasuryAnalyticsSnapshotRepository;
     private final FinancialInstrumentRepository financialInstrumentRepository;
     private final BranchRepository branchRepository;
+    private final CombinedEntityScreeningService combinedEntityScreeningService;
 
     @Transactional
     public TreasuryDeal bookDeal(DealType dealType, Long counterpartyId, String leg1Currency,
@@ -119,6 +117,7 @@ public class TreasuryService {
                                  String leg2Currency, BigDecimal leg2Amount, Long leg2AccountId,
                                  LocalDate leg2ValueDate, BigDecimal dealRate, BigDecimal yieldRate,
                                  Integer tenorDays, String dealer) {
+        validateIslamicDealEligibility(dealType, yieldRate);
         Long seq = dealRepository.getNextDealSequence();
         String dealNumber = String.format("TD%013d", seq);
 
@@ -132,8 +131,11 @@ public class TreasuryService {
         if (counterpartyId != null) {
             CorrespondentBank cp = bankRepository.findById(counterpartyId)
                     .orElseThrow(() -> new ResourceNotFoundException("CorrespondentBank", "id", counterpartyId));
+            validateCounterpartyScreening(cp, dealType, dealNumber);
             deal.setCounterparty(cp);
             deal.setCounterpartyName(cp.getBankName());
+            deal.getMetadata().put("shariahCounterpartyScreened", Boolean.TRUE);
+            deal.getMetadata().put("shariahCounterparty", cp.getBankName());
         }
         if (leg1AccountId != null) {
             deal.setLeg1Account(accountRepository.findById(leg1AccountId).orElse(null));
@@ -149,7 +151,9 @@ public class TreasuryService {
         }
 
         TreasuryDeal saved = dealRepository.save(deal);
-        log.info("Treasury deal booked: number={}, type={}, amount={} {}, rate={}", dealNumber, dealType, leg1Amount, leg1Currency, dealRate);
+        log.info("AUDIT: Treasury deal booked: number={}, type={}, amount={} {}, rate={}, dealer={}, actor={}",
+                dealNumber, dealType, leg1Amount, leg1Currency, dealRate, dealer,
+                currentActorProvider.getCurrentActor());
         return saved;
     }
 
@@ -163,7 +167,7 @@ public class TreasuryService {
         deal.setStatus(DealStatus.CONFIRMED);
         deal.setConfirmedBy(confirmedBy);
         deal.setConfirmedAt(Instant.now());
-        log.info("Deal {} confirmed by {}", deal.getDealNumber(), confirmedBy);
+        log.info("AUDIT: Deal {} confirmed by {}", deal.getDealNumber(), confirmedBy);
         return dealRepository.save(deal);
     }
 
@@ -178,16 +182,31 @@ public class TreasuryService {
         boolean outgoingLeg1 = isOutgoingLeg1(deal);
         settleLegs(deal, outgoingLeg1);
 
-        if ((deal.getDealType() == DealType.FX_SPOT || deal.getDealType() == DealType.FX_FORWARD)
-                && deal.getLeg1Amount() != null && deal.getLeg2Amount() != null && deal.getDealRate() != null) {
-            deal.setRealizedPnl(deal.getLeg2Amount().subtract(
-                    deal.getLeg1Amount().multiply(deal.getDealRate())).setScale(2, RoundingMode.HALF_UP));
+        // PnL calculation covering FX, money market, and fixed income deal types
+        if (deal.getLeg1Amount() != null && deal.getLeg2Amount() != null) {
+            DealType dt = deal.getDealType();
+            if ((dt == DealType.FX_SPOT || dt == DealType.FX_FORWARD || dt == DealType.FX_SWAP)
+                    && deal.getDealRate() != null) {
+                // FX PnL: difference between actual and contracted rate
+                deal.setRealizedPnl(deal.getLeg2Amount().subtract(
+                        deal.getLeg1Amount().multiply(deal.getDealRate())).setScale(2, RoundingMode.HALF_UP));
+            } else if (deal.getYieldRate() != null && deal.getTenorDays() != null && deal.getTenorDays() > 0) {
+                // Money market / fixed income PnL: interest earned = principal * yield * tenor / 365
+                BigDecimal interestEarned = deal.getLeg1Amount()
+                        .multiply(deal.getYieldRate())
+                        .multiply(BigDecimal.valueOf(deal.getTenorDays()))
+                        .divide(BigDecimal.valueOf(36500), 2, RoundingMode.HALF_UP);
+                deal.setRealizedPnl(interestEarned);
+            } else {
+                // Generic PnL: leg2 - leg1
+                deal.setRealizedPnl(deal.getLeg2Amount().subtract(deal.getLeg1Amount()).setScale(2, RoundingMode.HALF_UP));
+            }
         }
 
         deal.setStatus(DealStatus.SETTLED);
         deal.setSettledBy(settledBy);
         deal.setSettledAt(Instant.now());
-        log.info("Deal {} settled by {}", deal.getDealNumber(), settledBy);
+        log.info("AUDIT: Deal {} settled by {}, pnl={}", deal.getDealNumber(), settledBy, deal.getRealizedPnl());
         return dealRepository.save(deal);
     }
 
@@ -213,18 +232,27 @@ public class TreasuryService {
             throw new BusinessException("Cannot amend a settled or matured deal", "DEAL_AMENDMENT_DENIED");
         }
 
-        deal.getMetadata().put("lastAmendment", Map.of(
-                "previousAmount", deal.getLeg1Amount(),
-                "previousRate", deal.getDealRate(),
+        // Proper audit trail: store amendment history as a list, not just last amendment
+        int amendCount = deal.getMetadata().containsKey("amendmentCount")
+                ? ((Number) deal.getMetadata().get("amendmentCount")).intValue() + 1 : 1;
+        deal.getMetadata().put("amendmentCount", amendCount);
+
+        Map<String, Object> amendmentRecord = Map.of(
+                "sequence", amendCount,
+                "previousAmount", deal.getLeg1Amount() != null ? deal.getLeg1Amount().toString() : "",
+                "previousRate", deal.getDealRate() != null ? deal.getDealRate().toString() : "",
                 "previousMaturityDate", deal.getMaturityDate() != null ? deal.getMaturityDate().toString() : "",
                 "reason", reason != null ? reason : "",
                 "amendedBy", amendedBy,
                 "amendedAt", Instant.now().toString()
-        ));
+        );
+        deal.getMetadata().put("lastAmendment", amendmentRecord);
 
-        int amendCount = deal.getMetadata().containsKey("amendmentCount")
-                ? ((Number) deal.getMetadata().get("amendmentCount")).intValue() + 1 : 1;
-        deal.getMetadata().put("amendmentCount", amendCount);
+        // Store audit history list
+        @SuppressWarnings("unchecked")
+        List<Object> history = (List<Object>) deal.getMetadata().computeIfAbsent("amendmentHistory",
+                k -> new ArrayList<>());
+        history.add(amendmentRecord);
 
         if (newAmount != null) {
             deal.setLeg1Amount(newAmount);
@@ -240,7 +268,7 @@ public class TreasuryService {
         }
 
         TreasuryDeal saved = dealRepository.save(deal);
-        log.info("Deal {} amended by {}: reason={}", deal.getDealNumber(), amendedBy, reason);
+        log.info("AUDIT: Deal {} amended by {}: reason={}, amendmentCount={}", deal.getDealNumber(), amendedBy, reason, amendCount);
         return saved;
     }
 
@@ -637,10 +665,13 @@ public class TreasuryService {
     public TreasuryAnalyticsRecord recordAnalytics(String currency, BigDecimal nim, BigDecimal yield,
                                                    BigDecimal roa, BigDecimal roe, BigDecimal car,
                                                    LocalDate snapshotDate) {
+        if (!StringUtils.hasText(currency)) {
+            throw new BusinessException("Treasury analytics require an explicit currency", "TREASURY_CURRENCY_REQUIRED");
+        }
         TreasuryAnalyticsSnapshot saved = treasuryAnalyticsSnapshotRepository.save(TreasuryAnalyticsSnapshot.builder()
                 .snapshotDate(snapshotDate != null ? snapshotDate : LocalDate.now())
-                .currency(StringUtils.hasText(currency) ? currency : "NGN")
-                .netInterestMarginPct(nim)
+            .currency(currency.trim().toUpperCase())
+            .interestSpreadPct(nim)
                 .yieldOnAssetsPct(yield)
                 .returnOnAssetsPct(roa)
                 .returnOnEquityPct(roe)
@@ -650,11 +681,13 @@ public class TreasuryService {
     }
 
     public List<TreasuryAnalyticsRecord> getTreasuryAnalytics(String currency, LocalDate from, LocalDate to) {
-        return treasuryAnalyticsSnapshotRepository.findAll().stream()
-                .filter(snapshot -> !StringUtils.hasText(currency) || currency.equalsIgnoreCase(snapshot.getCurrency()))
-                .filter(snapshot -> from == null || !snapshot.getSnapshotDate().isBefore(from))
-                .filter(snapshot -> to == null || !snapshot.getSnapshotDate().isAfter(to))
-                .sorted(Comparator.comparing(TreasuryAnalyticsSnapshot::getSnapshotDate).reversed())
+        LocalDate effectiveFrom = from != null ? from : LocalDate.of(1900, 1, 1);
+        LocalDate effectiveTo = to != null ? to : LocalDate.of(9999, 12, 31);
+        List<TreasuryAnalyticsSnapshot> snapshots = StringUtils.hasText(currency)
+            ? treasuryAnalyticsSnapshotRepository.findByCurrencyIgnoreCaseAndSnapshotDateBetweenOrderBySnapshotDateDesc(
+            currency, effectiveFrom, effectiveTo)
+            : treasuryAnalyticsSnapshotRepository.findBySnapshotDateBetweenOrderBySnapshotDateDesc(effectiveFrom, effectiveTo);
+        return snapshots.stream()
                 .map(this::toAnalyticsRecord)
                 .toList();
     }
@@ -856,7 +889,7 @@ public class TreasuryService {
         return new TreasuryAnalyticsRecord(
                 String.valueOf(snapshot.getId()),
                 snapshot.getCurrency(),
-                snapshot.getNetInterestMarginPct(),
+            firstNonZero(snapshot.getInterestSpreadPct(), snapshot.getNetInterestMarginPct()),
                 snapshot.getYieldOnAssetsPct(),
                 snapshot.getCapitalAdequacyRatio(),
                 snapshot.getReturnOnAssetsPct(),
@@ -864,6 +897,37 @@ public class TreasuryService {
                 snapshot.getCreatedAt()
         );
     }
+
+        private void validateIslamicDealEligibility(DealType dealType, BigDecimal yieldRate) {
+        if (yieldRate != null && yieldRate.compareTo(BigDecimal.ZERO) > 0) {
+            throw new BusinessException("Yield-based pricing is not permitted in Islamic treasury booking",
+                "TREASURY_YIELD_NOT_PERMITTED");
+        }
+        if (dealType != DealType.FX_SPOT && dealType != DealType.FX_FORWARD && dealType != DealType.FX_SWAP) {
+            throw new BusinessException(
+                "Deal type " + dealType + " is not approved for Islamic treasury booking without instrument-level Shariah classification",
+                "TREASURY_NON_ISLAMIC_DEAL");
+        }
+        }
+
+        private void validateCounterpartyScreening(CorrespondentBank counterparty, DealType dealType, String dealNumber) {
+        var screeningResult = combinedEntityScreeningService.screenEntity(EntityScreeningRequest.builder()
+            .entityName(counterparty.getBankName())
+            .entityType("FINANCIAL_INSTITUTION")
+            .entityCountry(counterparty.getCountry())
+            .entityIdentifiers(Map.of(
+                "bankCode", counterparty.getBankCode(),
+                "swiftBic", counterparty.getSwiftBic() != null ? counterparty.getSwiftBic() : ""))
+            .transactionType("TREASURY_" + dealType.name())
+            .shariahContractRef(dealNumber)
+            .build());
+        if (!screeningResult.isShariahClear() || !screeningResult.isSanctionsClear()) {
+            throw new BusinessException(
+                "Treasury counterparty screening failed for " + counterparty.getBankName()
+                    + ": " + screeningResult.getActionRequired(),
+                "TREASURY_COUNTERPARTY_SCREENING_FAILED");
+        }
+        }
 
     private String evaluateComplianceStatus(MarketMakingMandate mandate, BigDecimal requiredQuoteTimePct,
                                             BigDecimal actualQuoteTimePct, BigDecimal currentSpread) {

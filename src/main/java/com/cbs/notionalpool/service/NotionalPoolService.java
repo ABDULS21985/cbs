@@ -1,5 +1,7 @@
 package com.cbs.notionalpool.service;
 
+import com.cbs.common.audit.CurrentActorProvider;
+import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.notionalpool.entity.*;
 import com.cbs.notionalpool.repository.*;
@@ -19,23 +21,45 @@ public class NotionalPoolService {
 
     private final NotionalPoolRepository poolRepository;
     private final NotionalPoolMemberRepository memberRepository;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public NotionalPool createPool(NotionalPool pool) {
+        if (pool.getPoolName() == null || pool.getPoolName().isBlank()) {
+            throw new BusinessException("Pool name is required");
+        }
+        if (pool.getPoolType() == null || pool.getPoolType().isBlank()) {
+            throw new BusinessException("Pool type is required");
+        }
+        if (pool.getBaseCurrency() == null || pool.getBaseCurrency().isBlank()) {
+            throw new BusinessException("Base currency is required");
+        }
         pool.setPoolCode("NTL-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
         NotionalPool saved = poolRepository.save(pool);
-        log.info("Notional pool created: code={}, type={}, method={}", saved.getPoolCode(), saved.getPoolType(), saved.getInterestCalcMethod());
+        String actor = currentActorProvider.getCurrentActor();
+        log.info("AUDIT: Notional pool created: code={}, type={}, method={}, actor={}", saved.getPoolCode(), saved.getPoolType(), saved.getInterestCalcMethod(), actor);
         return saved;
     }
 
     @Transactional
     public NotionalPoolMember addMember(String poolCode, NotionalPoolMember member) {
         NotionalPool pool = getPool(poolCode);
+        if (member.getAccountId() == null) {
+            throw new BusinessException("Member account ID is required");
+        }
+        // Duplicate member check: same account in same pool
+        Optional<NotionalPoolMember> existing = memberRepository.findByPoolIdAndAccountId(pool.getId(), member.getAccountId());
+        if (existing.isPresent() && Boolean.TRUE.equals(existing.get().getIsActive())) {
+            throw new BusinessException("Account " + member.getAccountId() + " is already a member of pool " + poolCode);
+        }
         member.setPoolId(pool.getId());
         if (member.getBalanceInBase() == null && member.getCurrentBalance() != null) {
             member.setBalanceInBase(member.getCurrentBalance().multiply(member.getFxRateToBase()));
         }
-        return memberRepository.save(member);
+        NotionalPoolMember saved = memberRepository.save(member);
+        String actor = currentActorProvider.getCurrentActor();
+        log.info("AUDIT: Member added to pool: pool={}, accountId={}, actor={}", poolCode, member.getAccountId(), actor);
+        return saved;
     }
 
     @Transactional

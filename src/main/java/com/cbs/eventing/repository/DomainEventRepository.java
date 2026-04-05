@@ -13,6 +13,14 @@ public interface DomainEventRepository extends JpaRepository<DomainEvent, Long> 
     List<DomainEvent> findByAggregateTypeAndAggregateIdOrderBySequenceNumberAsc(String type, Long id);
     @Query("SELECT e FROM DomainEvent e WHERE e.published = false ORDER BY e.id ASC")
     List<DomainEvent> findUnpublished();
+
+    /**
+     * Fetches a bounded batch of unpublished events for outbox processing.
+     * Uses LIMIT to prevent unbounded reads and supports multi-instance safety
+     * by keeping transactions short and deterministically ordered by id.
+     */
+    @Query(value = "SELECT * FROM cbs.domain_event WHERE published = false ORDER BY id ASC LIMIT :limit FOR UPDATE SKIP LOCKED", nativeQuery = true)
+    List<DomainEvent> findUnpublishedBatch(@org.springframework.data.repository.query.Param("limit") int limit);
     Page<DomainEvent> findByEventTypeOrderByCreatedAtDesc(String eventType, Pageable pageable);
     @Query(value = "SELECT nextval('cbs.event_seq')", nativeQuery = true)
     Long getNextSequence();

@@ -10,4 +10,7 @@ public interface LocationReferenceRepository extends JpaRepository<LocationRefer
     Optional<LocationReference> findByLocationCode(String code);
     List<LocationReference> findByLocationTypeAndIsActiveTrueOrderByLocationNameAsc(String type);
     List<LocationReference> findByParentLocationIdAndIsActiveTrueOrderByLocationNameAsc(Long parentId);
+    List<LocationReference> findByLocationNameContainingIgnoreCaseAndIsActiveTrueOrderByLocationNameAsc(String name);
+    List<LocationReference> findByRegulatoryZoneAndIsActiveTrueOrderByLocationNameAsc(String regulatoryZone);
+    boolean existsByLocationNameAndLocationTypeAndIsActiveTrue(String locationName, String locationType);
 }

@@ -18,12 +18,15 @@ import com.cbs.tenant.service.CurrentTenantResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -40,6 +43,9 @@ public class RegulatoryReturnWorkflowService {
     private final RegulatoryReturnTemplateRepository templateRepository;
     private final ReturnAuditEventRepository auditEventRepository;
     private final RegulatoryTemplateEngine templateEngine;
+    private final RegulatorySubmissionClient submissionClient;
+    private final RegulatoryDeadlineService deadlineService;
+    private final RegulatoryReferenceService referenceService;
     private final CurrentActorProvider actorProvider;
     private final CurrentTenantResolver tenantResolver;
 
@@ -83,7 +89,7 @@ public class RegulatoryReturnWorkflowService {
         }
         regulatoryReturn.setStatus(RegulatoryDomainEnums.ReturnStatus.VALIDATED);
         returnRepository.save(regulatoryReturn);
-        audit(returnId, RegulatoryDomainEnums.AuditEventType.REVIEWED, Map.of("comments", details.getComments()));
+        audit(returnId, RegulatoryDomainEnums.AuditEventType.REVIEWED, auditDetails("comments", details.getComments()));
     }
 
     public void approveReturn(Long returnId, String approvedBy) {
@@ -106,17 +112,43 @@ public class RegulatoryReturnWorkflowService {
         }
         RegulatoryReturnTemplate template = templateRepository.findById(regulatoryReturn.getTemplateId())
                 .orElseThrow(() -> new ResourceNotFoundException("RegulatoryReturnTemplate", "id", regulatoryReturn.getTemplateId()));
-        templateEngine.exportReturn(returnId, template.getOutputFormat());
-        regulatoryReturn.setSubmittedBy(details.getSubmittedBy() != null ? details.getSubmittedBy() : currentActor());
-        regulatoryReturn.setSubmittedAt(LocalDateTime.now());
-        regulatoryReturn.setSubmissionMethod(RegulatoryDomainEnums.SubmissionMethod.valueOf(details.getSubmissionMethod().toUpperCase(Locale.ROOT)));
-        regulatoryReturn.setRegulatorReferenceNumber(details.getRegulatorReferenceNumber());
-        regulatoryReturn.setStatus(RegulatoryDomainEnums.ReturnStatus.SUBMITTED);
-        returnRepository.save(regulatoryReturn);
-        audit(returnId, RegulatoryDomainEnums.AuditEventType.SUBMITTED, Map.of(
-                "method", details.getSubmissionMethod(),
-                "regulatorReferenceNumber", details.getRegulatorReferenceNumber()
+        RegulatoryTemplateEngine.ExportArtifact artifact = templateEngine.prepareExportArtifact(returnId, template.getOutputFormat());
+        RegulatorySubmissionClient.SubmissionResult result = submissionClient.submit(
+                template, regulatoryReturn, artifact, details, currentTenantId());
+        regulatoryReturn.setSubmittedBy(details != null && StringUtils.hasText(details.getSubmittedBy()) ? details.getSubmittedBy() : currentActor());
+        regulatoryReturn.setSubmittedAt(result.submittedAt());
+        regulatoryReturn.setSubmissionMethod(resolveSubmissionMethod(template, details));
+        regulatoryReturn.setRegulatorReferenceNumber(StringUtils.hasText(result.regulatorReferenceNumber())
+                ? result.regulatorReferenceNumber()
+                : (details != null ? details.getRegulatorReferenceNumber() : null));
+        regulatoryReturn.setSubmissionPayload(writeSubmissionPayload(artifact));
+        regulatoryReturn.setSubmissionResponse(auditDetails(
+                "success", result.success(),
+                "preparedOnly", result.preparedOnly(),
+                "endpoint", result.endpoint(),
+                "contentType", result.contentType(),
+                "statusCode", result.statusCode(),
+                "responseBody", result.responseBody(),
+                "responseHeaders", result.responseHeaders(),
+                "durationMs", result.durationMs()
         ));
+        regulatoryReturn.setSubmissionAttemptCount((regulatoryReturn.getSubmissionAttemptCount() != null
+                ? regulatoryReturn.getSubmissionAttemptCount() : 0) + 1);
+        regulatoryReturn.setStatus(result.success()
+                ? RegulatoryDomainEnums.ReturnStatus.SUBMITTED
+                : RegulatoryDomainEnums.ReturnStatus.APPROVED);
+        regulatoryReturn.setRegulatorFeedback(result.success() ? regulatoryReturn.getRegulatorFeedback() : result.responseBody());
+        returnRepository.save(regulatoryReturn);
+        audit(returnId, RegulatoryDomainEnums.AuditEventType.SUBMITTED, auditDetails(
+                "method", regulatoryReturn.getSubmissionMethod() != null ? regulatoryReturn.getSubmissionMethod().name() : null,
+                "regulatorReferenceNumber", regulatoryReturn.getRegulatorReferenceNumber(),
+                "endpoint", result.endpoint(),
+                "statusCode", result.statusCode(),
+                "success", result.success()
+        ));
+        if (!result.success()) {
+            throw new BusinessException("Regulator submission failed: " + result.responseBody(), "REG_SUBMISSION_FAILED");
+        }
     }
 
     public void recordAcknowledgment(Long returnId, RegulatoryRequests.AcknowledgmentDetails details) {
@@ -126,7 +158,7 @@ public class RegulatoryReturnWorkflowService {
         regulatoryReturn.setRegulatorFeedback(details.getFeedback());
         regulatoryReturn.setStatus(RegulatoryDomainEnums.ReturnStatus.ACKNOWLEDGED);
         returnRepository.save(regulatoryReturn);
-        audit(returnId, RegulatoryDomainEnums.AuditEventType.ACKNOWLEDGED, Map.of(
+        audit(returnId, RegulatoryDomainEnums.AuditEventType.ACKNOWLEDGED, auditDetails(
                 "regulatorReferenceNumber", details.getRegulatorReferenceNumber(),
                 "feedback", details.getFeedback()
         ));
@@ -137,7 +169,7 @@ public class RegulatoryReturnWorkflowService {
         regulatoryReturn.setRegulatorFeedback(details.getFeedback());
         regulatoryReturn.setStatus(RegulatoryDomainEnums.ReturnStatus.REJECTED_BY_REGULATOR);
         returnRepository.save(regulatoryReturn);
-        audit(returnId, RegulatoryDomainEnums.AuditEventType.REJECTED, Map.of(
+        audit(returnId, RegulatoryDomainEnums.AuditEventType.REJECTED, auditDetails(
                 "feedback", details.getFeedback(),
                 "rejectedBy", details.getRejectedBy()
         ));
@@ -146,7 +178,7 @@ public class RegulatoryReturnWorkflowService {
     public RegulatoryReturn createAmendment(Long originalReturnId, String reason) {
         RegulatoryReturn original = getReturn(originalReturnId);
         RegulatoryReturn amendment = RegulatoryReturn.builder()
-                .returnRef(original.getReturnRef() + "-AMD-" + System.nanoTime())
+                .returnRef(referenceService.nextAmendmentRef(original.getReturnRef()))
                 .templateId(original.getTemplateId())
                 .templateCode(original.getTemplateCode())
                 .jurisdiction(original.getJurisdiction())
@@ -168,6 +200,7 @@ public class RegulatoryReturnWorkflowService {
                 .status(RegulatoryDomainEnums.ReturnStatus.DRAFT)
                 .generatedBy(currentActor())
                 .generatedAt(LocalDateTime.now())
+                .submissionAttemptCount(0)
                 .filingDeadline(original.getFilingDeadline())
                 .isAmendment(true)
                 .originalReturnId(originalReturnId)
@@ -198,7 +231,7 @@ public class RegulatoryReturnWorkflowService {
                     .validationMessage(item.getValidationMessage())
                     .build());
         }
-        audit(saved.getId(), RegulatoryDomainEnums.AuditEventType.AMENDED, Map.of(
+        audit(saved.getId(), RegulatoryDomainEnums.AuditEventType.AMENDED, auditDetails(
                 "originalReturnId", originalReturnId,
                 "reason", reason
         ));
@@ -207,16 +240,17 @@ public class RegulatoryReturnWorkflowService {
 
     @Transactional(readOnly = true)
     public List<RegulatoryReturn> getUpcomingDeadlines(int daysAhead) {
-        return returnRepository.findByFilingDeadlineBetweenOrderByFilingDeadlineAsc(LocalDate.now(), LocalDate.now().plusDays(daysAhead));
+        return returnRepository.findByFilingDeadlineBetweenOrderByFilingDeadlineAsc(LocalDate.now(), LocalDate.now().plusDays(daysAhead)).stream()
+                .filter(item -> !deadlineService.isOverdue(item, LocalDate.now().minusDays(1)))
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<RegulatoryReturn> getBreachedDeadlines() {
         List<RegulatoryReturn> overdue = new ArrayList<>();
         for (RegulatoryReturn regulatoryReturn : returnRepository.findAll()) {
-            if (regulatoryReturn.getStatus() != RegulatoryDomainEnums.ReturnStatus.SUBMITTED
-                    && regulatoryReturn.getStatus() != RegulatoryDomainEnums.ReturnStatus.ACKNOWLEDGED
-                    && LocalDate.now().isAfter(regulatoryReturn.getFilingDeadline())) {
+            if (deadlineService.isOverdue(regulatoryReturn, LocalDate.now())) {
+                regulatoryReturn.setDeadlineBreach(true);
                 overdue.add(regulatoryReturn);
             }
         }
@@ -278,15 +312,16 @@ public class RegulatoryReturnWorkflowService {
 
     @Transactional(readOnly = true)
     public RegulatoryResponses.RegulatoryReportingDashboard getDashboard() {
-        Map<String, Long> byStatus = returnRepository.findAll().stream()
+        List<RegulatoryReturn> returns = returnRepository.findAll();
+        Map<String, Long> byStatus = returns.stream()
                 .collect(java.util.stream.Collectors.groupingBy(item -> item.getStatus().name(), LinkedHashMap::new, java.util.stream.Collectors.counting()));
-        Map<String, Long> byJurisdiction = returnRepository.findAll().stream()
+        Map<String, Long> byJurisdiction = returns.stream()
                 .collect(java.util.stream.Collectors.groupingBy(item -> item.getJurisdiction().name(), LinkedHashMap::new, java.util.stream.Collectors.counting()));
-        long onTime = returnRepository.findAll().stream()
+        long onTime = returns.stream()
                 .filter(item -> item.getSubmittedAt() != null)
                 .filter(item -> !item.getSubmittedAt().toLocalDate().isAfter(item.getFilingDeadline()))
                 .count();
-        long totalDue = returnRepository.findAll().size();
+        long totalDue = returns.size();
         BigDecimal complianceRate = totalDue == 0 ? BigDecimal.ZERO
                 : BigDecimal.valueOf(onTime).multiply(new BigDecimal("100"))
                 .divide(BigDecimal.valueOf(totalDue), 2, RoundingMode.HALF_UP);
@@ -320,7 +355,10 @@ public class RegulatoryReturnWorkflowService {
                     template.getTemplateCode(), periodFrom, periodTo);
             RegulatoryReturn current = existing.isEmpty() ? null : existing.getFirst();
             String status = current == null
-                    ? (LocalDate.now().isAfter(periodTo.plusDays(template.getFilingDeadlineDaysAfterPeriod())) ? "OVERDUE" : "UPCOMING")
+                    ? (deadlineService.isOverdue(RegulatoryReturn.builder()
+                        .status(RegulatoryDomainEnums.ReturnStatus.DRAFT)
+                        .filingDeadline(deadlineService.calculateDeadline(template, periodTo))
+                        .build(), LocalDate.now()) ? "OVERDUE" : "UPCOMING")
                     : current.getStatus().name();
             entries.add(RegulatoryResponses.RegulatoryCalendarEntry.builder()
                     .templateCode(template.getTemplateCode())
@@ -328,7 +366,7 @@ public class RegulatoryReturnWorkflowService {
                     .jurisdiction(template.getJurisdiction().name())
                     .periodFrom(periodFrom)
                     .periodTo(periodTo)
-                    .filingDeadline(periodTo.plusDays(template.getFilingDeadlineDaysAfterPeriod()))
+                    .filingDeadline(deadlineService.calculateDeadline(template, periodTo))
                     .status(status)
                     .returnId(current != null ? current.getId() : null)
                     .build());
@@ -367,5 +405,40 @@ public class RegulatoryReturnWorkflowService {
         } catch (NumberFormatException ex) {
             return BigDecimal.ZERO;
         }
+    }
+
+    private RegulatoryDomainEnums.SubmissionMethod resolveSubmissionMethod(RegulatoryReturnTemplate template,
+                                                                          RegulatoryRequests.SubmissionDetails details) {
+        if (details != null && StringUtils.hasText(details.getSubmissionMethod())) {
+            return RegulatoryDomainEnums.SubmissionMethod.valueOf(details.getSubmissionMethod().toUpperCase(Locale.ROOT));
+        }
+        if (template.getSubmissionConfig() != null && template.getSubmissionConfig().get("defaultMethod") != null) {
+            return RegulatoryDomainEnums.SubmissionMethod.valueOf(
+                    String.valueOf(template.getSubmissionConfig().get("defaultMethod")).toUpperCase(Locale.ROOT));
+        }
+        return RegulatoryDomainEnums.SubmissionMethod.API;
+    }
+
+    private String writeSubmissionPayload(RegulatoryTemplateEngine.ExportArtifact artifact) {
+        if (artifact == null || artifact.body() == null) {
+            return null;
+        }
+        if (artifact.contentType() != null && (
+                artifact.contentType().contains("json")
+                        || artifact.contentType().contains("xml")
+                        || artifact.contentType().contains("csv")
+                        || artifact.contentType().contains("text")
+                        || artifact.contentType().contains("pdf"))) {
+            return new String(artifact.body(), StandardCharsets.UTF_8);
+        }
+        return Base64.getEncoder().encodeToString(artifact.body());
+    }
+
+    private Map<String, Object> auditDetails(Object... entries) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        for (int index = 0; index < entries.length - 1; index += 2) {
+            details.put(String.valueOf(entries[index]), entries[index + 1]);
+        }
+        return details;
     }
 }

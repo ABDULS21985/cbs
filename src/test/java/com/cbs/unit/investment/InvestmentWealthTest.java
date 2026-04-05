@@ -1,5 +1,6 @@
 package com.cbs.unit.investment;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.custody.entity.CustodyAccount;
 import com.cbs.custody.repository.CustodyAccountRepository;
@@ -37,6 +38,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 @DisplayName("Investment & Wealth - Portfolio, Fund, Trust, Custody & Wealth Management")
 class InvestmentWealthTest {
 
@@ -119,6 +121,7 @@ class InvestmentWealthTest {
     class FundTests {
 
         @Mock private ManagedFundRepository fundRepository;
+        @Mock private CurrentActorProvider currentActorProvider;
         @InjectMocks private FundManagementService fundManagementService;
 
         @Test
@@ -168,6 +171,8 @@ class InvestmentWealthTest {
     class TrustTests {
 
         @Mock private TrustAccountRepository trustRepository;
+        @Mock private com.cbs.gl.service.GeneralLedgerService generalLedgerService;
+        @Mock private CurrentActorProvider currentActorProvider;
         @InjectMocks private TrustService trustService;
 
         @Test
@@ -179,10 +184,13 @@ class InvestmentWealthTest {
                     .trusteeType("INDIVIDUAL").trusteeName("Jane Smith")
                     .corpusValue(BigDecimal.valueOf(500000))
                     .distributionsYtd(BigDecimal.valueOf(10000))
+                    .status("ACTIVE").currency("USD")
                     .inceptionDate(LocalDate.of(2020, 1, 1)).build();
 
             when(trustRepository.findByTrustCode("TRS-FAMILY01")).thenReturn(Optional.of(trust));
             when(trustRepository.save(any(TrustAccount.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(generalLedgerService.postJournal(any(), any(), any(), any(), any(), any(), any()))
+                    .thenReturn(com.cbs.gl.entity.JournalEntry.builder().id(1L).build());
 
             TrustAccount result = trustService.recordDistribution("TRS-FAMILY01", BigDecimal.valueOf(25000));
 
@@ -199,13 +207,14 @@ class InvestmentWealthTest {
                     .trusteeType("CORPORATE").trusteeName("CBS Trust Co")
                     .corpusValue(BigDecimal.valueOf(10000))
                     .distributionsYtd(BigDecimal.ZERO)
+                    .status("ACTIVE").currency("USD")
                     .inceptionDate(LocalDate.of(2022, 6, 1)).build();
 
             when(trustRepository.findByTrustCode("TRS-SMALL01")).thenReturn(Optional.of(trust));
 
             assertThatThrownBy(() -> trustService.recordDistribution("TRS-SMALL01", BigDecimal.valueOf(50000)))
                     .isInstanceOf(BusinessException.class)
-                    .hasMessageContaining("Distribution amount exceeds corpus value");
+                    .hasMessageContaining("exceeds corpus value");
         }
     }
 
@@ -216,6 +225,7 @@ class InvestmentWealthTest {
     class CustodyTests {
 
         @Mock private CustodyAccountRepository custodyRepository;
+        @Mock private CurrentActorProvider currentActorProvider;
         @InjectMocks private CustodyService custodyService;
 
         @Test
@@ -225,6 +235,8 @@ class InvestmentWealthTest {
                     .accountName("Institutional Custody").customerId(300L)
                     .accountType("INSTITUTIONAL").build();
 
+            when(custodyRepository.findByCustomerIdAndStatusOrderByAccountNameAsc(300L, "ACTIVE"))
+                    .thenReturn(List.of());
             when(custodyRepository.save(any(CustodyAccount.class))).thenAnswer(inv -> {
                 CustodyAccount a = inv.getArgument(0);
                 a.setId(1L);

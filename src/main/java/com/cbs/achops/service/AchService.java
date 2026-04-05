@@ -1,5 +1,10 @@
 package com.cbs.achops.service;
 
+import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
+import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.achops.entity.AchBatch;
@@ -8,6 +13,7 @@ import com.cbs.achops.repository.AchBatchRepository;
 import com.cbs.achops.repository.AchItemRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +28,11 @@ public class AchService {
 
     private final AchBatchRepository batchRepository;
     private final AchItemRepository itemRepository;
+    private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
+
+    @Value("${cbs.ach.gl.clearing:1001-ACH-001}")
+    private String achClearingGlCode;
 
     @Transactional
     public AchBatch createBatch(AchBatch batch) {
@@ -66,22 +77,68 @@ public class AchService {
             throw new BusinessException("Item is not in a postable state: " + item.getStatus(), "ITEM_NOT_POSTABLE");
         }
 
+        // Validate batch is in correct status for posting
+        AchBatch batch = item.getBatch();
+        if (!"SUBMITTED".equals(batch.getStatus()) && !"SETTLED".equals(batch.getStatus())) {
+            throw new BusinessException("Batch must be SUBMITTED before items can be posted, current status: " + batch.getStatus(),
+                    "BATCH_NOT_SUBMITTED");
+        }
+
+        // Validate item has required fields
+        if (item.getAccountNumber() == null || item.getAccountNumber().isBlank()) {
+            throw new BusinessException("Account number is required for posting", "MISSING_ACCOUNT_NUMBER");
+        }
+        if (item.getAmount() == null || item.getAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Item amount must be greater than zero", "INVALID_ITEM_AMOUNT");
+        }
+
+        // Resolve customer account
+        Account account = accountRepository.findByAccountNumber(item.getAccountNumber())
+                .orElseThrow(() -> new BusinessException("Account not found: " + item.getAccountNumber(), "ACCOUNT_NOT_FOUND"));
+
+        // Determine credit or debit based on transaction code
+        // Standard ACH: codes 22/32/33 = credit, codes 27/37 = debit
+        boolean isCredit = isInboundCredit(item.getTransactionCode());
+        String narration = "ACH inbound " + (isCredit ? "credit" : "debit") + " - Batch " + batchId;
+
+        if (isCredit) {
+            accountPostingService.postCreditAgainstGl(
+                    account, TransactionType.CREDIT, item.getAmount(),
+                    narration, TransactionChannel.SYSTEM, "ACH:" + batchId + ":" + itemId,
+                    achClearingGlCode, "ACH_OPS", "ACH-" + batchId + "-" + itemId
+            );
+        } else {
+            accountPostingService.postDebitAgainstGl(
+                    account, TransactionType.DEBIT, item.getAmount(),
+                    narration, TransactionChannel.SYSTEM, "ACH:" + batchId + ":" + itemId,
+                    achClearingGlCode, "ACH_OPS", "ACH-" + batchId + "-" + itemId
+            );
+        }
+
         item.setStatus("POSTED");
         item.setPostedAt(Instant.now());
         AchItem saved = itemRepository.save(item);
 
         // Update batch counters
-        AchBatch batch = item.getBatch();
         long postedCount = itemRepository.countByBatchIdAndStatus(batchId, "POSTED");
         if (postedCount >= batch.getTotalTransactions()) {
             batch.setStatus("SETTLED");
             batch.setSettledAt(Instant.now());
             batchRepository.save(batch);
+            log.info("ACH batch fully settled: batchId={}", batchId);
         }
 
-        log.info("ACH inbound item posted: batchId={}, itemId={}, account={}, amount={}",
-                batchId, itemId, item.getAccountNumber(), item.getAmount());
+        log.info("ACH inbound item posted: batchId={}, itemId={}, account={}, amount={}, direction={}",
+                batchId, itemId, item.getAccountNumber(), item.getAmount(), isCredit ? "CREDIT" : "DEBIT");
         return saved;
+    }
+
+    private boolean isInboundCredit(String transactionCode) {
+        if (transactionCode == null) return true; // default to credit for inbound
+        return switch (transactionCode) {
+            case "27", "37", "28", "38" -> false; // debit codes
+            default -> true; // 22, 32, 33 and others default to credit
+        };
     }
 
     @Transactional

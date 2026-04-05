@@ -32,15 +32,17 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -57,34 +59,20 @@ public class PurificationService {
     private final IslamicPostingRuleService postingRuleService;
     private final CurrentActorProvider actorProvider;
 
-    private static final AtomicLong BATCH_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
-
     // ── Batch creation ─────────────────────────────────────────────────────────
 
     public PurificationBatchResponse createBatch(CreatePurificationBatchRequest request) {
         List<QuarantineStatus> eligibleStatuses = List.of(
                 QuarantineStatus.QUARANTINED, QuarantineStatus.PENDING_PURIFICATION);
 
-        List<SnciRecord> eligibleRecords = snciRepository.findByQuarantineStatusIn(eligibleStatuses);
-
-        // Filter by period if provided
-        if (request.getPeriodFrom() != null) {
-            eligibleRecords = eligibleRecords.stream()
-                    .filter(r -> r.getDetectionDate() != null && !r.getDetectionDate().isBefore(request.getPeriodFrom()))
-                    .toList();
-        }
-        if (request.getPeriodTo() != null) {
-            eligibleRecords = eligibleRecords.stream()
-                    .filter(r -> r.getDetectionDate() != null && !r.getDetectionDate().isAfter(request.getPeriodTo()))
-                    .toList();
-        }
-
-        // Filter by currency if provided
-        if (request.getCurrencyCode() != null && !request.getCurrencyCode().isBlank()) {
-            eligibleRecords = eligibleRecords.stream()
-                    .filter(r -> request.getCurrencyCode().equals(r.getCurrencyCode()))
-                    .toList();
-        }
+        String requestedCurrency = StringUtils.hasText(request.getCurrencyCode())
+                ? request.getCurrencyCode().trim().toUpperCase(Locale.ROOT)
+                : null;
+        List<SnciRecord> eligibleRecords = snciRepository.lockEligibleForPurification(
+                eligibleStatuses,
+                request.getPeriodFrom(),
+                request.getPeriodTo(),
+                requestedCurrency);
 
         // Filter out records with null or non-positive amounts
         List<SnciRecord> skippedRecords = eligibleRecords.stream()
@@ -110,10 +98,10 @@ public class PurificationService {
                 .map(r -> r.getAmount() != null ? r.getAmount() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        String batchRef = "PUR-" + LocalDate.now().getYear() + "-" + String.format("%05d", BATCH_SEQ.incrementAndGet());
+        String batchRef = generateBatchReference();
 
-        String currencyCode = request.getCurrencyCode() != null && !request.getCurrencyCode().isBlank()
-                ? request.getCurrencyCode()
+        String currencyCode = requestedCurrency != null
+                ? requestedCurrency
                 : eligibleRecords.get(0).getCurrencyCode();
 
         PurificationBatch batch = PurificationBatch.builder()
@@ -140,6 +128,11 @@ public class PurificationService {
 
         return toBatchResponse(savedBatch);
     }
+
+        private String generateBatchReference() {
+                return "PUR-" + LocalDate.now().getYear() + "-"
+                                + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
+        }
 
     // ── Disbursement planning ──────────────────────────────────────────────────
 

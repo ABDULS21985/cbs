@@ -1,5 +1,7 @@
 package com.cbs.investportfolio.service;
 
+import com.cbs.common.audit.CurrentActorProvider;
+import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.investportfolio.entity.InvestPortfolio;
 import com.cbs.investportfolio.entity.PortfolioHolding;
@@ -24,31 +26,103 @@ public class InvestmentPortfolioService {
 
     private final InvestPortfolioRepository portfolioRepository;
     private final PortfolioHoldingRepository holdingRepository;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public InvestPortfolio create(InvestPortfolio portfolio) {
+        // Validation on create
+        if (portfolio.getCustomerId() == null) {
+            throw new BusinessException("Customer ID is required", "MISSING_CUSTOMER_ID");
+        }
+        if (!StringUtils.hasText(portfolio.getPortfolioName())) {
+            throw new BusinessException("Portfolio name is required", "MISSING_PORTFOLIO_NAME");
+        }
+        if (portfolio.getInitialInvestment() == null || portfolio.getInitialInvestment().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Initial investment must be positive", "INVALID_INITIAL_INVESTMENT");
+        }
+
         if (!StringUtils.hasText(portfolio.getPortfolioCode())) {
             portfolio.setPortfolioCode("IPF-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
+        } else {
+            // Check for duplicate portfolio code
+            portfolioRepository.findByPortfolioCode(portfolio.getPortfolioCode()).ifPresent(existing -> {
+                throw new BusinessException("Portfolio code already exists: " + portfolio.getPortfolioCode(),
+                        "DUPLICATE_PORTFOLIO_CODE");
+            });
         }
+
         portfolio.setCurrentValue(portfolio.getInitialInvestment());
         portfolio.setTotalContributions(portfolio.getInitialInvestment());
+        portfolio.setUnrealizedGainLoss(BigDecimal.ZERO);
         portfolio.setOpenedAt(Instant.now());
         portfolio.setStatus("ACTIVE");
         InvestPortfolio saved = portfolioRepository.save(portfolio);
-        log.info("Portfolio created: {}", saved.getPortfolioCode());
+        log.info("AUDIT: Portfolio created: code={}, customer={}, initial={}, actor={}",
+                saved.getPortfolioCode(), saved.getCustomerId(), saved.getInitialInvestment(),
+                currentActorProvider.getCurrentActor());
         return saved;
     }
 
     @Transactional
     public PortfolioHolding addHolding(String portfolioCode, PortfolioHolding holding) {
         InvestPortfolio portfolio = getByCode(portfolioCode);
+        if (!"ACTIVE".equals(portfolio.getStatus())) {
+            throw new BusinessException("Portfolio must be ACTIVE to add holdings", "PORTFOLIO_NOT_ACTIVE");
+        }
+
+        // Validate holding fields
+        if (!StringUtils.hasText(holding.getInstrumentCode())) {
+            throw new BusinessException("Instrument code is required", "MISSING_INSTRUMENT_CODE");
+        }
+        if (holding.getQuantity() == null || holding.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Quantity must be positive", "INVALID_QUANTITY");
+        }
+        if (holding.getAvgCostPrice() == null || holding.getAvgCostPrice().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Average cost price must be positive", "INVALID_COST_PRICE");
+        }
+
+        // Duplicate holding check: same instrument in same portfolio
+        holdingRepository.findByPortfolioIdAndInstrumentCode(portfolio.getId(), holding.getInstrumentCode())
+                .ifPresent(existing -> {
+                    throw new BusinessException(
+                            "Holding already exists for instrument " + holding.getInstrumentCode()
+                                    + " in portfolio " + portfolioCode + ". Use update instead.",
+                            "DUPLICATE_HOLDING");
+                });
+
         holding.setPortfolioId(portfolio.getId());
         holding.setCostBasis(holding.getQuantity().multiply(holding.getAvgCostPrice()));
         if (holding.getCurrentPrice() != null) {
             holding.setMarketValue(holding.getQuantity().multiply(holding.getCurrentPrice()));
             holding.setUnrealizedGainLoss(holding.getMarketValue().subtract(holding.getCostBasis()));
         }
-        return holdingRepository.save(holding);
+        PortfolioHolding saved = holdingRepository.save(holding);
+        log.info("AUDIT: Holding added: portfolio={}, instrument={}, qty={}, cost={}, actor={}",
+                portfolioCode, holding.getInstrumentCode(), holding.getQuantity(),
+                holding.getCostBasis(), currentActorProvider.getCurrentActor());
+        return saved;
+    }
+
+    @Transactional
+    public PortfolioHolding updateHoldingPrice(String portfolioCode, String instrumentCode, BigDecimal currentPrice) {
+        InvestPortfolio portfolio = getByCode(portfolioCode);
+        PortfolioHolding holding = holdingRepository.findByPortfolioIdAndInstrumentCode(portfolio.getId(), instrumentCode)
+                .orElseThrow(() -> new ResourceNotFoundException("PortfolioHolding", "instrumentCode", instrumentCode));
+
+        if (currentPrice == null || currentPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Current price must be positive", "INVALID_PRICE");
+        }
+
+        holding.setCurrentPrice(currentPrice);
+        holding.setMarketValue(holding.getQuantity().multiply(currentPrice));
+        holding.setUnrealizedGainLoss(holding.getMarketValue().subtract(holding.getCostBasis()));
+        holding.setLastPricedAt(Instant.now());
+
+        PortfolioHolding saved = holdingRepository.save(holding);
+        log.info("AUDIT: Market price updated: portfolio={}, instrument={}, price={}, marketValue={}, actor={}",
+                portfolioCode, instrumentCode, currentPrice, holding.getMarketValue(),
+                currentActorProvider.getCurrentActor());
+        return saved;
     }
 
     @Transactional
@@ -91,7 +165,11 @@ public class InvestmentPortfolioService {
                             .multiply(new BigDecimal("100")));
         }
 
-        return portfolioRepository.save(portfolio);
+        InvestPortfolio saved = portfolioRepository.save(portfolio);
+        log.info("AUDIT: Portfolio valuated: code={}, value={}, unrealized={}, return={}%, actor={}",
+                portfolioCode, totalValue, totalUnrealized, portfolio.getReturnSinceInception(),
+                currentActorProvider.getCurrentActor());
+        return saved;
     }
 
     public InvestPortfolio getByCode(String code) {

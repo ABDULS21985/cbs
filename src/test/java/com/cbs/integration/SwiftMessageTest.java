@@ -6,6 +6,8 @@ import com.cbs.fingateway.entity.GatewayMessage;
 import com.cbs.fingateway.repository.FinancialGatewayRepository;
 import com.cbs.fingateway.repository.GatewayMessageRepository;
 import com.cbs.fingateway.service.FinancialGatewayService;
+import com.cbs.sanctions.service.SanctionsScreeningService;
+import com.cbs.sanctions.entity.ScreeningRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -20,6 +23,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,6 +33,10 @@ class SwiftMessageTest {
     private FinancialGatewayRepository gatewayRepository;
     @Mock
     private GatewayMessageRepository messageRepository;
+    @Mock
+    private SanctionsScreeningService sanctionsScreeningService;
+    @Mock
+    private RestTemplate restTemplate;
 
     @InjectMocks
     private FinancialGatewayService financialGatewayService;
@@ -52,13 +60,18 @@ class SwiftMessageTest {
                         "0987654321",
                         "JANE DOE",
                         "Invoice settlement",
-                        "SHA"
+                        "SHA",
+                        "CHASUS33",
+                        "BNPAFRPP"
                 )
         );
 
         assertThat(message).contains(":20:");
+        assertThat(message).contains(":23B:CRED");
         assertThat(message).contains(":32A:");
         assertThat(message).contains(":50K:");
+        assertThat(message).contains(":53A:CHASUS33");
+        assertThat(message).contains(":57A:BNPAFRPP");
         assertThat(message).contains(":59:");
         assertThat(message).matches("(?s).*:71A:(OUR|BEN|SHA).*");
     }
@@ -77,7 +90,9 @@ class SwiftMessageTest {
                         "0987654321",
                         "BENEFICIARY CUSTOMER",
                         "Remittance",
-                        "OUR"
+                        "OUR",
+                        null,
+                        null
                 )
         );
 
@@ -98,6 +113,14 @@ class SwiftMessageTest {
         when(gatewayRepository.save(any(FinancialGateway.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(messageRepository.save(any(GatewayMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
+        // Mock sanctions screening to return CLEAR
+        ScreeningRequest clearResult = ScreeningRequest.builder()
+                .status("CLEAR").totalMatches(0).build();
+        when(sanctionsScreeningService.screenName(
+                anyString(), anyString(), anyString(),
+                any(), any(), any(), any(), anyString(), any(), any()
+        )).thenReturn(clearResult);
+
         GatewayMessage result = financialGatewayService.sendMessage(
                 GatewayMessage.builder()
                         .gatewayId(1L)
@@ -110,7 +133,9 @@ class SwiftMessageTest {
         );
 
         assertThat(result.getMessageRef()).startsWith("GW-");
-        assertThat(result.getDeliveryStatus()).isEqualTo("SENT");
+        // No endpoint URL configured, so message stays PENDING for retry
+        assertThat(result.getDeliveryStatus()).isEqualTo("PENDING");
         assertThat(result.getSanctionsChecked()).isTrue();
+        assertThat(result.getSanctionsResult()).isEqualTo("CLEAR");
     }
 }

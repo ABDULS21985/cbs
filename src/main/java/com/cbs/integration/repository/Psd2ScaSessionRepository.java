@@ -10,4 +10,6 @@ public interface Psd2ScaSessionRepository extends JpaRepository<Psd2ScaSession, 
     List<Psd2ScaSession> findByTppIdAndScaStatusOrderByCreatedAtDesc(String tppId, String scaStatus);
     List<Psd2ScaSession> findByCustomerIdOrderByCreatedAtDesc(Long customerId);
     List<Psd2ScaSession> findTop200ByOrderByCreatedAtDesc();
+    List<Psd2ScaSession> findByPaymentIdOrderByCreatedAtDesc(Long paymentId);
+    List<Psd2ScaSession> findByConsentIdOrderByCreatedAtDesc(String consentId);
 }

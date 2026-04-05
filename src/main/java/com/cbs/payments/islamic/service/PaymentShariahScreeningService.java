@@ -12,6 +12,8 @@ import com.cbs.payments.islamic.repository.InstantPaymentExtensionRepository;
 import com.cbs.payments.islamic.repository.PaymentIslamicExtensionRepository;
 import com.cbs.payments.islamic.repository.PaymentShariahAuditLogRepository;
 import com.cbs.payments.repository.PaymentInstructionRepository;
+import com.cbs.sanctions.entity.ScreeningRequest;
+import com.cbs.sanctions.service.SanctionsScreeningService;
 import com.cbs.shariahcompliance.dto.ShariahScreeningRequest;
 import com.cbs.shariahcompliance.dto.ShariahScreeningResultResponse;
 import com.cbs.shariahcompliance.entity.ScreeningActionTaken;
@@ -53,6 +55,7 @@ public class PaymentShariahScreeningService {
     private final PaymentIslamicExtensionRepository paymentIslamicExtensionRepository;
     private final PaymentShariahAuditLogRepository paymentShariahAuditLogRepository;
     private final InstantPaymentExtensionRepository instantPaymentExtensionRepository;
+        private final SanctionsScreeningService sanctionsScreeningService;
     private final IslamicPaymentSupport paymentSupport;
 
     @Transactional(readOnly = true)
@@ -304,6 +307,7 @@ public class PaymentShariahScreeningService {
         List<IslamicPaymentResponses.ScreeningCheckResult> checks = new ArrayList<>();
         checks.add(mccCheck(mcc));
         checks.add(counterpartyCheck(request.getBeneficiaryName(), request.getDestinationAccountNumber()));
+        checks.add(sanctionsCheck(request, sourceAccount, persistBaseResult));
         checks.add(beneficiaryBankCheck(request.getDestinationBankSwift(), request.getDestinationBankCode()));
         checks.add(purposeCheck(request.getPurposeDescription()));
         checks.add(amountThresholdCheck(request.getAmount()));
@@ -374,6 +378,50 @@ public class PaymentShariahScreeningService {
         }
         return buildCheck(IslamicPaymentDomainEnums.CheckType.BENEFICIARY_BANK, IslamicPaymentDomainEnums.CheckResult.PASS,
                 value, "SHARIAH-PAY-BANK", IslamicPaymentDomainEnums.CheckAction.LOG, "Beneficiary bank screening passed");
+    }
+
+    private IslamicPaymentResponses.ScreeningCheckResult sanctionsCheck(IslamicPaymentRequests.IslamicPaymentRequest request,
+                                                                        Account sourceAccount,
+                                                                        boolean persistBaseResult) {
+        if (!persistBaseResult) {
+            return buildCheck(IslamicPaymentDomainEnums.CheckType.SANCTIONS, IslamicPaymentDomainEnums.CheckResult.SKIPPED,
+                    null, "SHARIAH-PAY-SANCTIONS", IslamicPaymentDomainEnums.CheckAction.LOG,
+                    "Sanctions screening is executed during payment submission");
+        }
+        if (!StringUtils.hasText(request.getBeneficiaryName())) {
+            return buildCheck(IslamicPaymentDomainEnums.CheckType.SANCTIONS, IslamicPaymentDomainEnums.CheckResult.SKIPPED,
+                    null, "SHARIAH-PAY-SANCTIONS", IslamicPaymentDomainEnums.CheckAction.LOG,
+                    "No beneficiary name available for sanctions screening");
+        }
+
+        try {
+            ScreeningRequest sanctionsResult = sanctionsScreeningService.screenName(
+                    "ISLAMIC_PAYMENT",
+                    request.getBeneficiaryName(),
+                    "INDIVIDUAL",
+                    null,
+                    paymentSupport.resolveCountryCode(request),
+                    request.getDestinationAccountNumber(),
+                    sourceAccount != null && sourceAccount.getCustomer() != null ? sourceAccount.getCustomer().getId() : null,
+                    StringUtils.hasText(request.getReference()) ? request.getReference() : "ISLAMIC_PAYMENT",
+                    null,
+                    null
+            );
+            if ("CLEAR".equalsIgnoreCase(sanctionsResult.getStatus())) {
+                return buildCheck(IslamicPaymentDomainEnums.CheckType.SANCTIONS, IslamicPaymentDomainEnums.CheckResult.PASS,
+                        sanctionsResult.getScreeningRef(), "SHARIAH-PAY-SANCTIONS", IslamicPaymentDomainEnums.CheckAction.LOG,
+                        "Sanctions screening passed");
+            }
+            return buildCheck(IslamicPaymentDomainEnums.CheckType.SANCTIONS, IslamicPaymentDomainEnums.CheckResult.FAIL,
+                    sanctionsResult.getScreeningRef(), "SHARIAH-PAY-SANCTIONS", IslamicPaymentDomainEnums.CheckAction.BLOCK,
+                    "Sanctions screening returned status " + sanctionsResult.getStatus() + " and requires compliance clearance");
+        } catch (Exception ex) {
+            log.error("Sanctions screening failed for payment ref {} - failing closed: {}",
+                    request.getReference(), ex.getMessage());
+            return buildCheck(IslamicPaymentDomainEnums.CheckType.SANCTIONS, IslamicPaymentDomainEnums.CheckResult.FAIL,
+                    null, "SHARIAH-PAY-SANCTIONS", IslamicPaymentDomainEnums.CheckAction.BLOCK,
+                    "Sanctions screening failed and the payment was blocked pending review");
+        }
     }
 
     private IslamicPaymentResponses.ScreeningCheckResult purposeCheck(String purposeDescription) {

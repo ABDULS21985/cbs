@@ -15,4 +15,6 @@ public interface MarketResearchProjectRepository extends JpaRepository<MarketRes
 
     @Query("SELECT COUNT(p) FROM MarketResearchProject p WHERE p.status = 'COMPLETED' AND p.completedAt >= :since")
     long countCompletedSince(Instant since);
+    boolean existsByTitleAndProjectType(String title, String projectType);
+    List<MarketResearchProject> findByTitleContainingIgnoreCaseOrderByCreatedAtDesc(String title);
 }

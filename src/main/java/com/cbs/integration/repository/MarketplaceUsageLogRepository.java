@@ -23,4 +23,5 @@ public interface MarketplaceUsageLogRepository extends JpaRepository<Marketplace
     long countSuccessByProduct(Long productId, Instant since);
 
     List<MarketplaceUsageLog> findByApiProductIdAndCreatedAtAfterOrderByCreatedAtDesc(Long apiProductId, Instant since);
+    List<MarketplaceUsageLog> findByCreatedAtAfterOrderByCreatedAtDesc(Instant since);
 }

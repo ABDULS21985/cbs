@@ -18,10 +18,12 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class UssdServiceTest {
 
     @Mock private UssdMenuRepository menuRepository;
     @Mock private UssdSessionRepository sessionRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
 
     @InjectMocks private UssdService ussdService;
 

@@ -11,4 +11,5 @@ public interface Iso20022MessageRepository extends JpaRepository<Iso20022Message
     List<Iso20022Message> findByMessageDefinitionAndStatusOrderByCreatedAtDesc(String definition, String status);
     List<Iso20022Message> findBySenderBicOrReceiverBicOrderByCreatedAtDesc(String senderBic, String receiverBic);
     List<Iso20022Message> findByStatusOrderByCreatedAtAsc(String status);
+    Optional<Iso20022Message> findByBusinessMessageIdAndSenderBic(String businessMessageId, String senderBic);
 }

@@ -89,9 +89,7 @@ public class RootCauseAnalysisService {
         final LocalDate effectiveFrom = from;
         final LocalDate effectiveTo = to;
 
-        List<CaseRootCauseAnalysis> rcas = rcaRepository.findAll().stream()
-                .filter(r -> r.getAnalysisDate() != null && !r.getAnalysisDate().isBefore(effectiveFrom) && !r.getAnalysisDate().isAfter(effectiveTo))
-                .toList();
+        List<CaseRootCauseAnalysis> rcas = rcaRepository.findByAnalysisDateBetween(effectiveFrom, effectiveTo);
 
         Map<String, Long> categoryCounts = rcas.stream()
                 .filter(r -> r.getRootCauseCategory() != null)
@@ -120,7 +118,11 @@ public class RootCauseAnalysisService {
     public List<CasePatternInsight> getAllPatterns() { return patternRepository.findAll(); }
 
     public List<Map<String, Object>> getRecurringRootCauses() {
-        List<CaseRootCauseAnalysis> all = rcaRepository.findAll();
+        // Use date-filtered query instead of loading all RCAs into memory.
+        // Default to last 12 months to bound data volume.
+        LocalDate fromDate = LocalDate.now().minusMonths(12);
+        LocalDate toDate = LocalDate.now();
+        List<CaseRootCauseAnalysis> all = rcaRepository.findByAnalysisDateBetween(fromDate, toDate);
 
         Map<String, List<CaseRootCauseAnalysis>> byCategory = all.stream()
                 .filter(r -> r.getRootCauseCategory() != null)

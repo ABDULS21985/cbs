@@ -13,4 +13,5 @@ public interface ChannelSessionRepository extends JpaRepository<ChannelSession, 
     @Query(value = "SELECT * FROM cbs.channel_session s WHERE s.status = 'ACTIVE' AND s.last_activity_at < NOW() - (s.timeout_seconds * INTERVAL '1 second')", nativeQuery = true)
     List<ChannelSession> findExpiredSessions();
     long countByChannelAndStatus(String channel, String status);
+    long countByCustomerIdAndStatus(Long customerId, String status);
 }

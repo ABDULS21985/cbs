@@ -21,6 +21,8 @@ public class Psd2Service {
     private final Psd2ScaSessionRepository scaRepository;
 
     private static final BigDecimal LOW_VALUE_THRESHOLD = new BigDecimal("30.00"); // EUR 30
+    private static final BigDecimal CUMULATIVE_LOW_VALUE_LIMIT = new BigDecimal("100.00"); // EUR 100
+    private static final int CONSECUTIVE_LOW_VALUE_LIMIT = 5;
 
     // ── TPP Registration ─────────────────────────────────────
 
@@ -122,9 +124,90 @@ public class Psd2Service {
 
     private String evaluateExemption(BigDecimal amount, Long paymentId) {
         // Low value: transactions under EUR 30 (or local equivalent)
-        if (amount != null && amount.compareTo(LOW_VALUE_THRESHOLD) <= 0) return "LOW_VALUE";
-        // In production: also check RECURRING, TRUSTED_BENEFICIARY, SECURE_CORPORATE, TRA
+        if (amount != null && amount.compareTo(LOW_VALUE_THRESHOLD) <= 0) {
+            return "LOW_VALUE";
+        }
+
+        // Recurring payment exemption: if payment has been executed at least twice before
+        // with the same amount, it qualifies as a recurring payment (PSD2 RTS Art. 14)
+        if (paymentId != null) {
+            List<Psd2ScaSession> priorSessions = scaRepository.findByPaymentIdOrderByCreatedAtDesc(paymentId);
+            long completedCount = priorSessions.stream()
+                    .filter(s -> "FINALISED".equals(s.getScaStatus()) || "EXEMPTED".equals(s.getScaStatus()))
+                    .count();
+            if (completedCount >= 2) {
+                return "RECURRING";
+            }
+        }
+
+        // Trusted beneficiary exemption: if the customer has successfully paid the same
+        // payment target 3+ times in the last 90 days, treat as trusted beneficiary
+        if (paymentId != null) {
+            List<Psd2ScaSession> recentSessions = scaRepository.findByPaymentIdOrderByCreatedAtDesc(paymentId);
+            long recentSuccessful = recentSessions.stream()
+                    .filter(s -> s.getCreatedAt() != null && s.getCreatedAt().isAfter(Instant.now().minus(90, ChronoUnit.DAYS)))
+                    .filter(s -> "FINALISED".equals(s.getScaStatus()) || "EXEMPTED".equals(s.getScaStatus()))
+                    .count();
+            if (recentSuccessful >= 3) {
+                return "TRUSTED_BENEFICIARY";
+            }
+        }
+
         return null;
+    }
+
+    /**
+     * Check cumulative low-value thresholds (PSD2 RTS Art. 16):
+     * SCA is required when cumulative low-value contactless payments exceed EUR 100
+     * or 5 consecutive transactions since the last SCA.
+     */
+    public boolean requiresScaForCumulativeLowValue(Long customerId) {
+        List<Psd2ScaSession> sessions = scaRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
+
+        BigDecimal cumulative = BigDecimal.ZERO;
+        int consecutiveExempted = 0;
+
+        for (Psd2ScaSession s : sessions) {
+            if ("FINALISED".equals(s.getScaStatus())) {
+                // Full SCA was performed — reset counters
+                break;
+            }
+            if ("EXEMPTED".equals(s.getScaStatus()) && "LOW_VALUE".equals(s.getExemptionType())) {
+                consecutiveExempted++;
+                // We don't have amount on session directly, but the threshold check uses the count and nominal
+                cumulative = cumulative.add(LOW_VALUE_THRESHOLD); // conservative estimate
+            }
+        }
+
+        return cumulative.compareTo(CUMULATIVE_LOW_VALUE_LIMIT) >= 0
+                || consecutiveExempted >= CONSECUTIVE_LOW_VALUE_LIMIT;
+    }
+
+    // ── Consent Management Lifecycle ─────────────────────────
+
+    /**
+     * Revoke a consent by customer request, marking all associated sessions as invalidated.
+     */
+    @Transactional
+    public void revokeConsent(String consentId, Long customerId) {
+        List<Psd2ScaSession> sessions = scaRepository.findByConsentIdOrderByCreatedAtDesc(consentId);
+        if (sessions.isEmpty()) {
+            throw new ResourceNotFoundException("Psd2ScaSession", "consentId", consentId);
+        }
+        // Verify the consent belongs to the requesting customer
+        boolean belongsToCustomer = sessions.stream()
+                .anyMatch(s -> customerId.equals(s.getCustomerId()));
+        if (!belongsToCustomer) {
+            throw new BusinessException("Consent " + consentId + " does not belong to customer " + customerId);
+        }
+        for (Psd2ScaSession session : sessions) {
+            if (!"FAILED".equals(session.getScaStatus())) {
+                session.setScaStatus("REVOKED");
+                session.setFinalisedAt(Instant.now());
+                scaRepository.save(session);
+            }
+        }
+        log.info("AUDIT: Consent revoked: consentId={}, customerId={}, sessionsAffected={}", consentId, customerId, sessions.size());
     }
 
     public List<Psd2ScaSession> getCustomerSessions(Long customerId) {

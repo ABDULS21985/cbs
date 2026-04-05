@@ -5,4 +5,5 @@ import java.util.List; import java.util.Optional;
 public interface SalesTargetRepository extends JpaRepository<SalesTarget, Long> {
     Optional<SalesTarget> findByTargetCode(String code);
     List<SalesTarget> findByOfficerIdAndStatusOrderByPeriodStartDesc(String officerId, String status);
+    Optional<SalesTarget> findByPlanIdAndOfficerIdAndProductCode(Long planId, String officerId, String productCode);
 }

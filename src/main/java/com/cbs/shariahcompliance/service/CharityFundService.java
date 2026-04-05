@@ -50,7 +50,6 @@ public class CharityFundService {
     private final GeneralLedgerService generalLedgerService;
     private final CurrentActorProvider actorProvider;
     private final CurrentTenantResolver tenantResolver;
-    private final Object ledgerBalanceLock = new Object();
 
     public CharityFundLedgerEntry recordLatePenaltyInflow(Long latePenaltyRecordId,
                                                           BigDecimal amount,
@@ -252,38 +251,28 @@ public class CharityFundService {
         if (!"APPROVED".equals(batch.getStatus())) {
             throw new BusinessException("Batch must be approved before execution", "CHARITY_BATCH_NOT_APPROVED");
         }
-        batch.setStatus("PROCESSING");
-        batchRepository.save(batch);
 
-        int successCount = 0;
-        List<String> failures = new ArrayList<>();
-
-        for (Map<String, Object> allocation : batch.getAllocations()) {
-            try {
-                CharityFundDtos.DisburseFundsRequest request = CharityFundDtos.DisburseFundsRequest.builder()
+        List<CharityFundDtos.DisburseFundsRequest> requests = batch.getAllocations().stream()
+                .map(allocation -> CharityFundDtos.DisburseFundsRequest.builder()
                         .charityRecipientId(Long.valueOf(String.valueOf(allocation.get("charityRecipientId"))))
                         .amount(IslamicFeeSupport.toDecimal(allocation.get("amount")))
                         .currencyCode(String.valueOf(allocation.getOrDefault("currencyCode", "SAR")))
                         .purpose(String.valueOf(allocation.getOrDefault("purpose", "Charity fund batch disbursement")))
                         .notes((String) allocation.get("notes"))
                         .reference(batch.getBatchRef() + "-" + allocation.get("charityRecipientId"))
-                        .build();
-                disburseFunds(request);
-                successCount++;
-            } catch (Exception e) {
-                String recipientId = String.valueOf(allocation.get("charityRecipientId"));
-                log.error("Batch disbursement failed for recipient {}: {}", recipientId, e.getMessage());
-                failures.add("recipientId=" + recipientId + ": " + e.getMessage());
-            }
+                        .build())
+                .toList();
+
+        validateBatchExecutionRequests(requests);
+
+        batch.setStatus("PROCESSING");
+        batchRepository.save(batch);
+
+        for (CharityFundDtos.DisburseFundsRequest request : requests) {
+            disburseFunds(request);
         }
 
-        if (!failures.isEmpty()) {
-            batch.setStatus("PARTIALLY_COMPLETED");
-            log.warn("Batch disbursement {} completed with {} failures out of {} allocations",
-                    batch.getBatchRef(), failures.size(), batch.getAllocations().size());
-        } else {
-            batch.setStatus("COMPLETED");
-        }
+        batch.setStatus("COMPLETED");
         batch.setExecutedAt(Instant.now());
         batch.setExecutedBy(actorProvider.getCurrentActor());
         return batchRepository.save(batch);
@@ -437,51 +426,50 @@ public class CharityFundService {
                                                      Long charityRecipientId,
                                                      String journalRef,
                                                      String notes) {
-        // Fix #21: Use @Transactional with SERIALIZABLE isolation for cluster-safe balance consistency.
-        // The synchronized block is retained as a fast-path guard for single-node deployments.
-        // In multi-node deployments, the DB transaction isolation and unique entry_ref constraint provide safety.
-        synchronized (ledgerBalanceLock) {
-            BigDecimal currentBalance = getCurrentBalance(currencyCode);
-            BigDecimal runningBalance = switch (entryType) {
-                case "INFLOW", "ADJUSTMENT" -> currentBalance.add(IslamicFeeSupport.money(amount));
-                case "OUTFLOW", "REVERSAL" -> {
-                    BigDecimal afterOutflow = currentBalance.subtract(IslamicFeeSupport.money(amount));
-                    if (afterOutflow.compareTo(BigDecimal.ZERO) < 0) {
-                        throw new BusinessException(
-                                "Charity fund balance insufficient: current=" + currentBalance + ", outflow=" + amount,
-                                "CHARITY_FUND_INSUFFICIENT_BALANCE");
-                    }
-                    yield afterOutflow;
+        String resolvedCurrency = resolveCurrency(currencyCode);
+        BigDecimal currentBalance = ledgerRepository.findFirstByCurrencyCodeOrderByEntryDateDescIdDesc(resolvedCurrency)
+                .map(CharityFundLedgerEntry::getRunningBalance)
+                .map(IslamicFeeSupport::money)
+                .orElse(BigDecimal.ZERO);
+        BigDecimal runningBalance = switch (entryType) {
+            case "INFLOW", "ADJUSTMENT" -> currentBalance.add(IslamicFeeSupport.money(amount));
+            case "OUTFLOW", "REVERSAL" -> {
+                BigDecimal afterOutflow = currentBalance.subtract(IslamicFeeSupport.money(amount));
+                if (afterOutflow.compareTo(BigDecimal.ZERO) < 0) {
+                    throw new BusinessException(
+                            "Charity fund balance insufficient: current=" + currentBalance + ", outflow=" + amount,
+                            "CHARITY_FUND_INSUFFICIENT_BALANCE");
                 }
-                default -> currentBalance;
-            };
+                yield afterOutflow;
+            }
+            default -> currentBalance;
+        };
 
-            CharityRecipient recipient = charityRecipientId == null ? null : recipientRepository.findById(charityRecipientId).orElse(null);
+        CharityRecipient recipient = charityRecipientId == null ? null : recipientRepository.findById(charityRecipientId).orElse(null);
 
-            CharityFundLedgerEntry entry = CharityFundLedgerEntry.builder()
-                    .entryRef(IslamicFeeSupport.nextRef("CFL"))
-                    .entryType(entryType)
-                    .entryDate(entryDate)
-                    .amount(IslamicFeeSupport.money(amount))
-                    .currencyCode(resolveCurrency(currencyCode))
-                    .runningBalance(IslamicFeeSupport.money(runningBalance))
-                    .sourceType(sourceType)
-                    .sourceReference(sourceReference)
-                    .sourceContractRef(sourceContractRef)
-                    .sourceContractType(sourceContractType)
-                    .sourceCustomerId(sourceCustomerId)
-                    .destinationType(destinationType)
-                    .destinationReference(destinationReference)
-                    .charityRecipientId(charityRecipientId)
-                    .charityRecipientName(recipient != null ? recipient.getName() : null)
-                    .journalRef(journalRef)
-                    .notes(notes)
-                    .tenantId(tenantResolver.getCurrentTenantId())
-                    .build();
-            CharityFundLedgerEntry saved = ledgerRepository.save(entry);
-            log.info("Charity fund entry posted: ref={}, type={}, amount={}", saved.getEntryRef(), entryType, amount);
-            return saved;
-        }
+        CharityFundLedgerEntry entry = CharityFundLedgerEntry.builder()
+                .entryRef(IslamicFeeSupport.nextRef("CFL"))
+                .entryType(entryType)
+                .entryDate(entryDate)
+                .amount(IslamicFeeSupport.money(amount))
+                .currencyCode(resolvedCurrency)
+                .runningBalance(IslamicFeeSupport.money(runningBalance))
+                .sourceType(sourceType)
+                .sourceReference(sourceReference)
+                .sourceContractRef(sourceContractRef)
+                .sourceContractType(sourceContractType)
+                .sourceCustomerId(sourceCustomerId)
+                .destinationType(destinationType)
+                .destinationReference(destinationReference)
+                .charityRecipientId(charityRecipientId)
+                .charityRecipientName(recipient != null ? recipient.getName() : null)
+                .journalRef(journalRef)
+                .notes(notes)
+                .tenantId(tenantResolver.getCurrentTenantId())
+                .build();
+        CharityFundLedgerEntry saved = ledgerRepository.save(entry);
+        log.info("Charity fund entry posted: ref={}, type={}, amount={}", saved.getEntryRef(), entryType, amount);
+        return saved;
     }
 
     private CharityRecipient loadApprovedRecipient(Long charityRecipientId) {
@@ -515,6 +503,23 @@ public class CharityFundService {
         recipient.setTotalDisbursedYtd(IslamicFeeSupport.money(ytd.add(amount)));
         recipient.setTotalDisbursedLifetime(IslamicFeeSupport.money(lifetime.add(amount)));
         recipientRepository.save(recipient);
+    }
+
+    private void validateBatchExecutionRequests(List<CharityFundDtos.DisburseFundsRequest> requests) {
+        Map<String, BigDecimal> totalsByCurrency = new LinkedHashMap<>();
+        for (CharityFundDtos.DisburseFundsRequest request : requests) {
+            CharityRecipient recipient = loadApprovedRecipient(request.getCharityRecipientId());
+            BigDecimal amount = IslamicFeeSupport.money(request.getAmount());
+            validateAnnualCap(recipient, amount);
+            String currencyCode = resolveCurrency(request.getCurrencyCode());
+            totalsByCurrency.merge(currencyCode, amount, BigDecimal::add);
+        }
+        for (Map.Entry<String, BigDecimal> entry : totalsByCurrency.entrySet()) {
+            if (getCurrentBalance(entry.getKey()).compareTo(entry.getValue()) < 0) {
+                throw new BusinessException("Insufficient charity fund balance for currency " + entry.getKey(),
+                        "CHARITY_FUND_INSUFFICIENT_BALANCE");
+            }
+        }
     }
 
     private CharityFundBatchDisbursement loadBatch(Long batchId) {
