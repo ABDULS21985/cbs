@@ -8,6 +8,7 @@ import com.cbs.account.repository.ProductRepository;
 import com.cbs.account.service.AccountPostingService;
 import com.cbs.account.service.AccountService;
 import com.cbs.common.exception.BusinessException;
+import org.springframework.http.HttpStatus;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.repository.CustomerIdentificationRepository;
@@ -498,6 +499,113 @@ public class QardHasanService {
         qardHasanAccountRepository.save(qardAccount);
     }
 
+    /**
+     * Partial or full Qard forgiveness (Ibra).
+     * Reduces the outstanding principal by the specified amount, waives remaining
+     * schedule installments proportionally, and posts a GL write-off entry.
+     */
+    public void forgiveQard(Long qardAccountId, BigDecimal forgiveAmount, String reason, String approvedBy) {
+        QardHasanAccount qard = qardHasanAccountRepository.findById(qardAccountId)
+                .orElseThrow(() -> new ResourceNotFoundException("QardHasanAccount", "id", qardAccountId));
+
+        // 1. Validate account is a lending Qard
+        if (qard.getQardType() != QardDomainEnums.QardType.LENDING_QARD) {
+            throw new BusinessException("Forgiveness (Ibra) is only available for lending Qard accounts",
+                    "INVALID_QARD_OPERATION");
+        }
+
+        // 2. Validate forgiveAmount > 0 and <= outstanding principal
+        if (forgiveAmount == null || forgiveAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Forgiveness amount must be positive", "INVALID_AMOUNT");
+        }
+        BigDecimal outstanding = defaultAmount(qard.getOutstandingPrincipal());
+        if (forgiveAmount.compareTo(outstanding) > 0) {
+            throw new BusinessException("Forgiveness amount cannot exceed outstanding principal. Outstanding: "
+                    + outstanding, "FORGIVENESS_EXCEEDS_OUTSTANDING");
+        }
+
+        // 3. Maker-checker: approvedBy must differ from the loan creator
+        String loanCreator = qard.getCreatedBy();
+        if (!StringUtils.hasText(approvedBy)) {
+            throw new BusinessException("Qard forgiveness requires maker-checker approval. Provide approvedBy.",
+                    "APPROVAL_REQUIRED");
+        }
+        if (StringUtils.hasText(loanCreator) && loanCreator.equalsIgnoreCase(approvedBy)) {
+            throw new BusinessException("Four-eyes principle violated: forgiveness approver must differ from the loan creator",
+                    "FOUR_EYES_VIOLATION");
+        }
+
+        // 4. Post GL entry: debit write-off/forgiveness expense GL, credit Qard receivable GL
+        accountPostingService.postDebitAgainstGl(
+                qard.getAccount(),
+                TransactionType.ADJUSTMENT,
+                forgiveAmount,
+                "Qard Hasan forgiveness (Ibra) - " + reason,
+                TransactionChannel.SYSTEM,
+                qard.getContractReference() + ":FORGIVE",
+                List.of(accountPostingService.balanceLeg(
+                        QARD_WRITE_OFF_EXPENSE_GL,
+                        AccountPostingService.EntrySide.DEBIT,
+                        forgiveAmount,
+                        qard.getAccount().getCurrencyCode(),
+                        BigDecimal.ONE,
+                        "Qard Hasan forgiveness expense (Ibra)",
+                        null,
+                        null
+                )),
+                "QARD",
+                qard.getContractReference()
+        );
+
+        // 5. Reduce outstandingPrincipal
+        BigDecimal updatedOutstanding = outstanding.subtract(forgiveAmount).setScale(2, RoundingMode.HALF_UP);
+        if (updatedOutstanding.compareTo(BigDecimal.ZERO) < 0) {
+            updatedOutstanding = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        qard.setOutstandingPrincipal(updatedOutstanding);
+
+        // 6. Update remaining schedule installments — mark them WAIVED
+        List<QardRepaymentSchedule> scheduleRows = qardRepaymentScheduleRepository
+                .findByQardAccountIdOrderByInstallmentNumberAsc(qard.getId());
+        BigDecimal remainingForgiveness = forgiveAmount.setScale(2, RoundingMode.HALF_UP);
+        for (QardRepaymentSchedule row : scheduleRows) {
+            if (remainingForgiveness.compareTo(BigDecimal.ZERO) <= 0) {
+                break;
+            }
+            if (row.getStatus() == QardDomainEnums.ScheduleStatus.PAID
+                    || row.getStatus() == QardDomainEnums.ScheduleStatus.WAIVED) {
+                continue;
+            }
+            BigDecimal outstandingRow = row.getPrincipalAmount().subtract(defaultAmount(row.getPaidAmount()));
+            if (remainingForgiveness.compareTo(outstandingRow) >= 0) {
+                // Fully waive this installment
+                row.setStatus(QardDomainEnums.ScheduleStatus.WAIVED);
+                remainingForgiveness = remainingForgiveness.subtract(outstandingRow);
+            } else {
+                // Partial waiver — reduce the principal and mark as waived if nothing remains
+                row.setPaidAmount(defaultAmount(row.getPaidAmount()).add(remainingForgiveness).setScale(2, RoundingMode.HALF_UP));
+                row.setStatus(row.getPaidAmount().compareTo(row.getPrincipalAmount()) >= 0
+                        ? QardDomainEnums.ScheduleStatus.WAIVED
+                        : row.getStatus());
+                remainingForgiveness = BigDecimal.ZERO;
+            }
+        }
+        qardRepaymentScheduleRepository.saveAll(scheduleRows);
+
+        // 7. If outstandingPrincipal reaches zero, set status to FULLY_REPAID
+        if (updatedOutstanding.compareTo(BigDecimal.ZERO) == 0) {
+            qard.setQardStatus(QardDomainEnums.QardStatus.FULLY_REPAID);
+        }
+
+        qard.setPurposeDescription(appendReason(qard.getPurposeDescription(),
+                "Forgiveness (Ibra) approved by " + approvedBy + ", amount=" + forgiveAmount, reason));
+        qardHasanAccountRepository.save(qard);
+
+        // 8. Log the forgiveness
+        log.info("Qard Hasan forgiveness (Ibra): qardAccountId={}, forgiveAmount={}, remainingOutstanding={}, approvedBy={}",
+                qardAccountId, forgiveAmount, updatedOutstanding, approvedBy);
+    }
+
     @Transactional(readOnly = true)
     public QardPortfolioSummary getPortfolioSummary() {
         List<QardHasanAccount> accounts = qardHasanAccountRepository.findAll();
@@ -661,6 +769,13 @@ public class QardHasanService {
         if (adminFeeAmount.compareTo(principalAmount) >= 0) {
             throw new BusinessException("Qard admin fee must be a flat recovery of actual cost, not a proxy for profit",
                     "INVALID_ADMIN_FEE");
+        }
+        BigDecimal maxFeePercentage = new BigDecimal("0.02"); // 2% cap
+        BigDecimal maxAllowedFee = principalAmount.multiply(maxFeePercentage);
+        if (adminFeeAmount.compareTo(maxAllowedFee) > 0) {
+            throw new BusinessException(
+                    "Admin fee cannot exceed 2% of principal (max: " + maxAllowedFee + ")",
+                    "ADMIN_FEE_EXCEEDS_CAP");
         }
     }
 

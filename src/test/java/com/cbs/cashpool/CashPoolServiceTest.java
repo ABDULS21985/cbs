@@ -50,8 +50,10 @@ class CashPoolServiceTest {
         CashPoolParticipant participant = CashPoolParticipant.builder().id(2L).poolId(1L)
                 .accountId(200L).participantRole("PARTICIPANT").targetBalance(BigDecimal.ZERO).isActive(true).build();
         when(participantRepository.findByPoolIdAndIsActiveTrueOrderByPriorityAsc(1L)).thenReturn(List.of(header, participant));
+        when(accountRepository.findById(100L))
+                .thenReturn(Optional.of(Account.builder().id(100L).availableBalance(new BigDecimal("0.00")).build()));
         when(accountRepository.findById(200L))
-                .thenReturn(Optional.of(Account.builder().availableBalance(new BigDecimal("150.00")).build()));
+                .thenReturn(Optional.of(Account.builder().id(200L).availableBalance(new BigDecimal("150.00")).build()));
         when(sweepLogRepository.save(any(CashPoolSweepLog.class))).thenAnswer(inv -> inv.getArgument(0));
 
         List<CashPoolSweepLog> logs = cashPoolService.executeSweep("CPL-TEST");

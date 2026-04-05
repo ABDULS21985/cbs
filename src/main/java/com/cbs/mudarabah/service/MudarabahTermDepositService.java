@@ -507,6 +507,18 @@ public class MudarabahTermDepositService {
             payoutAmount = principal.add(td.getAccumulatedProfit() != null ? td.getAccumulatedProfit() : BigDecimal.ZERO);
         }
 
+        // Post GL entry for forfeited/penalised amount
+        BigDecimal fullAmount = principal.add(td.getAccumulatedProfit() != null ? td.getAccumulatedProfit() : BigDecimal.ZERO);
+        BigDecimal forfeitedAmount = fullAmount.subtract(payoutAmount);
+        if (forfeitedAmount.compareTo(BigDecimal.ZERO) > 0) {
+            accountPostingService.postDebitAgainstGl(tdAccount, TransactionType.DEBIT,
+                    forfeitedAmount,
+                    "Early withdrawal penalty for TD " + td.getDepositRef(),
+                    TransactionChannel.SYSTEM, td.getDepositRef() + ":EW-PENALTY",
+                    BANK_MUDARIB_INCOME_GL, "MUDARABAH", td.getDepositRef());
+            log.info("Early withdrawal penalty posted for TD {}: {}", td.getDepositRef(), forfeitedAmount);
+        }
+
         // Transfer to payout account
         if (td.getPayoutAccountId() != null && payoutAmount.compareTo(BigDecimal.ZERO) > 0) {
             Account payoutAccount = accountRepository.findById(td.getPayoutAccountId())

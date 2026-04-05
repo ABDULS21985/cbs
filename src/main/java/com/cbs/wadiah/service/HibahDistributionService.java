@@ -50,7 +50,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Transactional
 public class HibahDistributionService {
 
-    private static final AtomicLong BATCH_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
+    private static final AtomicLong BATCH_SEQ = new AtomicLong(System.nanoTime());
 
     private final HibahPolicyRepository hibahPolicyRepository;
     private final HibahDistributionBatchRepository hibahDistributionBatchRepository;

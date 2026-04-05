@@ -46,7 +46,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Transactional
 public class WadiahOnboardingService {
 
-    private static final AtomicLong APPLICATION_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
+    private static final AtomicLong APPLICATION_SEQ = new AtomicLong(System.nanoTime());
 
     private final WadiahOnboardingApplicationRepository applicationRepository;
     private final WadiahAccountService wadiahAccountService;

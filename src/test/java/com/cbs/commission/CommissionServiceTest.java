@@ -17,11 +17,16 @@ class CommissionServiceTest {
     @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private CommissionService service;
 
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "taxRate", new BigDecimal("0.10"));
+    }
+
     @Test @DisplayName("Payout calculation: net = gross - tax (10%)")
     void payoutCalculation() {
         CommissionAgreement agreement = new CommissionAgreement(); agreement.setId(1L);
         agreement.setAgreementCode("CA-TEST"); agreement.setBaseRatePct(new BigDecimal("5.0000"));
-        agreement.setPartyId("AGT-001"); agreement.setPartyName("Agent Smith");
+        agreement.setPartyId("AGT-001"); agreement.setPartyName("Agent Smith"); agreement.setStatus("ACTIVE");
         when(agreementRepository.findByAgreementCode("CA-TEST")).thenReturn(Optional.of(agreement));
         when(payoutRepository.save(any())).thenAnswer(i -> { CommissionPayout p = i.getArgument(0); p.setId(1L); return p; });
         CommissionPayout result = service.calculatePayout("CA-TEST", new BigDecimal("1000000"), new BigDecimal("800000"), "MONTHLY");

@@ -184,7 +184,7 @@ public class WadiahStatementService {
                 .orElseThrow(() -> new ResourceNotFoundException("WadiahStatement", "statementRef", statementRef));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public WadiahStatementConfig getStatementConfig(Long accountId) {
         return resolveConfig(getWadiahAccount(accountId));
     }

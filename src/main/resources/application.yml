@@ -178,6 +178,13 @@ cbs:
     allow-synthetic-services: ${CBS_ALLOW_SYNTHETIC_SERVICES:false}
     allow-internal-kyc: ${CBS_ALLOW_INTERNAL_KYC:false}
 
+  ips:
+    gateway:
+      enabled: ${CBS_IPS_GATEWAY_ENABLED:false}
+      url: ${CBS_IPS_GATEWAY_URL:}
+      timeout-seconds: ${CBS_IPS_GATEWAY_TIMEOUT_SECONDS:30}
+      participant-bic: ${CBS_IPS_GATEWAY_PARTICIPANT_BIC:}
+
   keycloak:
     admin:
       server-url: ${CBS_KEYCLOAK_URL:}

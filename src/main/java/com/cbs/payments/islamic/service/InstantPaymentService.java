@@ -2,26 +2,31 @@ package com.cbs.payments.islamic.service;
 
 import com.cbs.common.exception.BusinessException;
 import com.cbs.payments.entity.PaymentInstruction;
+import com.cbs.payments.entity.PaymentStatus;
 import com.cbs.payments.islamic.dto.IslamicPaymentRequests;
+import com.cbs.payments.islamic.dto.IpsReversalEvent;
 import com.cbs.payments.islamic.dto.IslamicPaymentResponses;
 import com.cbs.payments.islamic.entity.InstantPaymentExtension;
 import com.cbs.payments.islamic.entity.IslamicPaymentDomainEnums;
 import com.cbs.payments.islamic.entity.PaymentIslamicExtension;
+import com.cbs.payments.islamic.gateway.IpsGatewayClient;
+import com.cbs.payments.islamic.gateway.IpsGatewayResponse;
 import com.cbs.payments.islamic.repository.InstantPaymentExtensionRepository;
 import com.cbs.payments.islamic.repository.PaymentIslamicExtensionRepository;
 import com.cbs.payments.islamic.repository.PaymentShariahAuditLogRepository;
 import com.cbs.payments.repository.PaymentInstructionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 
@@ -36,6 +41,8 @@ public class InstantPaymentService {
     private final PaymentIslamicExtensionRepository paymentIslamicExtensionRepository;
     private final PaymentShariahAuditLogRepository auditLogRepository;
     private final IslamicPaymentSupport paymentSupport;
+    private final ApplicationEventPublisher eventPublisher;
+    private final IpsGatewayClient ipsGatewayClient;
 
     public IslamicPaymentResponses.InstantPaymentResult processInstantPayment(Long paymentId) {
         PaymentInstruction payment = loadPayment(paymentId);
@@ -79,7 +86,6 @@ public class InstantPaymentService {
         extension.setScreeningDurationMs(screeningDurationMs);
         extension.setPaymentSubmittedAt(LocalDateTime.now());
         extension.setPaymentConfirmedAt(null);
-        extension.setTotalProcessingMs(Math.max(screeningDurationMs, 20L));
         extension.setScreeningMode(screeningMode);
         extension.setDeferredScreeningResult(screeningMode == IslamicPaymentDomainEnums.InstantScreeningMode.DEFERRED
                 ? IslamicPaymentDomainEnums.DeferredScreeningResult.PENDING
@@ -91,24 +97,36 @@ public class InstantPaymentService {
         extension.setResolvedAccountNumber(resolution != null ? resolution.getResolvedAccountNumber() : payment.getCreditAccountNumber());
         extension.setResolvedBankCode(resolution != null ? resolution.getResolvedBankCode() : payment.getBeneficiaryBankCode());
 
-        // Submit to IPS gateway and set status based on actual response
-        IpsGatewayResponse gatewayResponse = submitToIpsGateway(payment, extension);
+        String transactionId = paymentSupport.nextMessageRef("IPS", payment.getId());
+        IpsGatewayResponse gatewayResponse = ipsGatewayClient.submit(payment, extension, transactionId);
         extension.setIpsResponseCode(gatewayResponse.responseCode());
         extension.setIpsResponseMessage(gatewayResponse.responseMessage());
         extension.setIpsTransactionId(gatewayResponse.transactionId());
+        extension.setTotalProcessingMs(Math.max(ChronoUnit.MILLIS.between(start, LocalDateTime.now()), screeningDurationMs));
 
-        if ("00".equals(gatewayResponse.responseCode())) {
+        if (isGatewayConfirmed(gatewayResponse.responseCode())) {
             extension.setStatus(IslamicPaymentDomainEnums.InstantPaymentStatus.CONFIRMED);
             extension.setPaymentConfirmedAt(LocalDateTime.now());
+            payment.setStatus(PaymentStatus.COMPLETED);
+            payment.setFailureReason(null);
         } else if (gatewayResponse.timeout()) {
             extension.setStatus(IslamicPaymentDomainEnums.InstantPaymentStatus.TIMED_OUT);
+            payment.setStatus(PaymentStatus.FAILED);
+            payment.setFailureReason(gatewayResponse.responseMessage());
             log.warn("IPS gateway timeout for payment {}: txnId={}", payment.getId(), gatewayResponse.transactionId());
+        } else if (isGatewayAccepted(gatewayResponse.responseCode())) {
+            extension.setStatus(IslamicPaymentDomainEnums.InstantPaymentStatus.SUBMITTED);
+            payment.setStatus(PaymentStatus.SUBMITTED);
+            payment.setFailureReason(null);
         } else {
             extension.setStatus(IslamicPaymentDomainEnums.InstantPaymentStatus.REJECTED);
+            payment.setStatus(PaymentStatus.REJECTED);
+            payment.setFailureReason(gatewayResponse.responseMessage());
             log.warn("IPS gateway rejected payment {}: code={}, message={}",
                     payment.getId(), gatewayResponse.responseCode(), gatewayResponse.responseMessage());
         }
 
+        paymentInstructionRepository.save(payment);
         extensionRepository.save(extension);
 
         return IslamicPaymentResponses.InstantPaymentResult.builder()
@@ -126,6 +144,7 @@ public class InstantPaymentService {
     public void processDeferredScreening(Long paymentId) {
         InstantPaymentExtension extension = extensionRepository.findByPaymentId(paymentId)
                 .orElseThrow(() -> new BusinessException("Instant payment extension not found", "INSTANT_PAYMENT_NOT_FOUND"));
+    IslamicPaymentDomainEnums.InstantPaymentStatus priorStatus = extension.getStatus();
 
         if (extension.getDeferredScreeningResult() != IslamicPaymentDomainEnums.DeferredScreeningResult.PENDING) {
             log.info("Deferred screening already completed for payment {} with result {}",
@@ -162,7 +181,14 @@ public class InstantPaymentService {
             extension.setIpsResponseCode("SHARIAH_FAIL");
             extension.setIpsResponseMessage("Deferred Shariah screening failed — payment returned");
             log.warn("Deferred screening FAILED for payment {} — reversal required", paymentId);
-            // TODO: Post reversal notification to operations queue for fund recovery
+            if (payment != null) {
+                payment.setStatus(PaymentStatus.RETURNED);
+                payment.setFailureReason("Deferred Shariah screening failed — payment returned");
+                paymentInstructionRepository.save(payment);
+            }
+            if (payment != null && requiresFundRecovery(priorStatus)) {
+                publishReversalEvent(payment, extension);
+            }
         }
         extensionRepository.save(extension);
 
@@ -290,7 +316,7 @@ public class InstantPaymentService {
     }
 
     private PaymentInstruction loadPayment(Long paymentId) {
-        return paymentInstructionRepository.findById(paymentId)
+        return paymentInstructionRepository.findByIdWithDetails(paymentId)
                 .orElseThrow(() -> new BusinessException("Payment not found", "PAYMENT_NOT_FOUND"));
     }
 
@@ -299,67 +325,48 @@ public class InstantPaymentService {
                 .orElseThrow(() -> new BusinessException("Islamic payment extension not found", "PAYMENT_ISLAMIC_EXTENSION_NOT_FOUND"));
     }
 
-    // ---- IPS Gateway integration point ----
+    private boolean isGatewayConfirmed(String responseCode) {
+        return matchesGatewayCode(responseCode, "00", "SUCCESS", "ACSC", "ACCC");
+    }
 
-    /**
-     * Encapsulates the response from the IPS network gateway.
-     */
-    private record IpsGatewayResponse(
-            String responseCode,
-            String responseMessage,
-            String transactionId,
-            boolean timeout
-    ) {}
+    private boolean isGatewayAccepted(String responseCode) {
+        return matchesGatewayCode(responseCode, "QUEUED", "PENDING", "ACSP", "RCVD", "RECEIVED", "SUBMITTED");
+    }
 
-    /**
-     * Submits a payment to the IPS network gateway and returns the response.
-     * <p>
-     * This is the primary integration point for connecting to the real-time IPS network
-     * (e.g., SARIE, SADAD, FAWRI). The current implementation is a structured stub that
-     * must be replaced with the actual gateway client when available.
-     * </p>
-     *
-     * TODO: Replace stub with actual IPS gateway HTTP/MQ client integration.
-     * The real implementation should:
-     *   1. Build the ISO 20022 pacs.008 message from the payment and extension
-     *   2. Submit to the IPS network endpoint with appropriate timeout (e.g., 30s)
-     *   3. Parse the network acknowledgement (pacs.002) for response code/message
-     *   4. Handle network-level timeouts by returning timeout=true
-     *   5. Handle connection failures with appropriate retry/circuit-breaker logic
-     */
-    private IpsGatewayResponse submitToIpsGateway(PaymentInstruction payment,
-                                                   InstantPaymentExtension extension) {
-        String transactionId = paymentSupport.nextMessageRef("IPS", payment.getId());
-        try {
-            // TODO: Actual IPS gateway call goes here. Example integration shape:
-            //   var ipsRequest = buildIpsMessage(payment, extension);
-            //   var ipsResponse = ipsGatewayClient.submit(ipsRequest, Duration.ofSeconds(30));
-            //   return new IpsGatewayResponse(
-            //       ipsResponse.getResponseCode(),
-            //       ipsResponse.getResponseMessage(),
-            //       ipsResponse.getNetworkTransactionId(),
-            //       false
-            //   );
-
-            // Stub: return pending status indicating gateway is not yet connected
-            log.info("IPS gateway stub: payment {} submitted with txnId={} — awaiting real gateway integration",
-                    payment.getId(), transactionId);
-            return new IpsGatewayResponse(
-                    "PENDING",
-                    "IPS gateway integration not yet implemented — payment queued",
-                    transactionId,
-                    false
-            );
-        } catch (Exception e) {
-            // Determine if this is a timeout or a hard rejection
-            boolean isTimeout = e.getMessage() != null
-                    && (e.getMessage().contains("timeout") || e.getMessage().contains("timed out"));
-            if (isTimeout) {
-                log.error("IPS gateway timeout for payment {}: {}", payment.getId(), e.getMessage());
-                return new IpsGatewayResponse("TIMEOUT", "Gateway timeout: " + e.getMessage(), transactionId, true);
-            }
-            log.error("IPS gateway error for payment {}: {}", payment.getId(), e.getMessage());
-            return new IpsGatewayResponse("ERR", "Gateway error: " + e.getMessage(), transactionId, false);
+    private boolean matchesGatewayCode(String responseCode, String... acceptedCodes) {
+        if (responseCode == null) {
+            return false;
         }
+        for (String acceptedCode : acceptedCodes) {
+            if (acceptedCode.equalsIgnoreCase(responseCode)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean requiresFundRecovery(IslamicPaymentDomainEnums.InstantPaymentStatus priorStatus) {
+        return priorStatus == IslamicPaymentDomainEnums.InstantPaymentStatus.SUBMITTED
+                || priorStatus == IslamicPaymentDomainEnums.InstantPaymentStatus.CONFIRMED;
+    }
+
+    private void publishReversalEvent(PaymentInstruction payment, InstantPaymentExtension extension) {
+        eventPublisher.publishEvent(new IpsReversalEvent(
+                extension.getPaymentId(),
+                payment.getInstructionRef(),
+                extension.getIpsTransactionId(),
+                extension.getIpsRail(),
+                payment.getAmount(),
+                payment.getCurrencyCode(),
+                payment.getDebitAccountNumber(),
+                extension.getResolvedAccountNumber(),
+                "Deferred Shariah screening failed — payment returned",
+                extension.getTenantId() != null ? extension.getTenantId().toString() : null,
+                extension.getPaymentConfirmedAt(),
+                LocalDateTime.now()
+        ));
+
+        log.info("Reversal event published for payment {}: ipsTransactionId={}",
+                payment.getId(), extension.getIpsTransactionId());
     }
 }

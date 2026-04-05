@@ -67,7 +67,7 @@ public class SnciService {
     private final GeneralLedgerService generalLedgerService;
     private final CurrentActorProvider actorProvider;
 
-    private static final AtomicLong SNCI_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
+    private static final AtomicLong SNCI_SEQ = new AtomicLong(System.nanoTime());
     private static final String SNCI_QUARANTINE_GL = "2350-000-001";
 
     // ── Detection ──────────────────────────────────────────────────────────────

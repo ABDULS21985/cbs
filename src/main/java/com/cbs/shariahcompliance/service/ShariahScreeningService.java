@@ -47,8 +47,8 @@ public class ShariahScreeningService {
 
     private final ExpressionParser spelParser = new SpelExpressionParser();
 
-    private static final AtomicLong SCREENING_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
-    private static final AtomicLong ALERT_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
+    private static final AtomicLong SCREENING_SEQ = new AtomicLong(System.nanoTime());
+    private static final AtomicLong ALERT_SEQ = new AtomicLong(System.nanoTime());
 
     // ===================== CORE SCREENING =====================
 

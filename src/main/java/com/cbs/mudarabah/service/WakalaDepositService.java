@@ -184,6 +184,15 @@ public class WakalaDepositService {
                 .orElseThrow(() -> new ResourceNotFoundException("Wakala account not found"));
         Account account = w.getAccount();
 
+        // Idempotency guard: prevent duplicate distribution for the same or earlier period
+        if (w.getLastProfitDistributionDate() != null
+                && !periodFrom.isAfter(w.getLastProfitDistributionDate())) {
+            throw new BusinessException(
+                    "Distribution already completed for period ending " + w.getLastProfitDistributionDate(),
+                    org.springframework.http.HttpStatus.CONFLICT,
+                    "DUPLICATE_DISTRIBUTION");
+        }
+
         // Handle negative gross profit (loss scenario)
         if (grossProfit.compareTo(BigDecimal.ZERO) < 0) {
             BigDecimal lossAmount = grossProfit.abs();

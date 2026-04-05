@@ -1,10 +1,32 @@
 package com.cbs.treasuryanalytics.entity;
-import jakarta.persistence.*; import lombok.*; import java.math.BigDecimal; import java.time.Instant; import java.time.LocalDate;
-@Entity @Table(name = "treasury_analytics_snapshot") @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+
+@Entity
+@Table(name = "treasury_analytics_snapshot")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class TreasuryAnalyticsSnapshot {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
-    @Column(nullable = false) private LocalDate snapshotDate;
-    @Column(nullable = false, length = 3) @Builder.Default private String currency = "USD";
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private LocalDate snapshotDate;
+
+    @Column(nullable = false, length = 3)
+    @Builder.Default
+    private String currency = "USD";
+
     private BigDecimal totalDeposits;
     private BigDecimal totalBorrowings;
     private BigDecimal costOfFundsPct;
@@ -12,12 +34,25 @@ public class TreasuryAnalyticsSnapshot {
     private BigDecimal totalEarningAssets;
     private BigDecimal yieldOnAssetsPct;
     private BigDecimal netProfitMarginPct;
+
+    @Column(name = "net_interest_margin_pct")
+    private BigDecimal netInterestMarginPct;
+
     private BigDecimal profitSpreadPct;
+
+    @Column(name = "interest_spread_pct")
+    private BigDecimal interestSpreadPct;
+
     private BigDecimal loanToDepositRatio;
     private BigDecimal capitalAdequacyRatio;
-    @Column(name = "tier1_ratio") private BigDecimal tier1Ratio;
+
+    @Column(name = "tier1_ratio")
+    private BigDecimal tier1Ratio;
+
     private BigDecimal leverageRatio;
     private BigDecimal returnOnAssetsPct;
     private BigDecimal returnOnEquityPct;
-    @Builder.Default private Instant createdAt = Instant.now();
+
+    @Builder.Default
+    private Instant createdAt = Instant.now();
 }

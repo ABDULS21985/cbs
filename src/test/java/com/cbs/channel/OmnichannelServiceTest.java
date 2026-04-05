@@ -10,6 +10,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.test.util.ReflectionTestUtils;
+
 import java.time.Instant;
 import java.util.Optional;
 
@@ -25,6 +28,11 @@ class OmnichannelServiceTest {
     @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
 
     @InjectMocks private OmnichannelService omnichannelService;
+
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(omnichannelService, "maxConcurrentSessions", 5);
+    }
 
     @Test
     @DisplayName("Should create session with channel-specific timeout")

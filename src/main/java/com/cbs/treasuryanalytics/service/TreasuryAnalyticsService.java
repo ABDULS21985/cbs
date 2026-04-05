@@ -44,7 +44,7 @@ public class TreasuryAnalyticsService {
         TreasuryAnalyticsSnapshot saved = snapshotRepository.save(snapshot);
         log.info("Treasury snapshot recorded by {}: date={}, currency={}, NIM={}, loanToDeposit={}",
                 actorProvider.getCurrentActor(), saved.getSnapshotDate(), saved.getCurrency(),
-                saved.getNetInterestMarginPct(), saved.getLoanToDepositRatio());
+                saved.getNetProfitMarginPct(), saved.getLoanToDepositRatio());
         return saved;
     }
 
@@ -68,7 +68,7 @@ public class TreasuryAnalyticsService {
         // yield on assets as mid-point reference
         BigDecimal shortRate = latest.getCostOfFundsPct() != null ? latest.getCostOfFundsPct() : BigDecimal.ZERO;
         BigDecimal midRate = latest.getYieldOnAssetsPct() != null ? latest.getYieldOnAssetsPct() : BigDecimal.ZERO;
-        BigDecimal spread = latest.getInterestSpreadPct() != null ? latest.getInterestSpreadPct() : BigDecimal.ZERO;
+        BigDecimal spread = latest.getProfitSpreadPct() != null ? latest.getProfitSpreadPct() : BigDecimal.ZERO;
 
         // Interpolate standard tenors
         Map<String, BigDecimal> yieldCurve = new LinkedHashMap<>();
@@ -224,14 +224,14 @@ public class TreasuryAnalyticsService {
     }
 
     private void computeDerivedMetrics(TreasuryAnalyticsSnapshot snapshot) {
-        // Net Interest Margin = (yield on assets - cost of funds)
+        // Net Profit Margin = (yield on assets - cost of funds)
         if (snapshot.getYieldOnAssetsPct() != null && snapshot.getCostOfFundsPct() != null) {
-            snapshot.setNetInterestMarginPct(snapshot.getYieldOnAssetsPct().subtract(snapshot.getCostOfFundsPct()));
+            snapshot.setNetProfitMarginPct(snapshot.getYieldOnAssetsPct().subtract(snapshot.getCostOfFundsPct()));
         }
 
-        // Interest spread
+        // Profit spread
         if (snapshot.getYieldOnAssetsPct() != null && snapshot.getCostOfFundsPct() != null) {
-            snapshot.setInterestSpreadPct(snapshot.getYieldOnAssetsPct().subtract(snapshot.getCostOfFundsPct()));
+            snapshot.setProfitSpreadPct(snapshot.getYieldOnAssetsPct().subtract(snapshot.getCostOfFundsPct()));
         }
 
         // Loan to deposit ratio

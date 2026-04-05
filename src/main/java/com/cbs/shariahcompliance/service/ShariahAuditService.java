@@ -57,8 +57,8 @@ public class ShariahAuditService {
     private final SnciService snciService;
     private final CurrentActorProvider actorProvider;
 
-    private static final AtomicLong AUDIT_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
-    private static final AtomicLong FINDING_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
+    private static final AtomicLong AUDIT_SEQ = new AtomicLong(System.nanoTime());
+    private static final AtomicLong FINDING_SEQ = new AtomicLong(System.nanoTime());
 
     // ── Audit Lifecycle ───────────────────────────────────────────────────────
 
