@@ -22,14 +22,12 @@ import org.springframework.data.domain.PageRequest;
 import com.cbs.common.exception.GlobalExceptionHandler;
 import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.http.MediaType;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.hamcrest.Matchers.*;
@@ -73,12 +71,9 @@ class TradeFinanceControllerTest {
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
 
-        MappingJackson2HttpMessageConverter jacksonConverter = new MappingJackson2HttpMessageConverter(objectMapper);
-
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
-                .setMessageConverters(jacksonConverter)
                 .build();
 
         sampleLC = LetterOfCredit.builder()

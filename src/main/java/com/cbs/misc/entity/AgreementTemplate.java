@@ -24,11 +24,14 @@ public class AgreementTemplate {
     private String content;
 
     @Column(nullable = false)
+    @Builder.Default
     private Boolean isActive = true;
 
     @Column(nullable = false, updatable = false)
+    @Builder.Default
     private Instant createdAt = Instant.now();
 
     @Column(nullable = false)
+    @Builder.Default
     private Instant updatedAt = Instant.now();
 }
