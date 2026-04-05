@@ -19,7 +19,9 @@ import org.springframework.util.StringUtils;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.chrono.ChronoLocalDate;
 import java.time.chrono.HijrahDate;
+import java.time.temporal.ChronoUnit;
 import java.time.format.TextStyle;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -206,6 +208,34 @@ public class HijriCalendarService {
         int month = resolveIntegerParameter("islamic.zakat.calculation.hijri-month", tenantId, 9);
         int day = resolveIntegerParameter("islamic.zakat.calculation.hijri-day", tenantId, 29);
         return toGregorian(hijriYear, month, day);
+    }
+
+    public LocalDate getHijriYearStart(int hijriYear) {
+        return toGregorian(hijriYear, 1, 1);
+    }
+
+    public LocalDate getHijriYearEnd(int hijriYear) {
+        HijrahDate lastDay = HijrahDate.of(hijriYear, 12, 1)
+                .with(java.time.temporal.TemporalAdjusters.lastDayOfMonth());
+        return LocalDate.from(lastDay);
+    }
+
+    public LocalDate getZakatDueDate(LocalDate computationDate) {
+        if (computationDate == null) {
+            throw new BusinessException("computationDate is required");
+        }
+        return getNextIslamicBusinessDay(computationDate);
+    }
+
+    public boolean hasCompletedHijriYear(LocalDate heldSince, LocalDate asOfDate) {
+        if (heldSince == null || asOfDate == null) {
+            return false;
+        }
+        if (heldSince.isAfter(asOfDate)) {
+            return false;
+        }
+        ChronoLocalDate completionDate = HijrahDate.from(heldSince).plus(1, ChronoUnit.YEARS);
+        return !LocalDate.from(completionDate).isAfter(asOfDate);
     }
 
     @Transactional

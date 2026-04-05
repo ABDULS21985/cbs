@@ -75,7 +75,6 @@ class ShariahGovernanceServiceTest {
 
         when(mapper.toEntity(request)).thenReturn(entity);
         when(memberRepo.save(any())).thenReturn(entity);
-        when(memberRepo.getNextMemberCodeSequence()).thenReturn(1L);
         when(mapper.toMemberResponse(entity)).thenReturn(response);
 
         SsbMemberResponse result = service.createMember(request, "admin");
@@ -421,7 +420,7 @@ class ShariahGovernanceServiceTest {
                 member));
         when(reviewRepo.save(any())).thenReturn(review);
 
-        ReviewRequestResponse result = service.castVote(1L, voteRequest, "shariah-officer", Set.of("SSB-0002"));
+        service.castVote(1L, voteRequest, "shariah-officer", Set.of("SSB-0002"));
 
         assertThat(review.getStatus()).isEqualTo(ReviewRequestStatus.REVISION_REQUIRED);
         assertThat(review.getResolvedAt()).isNull();
@@ -509,7 +508,7 @@ class ShariahGovernanceServiceTest {
                         member2, member3));
         when(reviewRepo.save(any())).thenReturn(review);
 
-        ReviewRequestResponse result = service.castVote(1L, voteRequest, "shariah-officer", Set.of("SSB-0002"));
+        service.castVote(1L, voteRequest, "shariah-officer", Set.of("SSB-0002"));
 
         assertThat(review.getStatus()).isEqualTo(ReviewRequestStatus.REJECTED);
         assertThat(review.getResolvedBy()).isEqualTo("QUORUM_UNREACHABLE");

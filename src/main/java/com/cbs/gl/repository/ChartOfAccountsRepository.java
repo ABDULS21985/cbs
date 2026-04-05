@@ -16,6 +16,7 @@ public interface ChartOfAccountsRepository extends JpaRepository<ChartOfAccounts
     List<ChartOfAccounts> findByIsPostableTrueAndIsActiveTrueOrderByGlCodeAsc();
     List<ChartOfAccounts> findByIsIslamicAccountTrueOrderByGlCodeAsc();
     List<ChartOfAccounts> findByIslamicAccountCategoryOrderByGlCodeAsc(IslamicAccountCategory category);
+    List<ChartOfAccounts> findByContraAccountCodeOrderByGlCodeAsc(String contraAccountCode);
     List<ChartOfAccounts> findByContractTypeCodeIgnoreCaseOrderByGlCodeAsc(String contractTypeCode);
     List<ChartOfAccounts> findByInvestmentPoolIdOrderByGlCodeAsc(Long investmentPoolId);
     List<ChartOfAccounts> findByShariahClassificationOrderByGlCodeAsc(ShariahClassification classification);

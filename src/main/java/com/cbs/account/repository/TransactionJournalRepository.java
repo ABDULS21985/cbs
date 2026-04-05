@@ -200,6 +200,23 @@ public interface TransactionJournalRepository extends JpaRepository<TransactionJ
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate);
 
+        @Query("""
+            SELECT COALESCE(MAX(t.runningBalance), 0)
+            FROM TransactionJournal t
+            WHERE t.account.id = :accountId
+            AND t.postingDate BETWEEN :fromDate AND :toDate
+            AND t.status = 'POSTED'
+            """)
+        BigDecimal findMaximumBalanceInPeriod(
+            @Param("accountId") Long accountId,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate);
+
+        Optional<TransactionJournal> findTopByAccountIdAndStatusAndPostingDateLessThanEqualOrderByPostingDateDescCreatedAtDesc(
+            Long accountId,
+            String status,
+            LocalDate postingDate);
+
     @Query(value = """
             SELECT
                 COALESCE(SUM(CASE WHEN tj.transaction_type = 'CREDIT' THEN tj.amount ELSE 0 END), 0) AS total_income,
