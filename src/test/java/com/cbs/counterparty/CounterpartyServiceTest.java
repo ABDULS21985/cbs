@@ -87,11 +87,11 @@ class CounterpartyServiceTest {
         when(counterpartyRepository.findByCounterpartyCode("CP-BREACH")).thenReturn(Optional.of(cp));
         when(counterpartyRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        Counterparty result = service.updateExposure("CP-BREACH", new BigDecimal("12000000"));
-
-        // No exception thrown -- the service just logs a warning
-        assertThat(result.getAvailableLimit()).isEqualByComparingTo(new BigDecimal("-2000000"));
-        assertThat(result.getAvailableLimit().signum()).isEqualTo(-1);
+        // Service now blocks transactions on limit breach
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> service.updateExposure("CP-BREACH", new BigDecimal("12000000")))
+                .isInstanceOf(com.cbs.common.exception.BusinessException.class)
+                .hasMessageContaining("LIMIT_BREACHED").hasMessageContaining("exposure limit breached");
     }
 
     // ── verifyKyc ───────────────────────────────────────────────────────

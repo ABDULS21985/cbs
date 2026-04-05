@@ -25,6 +25,11 @@ class SettlementServiceTest {
     @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private SettlementService service;
 
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "penaltyRatePerDay", new java.math.BigDecimal("0.01"));
+    }
+
     @Test
     @DisplayName("Matching sets MATCHED status and timestamp on both instructions")
     void matchingSetsMatchedStatusOnBoth() {
