@@ -179,11 +179,12 @@ public class RegulatoryTemplateEngine {
                 .orElseThrow(() -> new ResourceNotFoundException("RegulatoryReturn", "id", returnId));
         RegulatoryReturnTemplate template = getTemplate(existing.getTemplateCode());
         lineItemRepository.deleteAll(lineItemRepository.findByReturnIdOrderBySectionCodeAscLineNumberAsc(returnId));
-        RegulatoryReturn regenerated = generateReturn(template, existing.getReportingDate(), existing.getPeriodFrom(), existing.getPeriodTo(), true);
-        regenerated.setId(existing.getId());
-        regenerated.setReturnRef(existing.getReturnRef());
-        regenerated.setReturnDataVersion(existing.getReturnDataVersion() + 1);
-        RegulatoryReturn saved = returnRepository.save(regenerated);
+        existing.setDataExtractionStatus(RegulatoryDomainEnums.DataExtractionStatus.IN_PROGRESS);
+        existing.setStatus(RegulatoryDomainEnums.ReturnStatus.REVISED);
+        existing.setGeneratedAt(LocalDateTime.now());
+        existing.setGeneratedBy(currentActor());
+        existing.setReturnDataVersion(existing.getReturnDataVersion() + 1);
+        RegulatoryReturn saved = returnRepository.save(existing);
         persistLineItems(saved, template, saved.getReportingDate(), saved.getPeriodFrom(), saved.getPeriodTo(), Map.of(), true);
         recordAudit(saved.getId(), RegulatoryDomainEnums.AuditEventType.REGENERATED, Map.of(
                 "templateCode", saved.getTemplateCode(),
@@ -673,15 +674,19 @@ public class RegulatoryTemplateEngine {
             }
         }
         List<RegulatoryReturnLineItem> refreshed = lineItemRepository.findByReturnIdOrderBySectionCodeAscLineNumberAsc(regulatoryReturn.getId());
-        regulatoryReturn.setReturnData(Map.of("sections", template.getSections().stream().map(section -> {
+        List<Map<String, Object>> sections = template.getSections() != null ? template.getSections() : List.of();
+        List<Map<String, Object>> payloadSections = sections.stream().map(section -> {
             String sectionCode = string(section.get("sectionCode"));
-            return Map.of(
-                    "sectionCode", sectionCode,
-                    "sectionName", section.get("sectionName"),
-                    "lineItems", refreshed.stream().filter(item -> Objects.equals(item.getSectionCode(), sectionCode))
-                            .map(this::toLineMap).toList()
-            );
-        }).toList()));
+            Map<String, Object> sectionPayload = new LinkedHashMap<>();
+            sectionPayload.put("sectionCode", sectionCode);
+            sectionPayload.put("sectionName", section.get("sectionName"));
+            sectionPayload.put("lineItems", refreshed.stream()
+                    .filter(item -> Objects.equals(item.getSectionCode(), sectionCode))
+                    .map(this::toLineMap)
+                    .toList());
+            return sectionPayload;
+        }).toList();
+        regulatoryReturn.setReturnData(Map.of("sections", payloadSections));
         returnRepository.save(regulatoryReturn);
     }
 

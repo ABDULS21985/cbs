@@ -94,6 +94,9 @@ public class UssdService {
         if (menu.getIsActive() == null) {
             menu.setIsActive(true);
         }
+        if (menu.getCreatedAt() == null) {
+            menu.setCreatedAt(Instant.now());
+        }
         return menuRepository.save(menu);
     }
 

@@ -15,7 +15,6 @@ import com.cbs.islamicaml.service.IslamicAmlDashboardService;
 import com.cbs.islamicrisk.dto.IslamicRiskResponses;
 import com.cbs.islamicrisk.entity.IslamicEclCalculation;
 import com.cbs.islamicrisk.entity.IslamicFinancingRiskClassification;
-import com.cbs.islamicrisk.entity.IslamicRiskDomainEnums;
 import com.cbs.islamicrisk.repository.IslamicEclCalculationRepository;
 import com.cbs.islamicrisk.repository.IslamicFinancingRiskClassificationRepository;
 import com.cbs.islamicrisk.service.IslamicCollateralService;
@@ -62,8 +61,6 @@ public class RegulatoryDataExtractionService {
     private static final BigDecimal HUNDRED = new BigDecimal("100");
     private static final BigDecimal DEFAULT_ALPHA_FACTOR = new BigDecimal("0.30");
     private static final Collection<String> ACTIVE_MURABAHA_STATUSES = List.of("ACTIVE", "EXECUTED", "DEFAULTED");
-    private static final Collection<String> ACTIVE_IJARAH_STATUSES = List.of("ACTIVE", "RENTAL_ARREARS", "DEFAULTED");
-    private static final Collection<String> ACTIVE_MUSHARAKAH_STATUSES = List.of("ACTIVE", "RENTAL_ARREARS", "BUYOUT_ARREARS", "DEFAULTED");
 
     private final GlBalanceRepository glBalanceRepository;
     private final IslamicChartOfAccountsService islamicChartOfAccountsService;
@@ -133,7 +130,7 @@ public class RegulatoryDataExtractionService {
     public int extractFinancingCount(String contractType, String filter) {
         FinancingFilter financingFilter = parseFilter(filter);
         return (int) contractSnapshots(contractType, financingFilter.status()).stream()
-                .filter(snapshot -> snapshot.getDaysPastDue() >= financingFilter.minimumDaysPastDue())
+                .filter(snapshot -> snapshot.daysPastDue() >= financingFilter.minimumDaysPastDue())
                 .count();
     }
 

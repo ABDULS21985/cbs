@@ -17,8 +17,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
-import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -764,14 +764,25 @@ class ChannelControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
         private Customer createActiveCustomer(String label) {
-                String suffix = label + "-" + Instant.now().toEpochMilli();
+                String labelToken = label.replaceAll("[^A-Za-z0-9]", "").toUpperCase();
+                if (labelToken.isEmpty()) {
+                        labelToken = "CUS";
+                }
+                labelToken = labelToken.substring(0, Math.min(4, labelToken.length()));
+
+                String uniqueToken = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+                String cifNumber = "CIF" + labelToken + uniqueToken;
+                String email = "test." + labelToken.toLowerCase() + "." + uniqueToken.toLowerCase() + "@example.com";
+                String phoneSeed = Long.toUnsignedString(Math.abs((labelToken + uniqueToken).hashCode()));
+                String phoneDigits = String.format("%010d", Long.parseLong(phoneSeed) % 10_000_000_000L);
+
                 return customerRepository.save(Customer.builder()
-                                .cifNumber("CIF-" + suffix)
+                                .cifNumber(cifNumber)
                                 .customerType(CustomerType.INDIVIDUAL)
                                 .firstName(label)
                                 .lastName("Customer")
-                                .email(label.toLowerCase() + "." + Instant.now().toEpochMilli() + "@example.com")
-                                .phonePrimary("+234" + String.format("%010d", Math.abs(suffix.hashCode()) % 1_000_000_0000L))
+                                .email(email)
+                                .phonePrimary("+234" + phoneDigits)
                                 .branchCode("BR001")
                                 .nationality("NGA")
                                 .countryOfResidence("NGA")
