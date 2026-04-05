@@ -23,6 +23,7 @@ class MarketplaceServiceTest {
     @Mock private MarketplaceApiProductRepository productRepository;
     @Mock private MarketplaceSubscriptionRepository subscriptionRepository;
     @Mock private MarketplaceUsageLogRepository usageLogRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private MarketplaceService marketplaceService;
 
     @Test

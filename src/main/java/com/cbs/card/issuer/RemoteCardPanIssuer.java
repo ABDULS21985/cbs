@@ -14,10 +14,6 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.time.LocalDate;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 
 @Component
 @ConditionalOnProperty(name = "cbs.card.issuer.provider", havingValue = "REMOTE")
@@ -35,6 +31,14 @@ public class RemoteCardPanIssuer implements CardPanIssuer {
             @Value("${cbs.card.issuer.institution-id:}") String institutionId,
             @Value("${cbs.card.issuer.timeout-seconds:15}") int timeoutSeconds
     ) {
+        this(RestClient.builder(), issuerUrl, apiKey, institutionId, timeoutSeconds);
+    }
+
+    RemoteCardPanIssuer(RestClient.Builder restClientBuilder,
+                        String issuerUrl,
+                        String apiKey,
+                        String institutionId,
+                        int timeoutSeconds) {
         if (!StringUtils.hasText(issuerUrl)) {
             throw new IllegalStateException("cbs.card.issuer.url is required when the REMOTE PAN issuer is enabled");
         }
@@ -47,7 +51,7 @@ public class RemoteCardPanIssuer implements CardPanIssuer {
         this.issuerUrl = issuerUrl;
         this.apiKey = apiKey;
         this.institutionId = institutionId;
-        this.restClient = RestClient.builder()
+        this.restClient = restClientBuilder
                 .requestFactory(requestFactory)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
@@ -56,10 +60,9 @@ public class RemoteCardPanIssuer implements CardPanIssuer {
 
     @Override
     public CardPanIssueResult issuePan(CardPanIssueCommand command) {
-        Map<String, Object> payload = buildPayload(command);
+        RemoteCardPanIssueRequest payload = buildPayload(command);
         try {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> response = restClient.post()
+            RemoteCardPanIssueResponse response = restClient.post()
                     .uri(issuerUrl)
                     .headers(headers -> {
                         if (StringUtils.hasText(apiKey)) {
@@ -68,18 +71,18 @@ public class RemoteCardPanIssuer implements CardPanIssuer {
                     })
                     .body(payload)
                     .retrieve()
-                    .body(Map.class);
+                    .body(RemoteCardPanIssueResponse.class);
 
-            if (response == null || response.isEmpty()) {
+            if (response == null) {
                 throw new BusinessException("Card issuer returned an empty PAN issuance response", "CARD_ISSUER_EMPTY_RESPONSE");
             }
 
-            String pan = firstString(response, List.of("pan", "cardNumber", "primaryAccountNumber"), null);
+            String pan = response.getPan();
             validatePan(pan);
             return new CardPanIssueResult(
                     pan,
-                    firstString(response, List.of("providerName", "issuerName"), "REMOTE"),
-                    firstString(response, List.of("providerReference", "issuerReference", "requestId"), command.cardReference())
+                    StringUtils.hasText(response.getProviderName()) ? response.getProviderName().trim() : "REMOTE",
+                    StringUtils.hasText(response.getProviderReference()) ? response.getProviderReference().trim() : command.cardReference()
             );
         } catch (ResourceAccessException ex) {
             throw new BusinessException("Card issuer is unavailable: " + sanitizeMessage(ex.getMessage(), "connection failure"), "CARD_ISSUER_UNAVAILABLE");
@@ -91,20 +94,20 @@ public class RemoteCardPanIssuer implements CardPanIssuer {
         }
     }
 
-    private Map<String, Object> buildPayload(CardPanIssueCommand command) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("cardReference", command.cardReference());
-        payload.put("accountId", command.accountId());
-        payload.put("customerId", command.customerId());
-        payload.put("cardType", command.cardType() != null ? command.cardType().name() : null);
-        payload.put("scheme", command.cardScheme() != null ? command.cardScheme().name() : null);
-        payload.put("tier", command.cardTier());
-        payload.put("cardholderName", command.cardholderName());
-        payload.put("branchCode", command.branchCode());
-        payload.put("currencyCode", command.currencyCode());
-        payload.put("expiryDate", command.expiryDate() != null ? command.expiryDate().toString() : LocalDate.now().plusYears(3).toString());
-        payload.put("institutionId", institutionId);
-        return payload;
+    private RemoteCardPanIssueRequest buildPayload(CardPanIssueCommand command) {
+        return RemoteCardPanIssueRequest.builder()
+                .cardReference(command.cardReference())
+                .accountId(command.accountId())
+                .customerId(command.customerId())
+                .cardType(command.cardType() != null ? command.cardType().name() : null)
+                .scheme(command.cardScheme() != null ? command.cardScheme().name() : null)
+                .tier(command.cardTier())
+                .cardholderName(command.cardholderName())
+                .branchCode(command.branchCode())
+                .currencyCode(command.currencyCode())
+                .expiryDate(command.expiryDate() != null ? command.expiryDate().toString() : LocalDate.now().plusYears(3).toString())
+                .institutionId(institutionId)
+                .build();
     }
 
     private void validatePan(String pan) {
@@ -128,16 +131,6 @@ public class RemoteCardPanIssuer implements CardPanIssuer {
             alternate = !alternate;
         }
         return sum % 10 == 0;
-    }
-
-    private String firstString(Map<String, Object> response, List<String> keys, String defaultValue) {
-        for (String key : keys) {
-            Object value = response.get(key);
-            if (value != null && StringUtils.hasText(String.valueOf(value))) {
-                return String.valueOf(value).trim();
-            }
-        }
-        return defaultValue;
     }
 
     private String sanitizeMessage(String preferred, String fallback) {

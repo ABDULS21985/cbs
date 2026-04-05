@@ -45,7 +45,8 @@ class ReferenceDataTest {
 
         @Mock private CounterpartyRepository counterpartyRepository;
 
-        @InjectMocks private CounterpartyService counterpartyService;
+        @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
+    @InjectMocks private CounterpartyService counterpartyService;
 
         @Test
         @DisplayName("updateExposure recalculates available limit from total exposure limit minus new exposure")
@@ -98,7 +99,8 @@ class ReferenceDataTest {
 
         @Mock private SyndicateArrangementRepository syndicateRepository;
 
-        @InjectMocks private SyndicateService syndicateService;
+        @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
+    @InjectMocks private SyndicateService syndicateService;
 
         @Test
         @DisplayName("create calculates our share percentage from commitment and total facility")
@@ -156,7 +158,8 @@ class ReferenceDataTest {
 
         @Mock private ProductCatalogEntryRepository catalogRepository;
 
-        @InjectMocks private ProductCatalogService productCatalogService;
+        @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
+    @InjectMocks private ProductCatalogService productCatalogService;
 
         @Test
         @DisplayName("launch transitions product to ACTIVE and records launch timestamp")
@@ -190,7 +193,8 @@ class ReferenceDataTest {
 
         @Mock private PartyRoutingProfileRepository profileRepository;
 
-        @InjectMocks private PartyRoutingService partyRoutingService;
+        @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
+    @InjectMocks private PartyRoutingService partyRoutingService;
 
         @Test
         @DisplayName("upsert creates new profile when customer has no existing routing profile")

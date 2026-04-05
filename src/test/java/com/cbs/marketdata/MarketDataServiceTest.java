@@ -13,6 +13,7 @@ class MarketDataServiceTest {
     @Mock private MarketPriceRepository priceRepository;
     @Mock private MarketSignalRepository signalRepository;
     @Mock private ResearchPublicationRepository researchRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private MarketDataService service;
 
     @Test @DisplayName("Latest price returns most recent for instrument")

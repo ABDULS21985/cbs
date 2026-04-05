@@ -20,6 +20,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class OpenItemServiceTest {
     @Mock private OpenItemRepository repository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private OpenItemService service;
 
     @Test @DisplayName("Creation sets aging=0 and generates code")

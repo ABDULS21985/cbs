@@ -22,6 +22,7 @@ class PricingServiceTest {
 
     @Mock private DiscountSchemeRepository discountRepo;
     @Mock private SpecialPricingAgreementRepository specialRepo;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private PricingService service;
 
     @Test
