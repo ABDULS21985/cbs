@@ -75,6 +75,18 @@ public class CardTransaction {
     @Column(name = "response_code", length = 4)
     private String responseCode;
 
+    @Column(name = "islamic_card_id")
+    private Long islamicCardId;
+
+    @Column(name = "shariah_screening_ref", length = 40)
+    private String shariahScreeningRef;
+
+    @Column(name = "shariah_decision", length = 20)
+    private String shariahDecision;
+
+    @Column(name = "shariah_reason", length = 200)
+    private String shariahReason;
+
     @Column(name = "status", nullable = false, length = 20)
     @Builder.Default private String status = "PENDING";
 

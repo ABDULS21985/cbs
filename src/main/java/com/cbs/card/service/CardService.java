@@ -38,16 +38,28 @@ public class CardService {
     private final AccountRepository accountRepository;
     private final AccountPostingService accountPostingService;
     private final CbsProperties cbsProperties;
+    private final IslamicCardAuthorizationService islamicCardAuthorizationService;
 
     @org.springframework.beans.factory.annotation.Value("${card.pan.hmac-key:ch4ng3-th1s-d3f4ult-k3y-in-pr0duct10n}")
     private String panHmacKey;
 
     @Transactional
     public Card issueCard(Long accountId, CardType cardType, CardScheme cardScheme,
-                            String cardTier, String cardholderName, LocalDate expiryDate,
-                            BigDecimal dailyPosLimit, BigDecimal dailyAtmLimit,
-                            BigDecimal dailyOnlineLimit, BigDecimal singleTxnLimit,
-                            BigDecimal creditLimit) {
+                  String cardTier, String cardholderName, LocalDate expiryDate,
+                  BigDecimal dailyPosLimit, BigDecimal dailyAtmLimit,
+                  BigDecimal dailyOnlineLimit, BigDecimal singleTxnLimit,
+                  BigDecimal creditLimit) {
+        return issueCard(accountId, cardType, cardScheme, cardTier, cardholderName, expiryDate,
+            dailyPosLimit, dailyAtmLimit, dailyOnlineLimit, singleTxnLimit,
+            creditLimit, null, CardStatus.ACTIVE);
+        }
+
+        @Transactional
+        public Card issueCard(Long accountId, CardType cardType, CardScheme cardScheme,
+                  String cardTier, String cardholderName, LocalDate expiryDate,
+                  BigDecimal dailyPosLimit, BigDecimal dailyAtmLimit,
+                  BigDecimal dailyOnlineLimit, BigDecimal singleTxnLimit,
+                  BigDecimal creditLimit, String branchCode, CardStatus initialStatus) {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", accountId));
 
@@ -67,7 +79,8 @@ public class CardService {
                 .dailyPosLimit(dailyPosLimit).dailyAtmLimit(dailyAtmLimit)
                 .dailyOnlineLimit(dailyOnlineLimit).singleTxnLimit(singleTxnLimit)
                 .currencyCode(account.getCurrencyCode())
-                .status(CardStatus.ACTIVE).build();
+                .branchCode(StringUtils.hasText(branchCode) ? branchCode : account.getBranchCode())
+                .status(initialStatus != null ? initialStatus : CardStatus.ACTIVE).build();
 
         if (cardType == CardType.CREDIT && creditLimit != null) {
             card.setCreditLimit(creditLimit);
@@ -194,6 +207,16 @@ public class CardService {
             }
         }
 
+        IslamicCardAuthorizationDecision islamicDecision = islamicCardAuthorizationService.evaluate(card, txn);
+        applyIslamicDecision(txn, islamicDecision);
+        if (!islamicDecision.allowed()) {
+            txn.setStatus("DECLINED");
+            txn.setDeclineReason(islamicDecision.shariahReason());
+            txn.setResponseCode(islamicDecision.responseCode());
+            txnRepository.save(txn);
+            return txn;
+        }
+
         // Balance check
         Account account = card.getAccount();
         if (card.getCardType() == CardType.DEBIT || card.getCardType() == CardType.PREPAID) {
@@ -211,7 +234,7 @@ public class CardService {
                     "Card authorization " + txnRef,
                     resolveChannel(channel),
                     txnRef,
-                    resolveCardSettlementGlCode(),
+                        resolveCardSettlementGlCode(islamicDecision),
                     "CARDS",
                     txnRef
             );
@@ -235,7 +258,8 @@ public class CardService {
         card.setLastUsedDate(LocalDate.now());
 
         cardRepository.save(card);
-        txnRepository.save(txn);
+    txn = txnRepository.save(txn);
+    islamicCardAuthorizationService.afterAuthorization(txn);
 
         log.info("Card txn authorized: ref={}, card={}, channel={}, amount={}, merchant={}",
                 txnRef, card.getCardReference(), channel, amount, merchantName);
@@ -315,12 +339,25 @@ public class CardService {
         }
     }
 
-    private String resolveCardSettlementGlCode() {
+    private String resolveCardSettlementGlCode(IslamicCardAuthorizationDecision islamicDecision) {
+        if (islamicDecision != null && StringUtils.hasText(islamicDecision.settlementGlCode())) {
+            return islamicDecision.settlementGlCode();
+        }
         String glCode = cbsProperties.getLedger().getExternalClearingGlCode();
         if (!StringUtils.hasText(glCode)) {
             throw new BusinessException("CBS_LEDGER_EXTERNAL_CLEARING_GL is required for card postings",
                     "MISSING_CARD_SETTLEMENT_GL");
         }
         return glCode;
+    }
+
+    private void applyIslamicDecision(CardTransaction txn, IslamicCardAuthorizationDecision decision) {
+        if (decision == null || !decision.applicable()) {
+            return;
+        }
+        txn.setIslamicCardId(decision.islamicCardId());
+        txn.setShariahScreeningRef(decision.shariahScreeningRef());
+        txn.setShariahDecision(decision.shariahDecision());
+        txn.setShariahReason(decision.shariahReason());
     }
 }

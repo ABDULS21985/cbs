@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PoolWeightageRecordRepository extends JpaRepository<PoolWeightageRecord, Long> {
@@ -16,6 +17,8 @@ public interface PoolWeightageRecordRepository extends JpaRepository<PoolWeighta
     List<PoolWeightageRecord> findByPoolIdAndRecordDate(Long poolId, LocalDate recordDate);
 
     List<PoolWeightageRecord> findByPoolIdAndAccountIdAndRecordDateBetween(Long poolId, Long accountId, LocalDate from, LocalDate to);
+
+    Optional<PoolWeightageRecord> findByPoolIdAndAccountIdAndRecordDate(Long poolId, Long accountId, LocalDate recordDate);
 
     @Query("SELECT COALESCE(SUM(r.dailyProduct), 0) FROM PoolWeightageRecord r WHERE r.poolId = :poolId AND r.accountId = :accountId AND r.recordDate BETWEEN :from AND :to AND r.isActive = true")
     BigDecimal sumDailyProduct(@Param("poolId") Long poolId, @Param("accountId") Long accountId, @Param("from") LocalDate from, @Param("to") LocalDate to);

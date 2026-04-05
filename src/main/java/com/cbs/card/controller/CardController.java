@@ -15,8 +15,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -46,10 +44,7 @@ public class CardController {
                 request.getCardTier(), request.getCardholderName(), request.getExpiryDate(),
                 request.getDailyPosLimit(), request.getDailyAtmLimit(),
                 request.getDailyOnlineLimit(), request.getSingleTxnLimit(),
-                request.getCreditLimit());
-        if (request.getBranchCode() != null) {
-            card.setBranchCode(request.getBranchCode());
-        }
+            request.getCreditLimit(), request.getBranchCode(), CardStatus.ACTIVE);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(CardMapper.toResponse(card)));
     }
 
@@ -127,7 +122,6 @@ public class CardController {
     @Operation(summary = "Request a new or replacement card")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
     public ResponseEntity<ApiResponse<CardResponse>> requestCard(@RequestBody Map<String, Object> body) {
-        Long customerId = body.get("customerId") != null ? Long.valueOf(body.get("customerId").toString()) : null;
         Long accountId = body.get("accountId") != null ? Long.valueOf(body.get("accountId").toString()) : null;
         String cardTypeStr = (String) body.getOrDefault("cardType", "DEBIT");
         String schemeStr = (String) body.getOrDefault("cardScheme", body.getOrDefault("scheme", "VISA"));
@@ -140,7 +134,7 @@ public class CardController {
                 cardTier, cardholderName, LocalDate.now().plusYears(3),
                 new BigDecimal("500000"), new BigDecimal("200000"),
                 new BigDecimal("300000"), new BigDecimal("200000"),
-                BigDecimal.ZERO);
+            BigDecimal.ZERO, null, CardStatus.ACTIVE);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(CardMapper.toResponse(card)));
     }
 
