@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Transactional
 public class IjarahAssetService {
 
-    private static final AtomicLong ASSET_SEQUENCE = new AtomicLong(System.currentTimeMillis() % 100000);
+    private static final AtomicLong ASSET_SEQUENCE = new AtomicLong(System.nanoTime());
 
     private final IjarahAssetRepository assetRepository;
     private final IjarahAssetMaintenanceRecordRepository maintenanceRecordRepository;
@@ -217,10 +217,16 @@ public class IjarahAssetService {
         BigDecimal depreciation;
         switch (asset.getDepreciationMethod() != null ? asset.getDepreciationMethod() : IjarahDomainEnums.DepreciationMethod.STRAIGHT_LINE) {
             case DECLINING_BALANCE -> {
-                // Double declining balance: (2 / usefulLifeMonths) * NBV
-                int life = asset.getUsefulLifeMonths() != null && asset.getUsefulLifeMonths() > 0 ? asset.getUsefulLifeMonths() : 60;
-                BigDecimal rate = BigDecimal.valueOf(2).divide(BigDecimal.valueOf(life), 8, RoundingMode.HALF_UP);
-                depreciation = IjarahSupport.money(nbv.multiply(rate));
+                // Double declining balance: annualRate = 2 / usefulLifeYears, monthlyDepreciation = (NBV * annualRate) / 12
+                int lifeMonths = asset.getUsefulLifeMonths() != null && asset.getUsefulLifeMonths() > 0 ? asset.getUsefulLifeMonths() : 60;
+                BigDecimal usefulLifeYears = BigDecimal.valueOf(lifeMonths).divide(BigDecimal.valueOf(12), 8, RoundingMode.HALF_UP);
+                BigDecimal annualRate = BigDecimal.valueOf(2).divide(usefulLifeYears, 8, RoundingMode.HALF_UP);
+                depreciation = IjarahSupport.money(nbv.multiply(annualRate).divide(BigDecimal.valueOf(12), 8, RoundingMode.HALF_UP));
+            }
+            case UNITS_OF_PRODUCTION -> {
+                // TODO: Units of production depreciation requires actual usage data (e.g., km driven, hours used).
+                // Falling back to straight-line until usage tracking is implemented.
+                depreciation = IjarahSupport.money(asset.getMonthlyDepreciation());
             }
             default -> depreciation = IjarahSupport.money(asset.getMonthlyDepreciation());
         }
@@ -429,6 +435,10 @@ public class IjarahAssetService {
                 .fullyDepreciatedCount(assets.stream().filter(asset -> IjarahSupport.money(asset.getNetBookValue())
                         .compareTo(IjarahSupport.money(asset.getResidualValue())) <= 0).count())
                 .build();
+    }
+
+    public IjarahAsset saveAsset(IjarahAsset asset) {
+        return assetRepository.save(asset);
     }
 
     IjarahAsset findAsset(Long assetId) {

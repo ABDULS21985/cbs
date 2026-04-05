@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Transactional
 public class CommodityMurabahaService {
 
-    private static final AtomicLong TRADE_SEQUENCE = new AtomicLong(System.currentTimeMillis() % 100000);
+    private static final AtomicLong TRADE_SEQUENCE = new AtomicLong(System.nanoTime());
 
     private final CommodityMurabahaTradeRepository tradeRepository;
     private final MurabahaContractRepository contractRepository;

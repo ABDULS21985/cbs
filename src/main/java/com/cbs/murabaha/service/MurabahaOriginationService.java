@@ -45,8 +45,8 @@ import java.util.concurrent.atomic.AtomicLong;
 @Transactional
 public class MurabahaOriginationService {
 
-    private static final AtomicLong APPLICATION_SEQUENCE = new AtomicLong(System.currentTimeMillis() % 100000);
-    private static final AtomicLong CONTRACT_SEQUENCE = new AtomicLong((System.currentTimeMillis() + 7_000L) % 100000);
+    private static final AtomicLong APPLICATION_SEQUENCE = new AtomicLong(System.nanoTime());
+    private static final AtomicLong CONTRACT_SEQUENCE = new AtomicLong(System.nanoTime());
     private static final BigDecimal DEFAULT_DSR_LIMIT = new BigDecimal("50.00");
 
     private final MurabahaApplicationRepository applicationRepository;
@@ -318,17 +318,13 @@ public class MurabahaOriginationService {
                 .maturityDate(LocalDate.now().plusMonths(application.getApprovedTenorMonths() != null
                         ? application.getApprovedTenorMonths()
                         : application.getProposedTenorMonths()))
-                .repaymentFrequency(application.getMurabahahType() == MurabahaDomainEnums.MurabahahType.COMMODITY_MURABAHA
-                        ? MurabahaDomainEnums.RepaymentFrequency.MONTHLY
-                        : (product.getDefaultRepaymentFrequency() != null
-                                ? MurabahaDomainEnums.RepaymentFrequency.valueOf(product.getDefaultRepaymentFrequency())
-                                : MurabahaDomainEnums.RepaymentFrequency.MONTHLY))
+                .repaymentFrequency(MurabahaDomainEnums.RepaymentFrequency.MONTHLY)
                 .totalDeferredProfit(markupAmount)
                 .recognisedProfit(MurabahaSupport.ZERO)
                 .unrecognisedProfit(markupAmount)
-                .profitRecognitionMethod(MurabahaDomainEnums.ProfitRecognitionMethod.PROPORTIONAL_TO_OUTSTANDING)
+                .profitRecognitionMethod(resolveProfitRecognitionMethod(product))
                 .gracePeriodDays(product.getGracePeriodDays() != null ? product.getGracePeriodDays() : 0)
-                .latePenaltyRate(BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP))
+                .latePenaltyRate(resolveLatePenaltyRate(product))
                 .latePenaltyMethod(MurabahaDomainEnums.LatePenaltyMethod.PERCENTAGE_OF_OVERDUE)
                 .latePenaltiesToCharity(Boolean.TRUE)
                 .totalLatePenaltiesCharged(MurabahaSupport.ZERO)
@@ -470,5 +466,43 @@ public class MurabahaOriginationService {
                 || application.getStatus() == MurabahaDomainEnums.ApplicationStatus.CONVERTED_TO_CONTRACT) {
             throw new BusinessException("Murabaha application is already in a terminal state", "APPLICATION_TERMINAL");
         }
+    }
+
+    private MurabahaDomainEnums.ProfitRecognitionMethod resolveProfitRecognitionMethod(IslamicProductTemplate product) {
+        // Map from product profit calculation method to contract profit recognition method.
+        // COST_PLUS_MARKUP (standard Murabaha) uses proportional-to-outstanding;
+        // RENTAL_RATE (Ijarah-like) uses proportional-to-time.
+        if (product.getProfitCalculationMethod() != null) {
+            return switch (product.getProfitCalculationMethod()) {
+                case RENTAL_RATE -> MurabahaDomainEnums.ProfitRecognitionMethod.PROPORTIONAL_TO_TIME;
+                case COST_PLUS_MARKUP, EXPECTED_PROFIT_RATE -> MurabahaDomainEnums.ProfitRecognitionMethod.PROPORTIONAL_TO_OUTSTANDING;
+                default -> MurabahaDomainEnums.ProfitRecognitionMethod.PROPORTIONAL_TO_OUTSTANDING;
+            };
+        }
+        return MurabahaDomainEnums.ProfitRecognitionMethod.PROPORTIONAL_TO_OUTSTANDING;
+    }
+
+    private BigDecimal resolveLatePenaltyRate(IslamicProductTemplate product) {
+        // Product template does not currently carry a dedicated latePenaltyRate field.
+        // When that field is added to IslamicProductTemplate, read it here.
+        // For now, derive from decision-table or default to zero.
+        if (StringUtils.hasText(product.getProfitRateDecisionTableCode())) {
+            try {
+                DecisionResultResponse result = decisionTableEvaluator.evaluateByRuleCode(
+                        product.getProfitRateDecisionTableCode(),
+                        Map.of("rateType", "LATE_PENALTY"));
+                if (Boolean.TRUE.equals(result.getMatched())) {
+                    BigDecimal candidate = MurabahaSupport.toBigDecimal(
+                            result.getOutputs().getOrDefault("late_penalty_rate",
+                                    result.getOutputs().get("latePenaltyRate")));
+                    if (candidate != null) {
+                        return MurabahaSupport.rate(candidate);
+                    }
+                }
+            } catch (Exception ex) {
+                log.warn("Could not resolve late penalty rate from decision table: {}", ex.getMessage());
+            }
+        }
+        return BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
     }
 }

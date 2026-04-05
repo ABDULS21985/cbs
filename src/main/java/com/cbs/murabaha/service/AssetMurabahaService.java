@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Transactional
 public class AssetMurabahaService {
 
-    private static final AtomicLong PURCHASE_SEQUENCE = new AtomicLong(System.currentTimeMillis() % 100000);
+    private static final AtomicLong PURCHASE_SEQUENCE = new AtomicLong(System.nanoTime());
 
     private final AssetMurabahaPurchaseRepository purchaseRepository;
     private final MurabahaContractRepository contractRepository;

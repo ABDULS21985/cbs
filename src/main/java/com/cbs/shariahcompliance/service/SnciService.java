@@ -3,8 +3,11 @@ package com.cbs.shariahcompliance.service;
 import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.gl.entity.JournalEntry;
 import com.cbs.gl.islamic.dto.IslamicPostingRequest;
 import com.cbs.gl.islamic.entity.IslamicTransactionType;
+import com.cbs.gl.repository.JournalEntryRepository;
+import com.cbs.gl.service.GeneralLedgerService;
 import com.cbs.gl.islamic.service.IslamicPostingRuleService;
 import com.cbs.shariahcompliance.dto.CreateSnciRecordRequest;
 import com.cbs.shariahcompliance.dto.SnciRecordResponse;
@@ -18,6 +21,7 @@ import com.cbs.shariahcompliance.entity.SnciRecord;
 import com.cbs.shariahcompliance.entity.ShariahExclusionList;
 import com.cbs.shariahcompliance.entity.ShariahExclusionListEntry;
 import com.cbs.shariahcompliance.repository.ShariahComplianceAlertRepository;
+import com.cbs.shariahcompliance.repository.CharityFundLedgerEntryRepository;
 import com.cbs.shariahcompliance.repository.ShariahExclusionListEntryRepository;
 import com.cbs.shariahcompliance.repository.ShariahExclusionListRepository;
 import com.cbs.shariahcompliance.repository.SnciRecordRepository;
@@ -31,6 +35,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -56,6 +61,10 @@ public class SnciService {
     private final ShariahExclusionListEntryRepository exclusionListEntryRepository;
     private final ShariahExclusionListRepository exclusionListRepository;
     private final IslamicPostingRuleService postingRuleService;
+    private final CharityFundService charityFundService;
+    private final CharityFundLedgerEntryRepository charityFundLedgerRepository;
+    private final JournalEntryRepository journalEntryRepository;
+    private final GeneralLedgerService generalLedgerService;
     private final CurrentActorProvider actorProvider;
 
     private static final AtomicLong SNCI_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
@@ -175,7 +184,7 @@ public class SnciService {
                             .amount(income.getAmount())
                             .currencyCode(income.getCurrencyCode())
                             .incomeDate(income.getIncomeDate())
-                            .nonComplianceType(nonComplianceType.name())
+                            .nonComplianceType((nonComplianceType != null ? nonComplianceType : NonComplianceType.OTHER).name())
                             .nonComplianceDescription(reason)
                             .build();
                     SnciRecordResponse created = createSnciRecord(snciRequest);
@@ -215,27 +224,19 @@ public class SnciService {
         record.setQuarantinedAt(LocalDateTime.now());
         record.setQuarantineGlAccount(SNCI_QUARANTINE_GL);
 
-        // GL posting: DR source account, CR SNCI quarantine holding account
-        try {
-            var journalEntry = postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
-                    .txnType(IslamicTransactionType.CHARITY_DISTRIBUTION)
-                    .contractTypeCode("SNCI_QUARANTINE")
-                    .amount(record.getAmount())
-                    .reference(record.getSnciRef())
-                    .narration("SNCI quarantine — " + record.getNonComplianceType()
-                            + " from " + (record.getSourceContractRef() != null ? record.getSourceContractRef() : "unknown"))
-                    .build());
-            if (journalEntry != null) {
-                record.setQuarantineJournalRef(journalEntry.getJournalNumber());
-            }
-        } catch (Exception e) {
-            log.error("GL posting failed for SNCI quarantine {}: {}", record.getSnciRef(), e.getMessage(), e);
-            throw new BusinessException(
-                    "GL posting failed for SNCI quarantine: " + e.getMessage(),
-                    "SNCI_GL_POSTING_FAILED");
+        JournalEntry quarantineJournal = postQuarantineJournal(record);
+        if (quarantineJournal != null) {
+            record.setQuarantineJournalRef(quarantineJournal.getJournalNumber());
         }
 
         snciRepository.save(record);
+        if (quarantineJournal != null) {
+            charityFundService.recordSnciPurificationInflow(
+                    record.getId(),
+                    record.getAmount(),
+                    quarantineJournal.getJournalNumber(),
+                    record.getCurrencyCode());
+        }
 
         log.info("Quarantined SNCI record {} — amount {} {} moved to quarantine GL {}",
                 record.getSnciRef(), record.getAmount(), record.getCurrencyCode(), SNCI_QUARANTINE_GL);
@@ -325,13 +326,38 @@ public class SnciService {
         if (isNonCompliant) {
             // Income confirmed as non-compliant — return to quarantine for purification
             record.setQuarantineStatus(QuarantineStatus.QUARANTINED);
+            if (!StringUtils.hasText(record.getQuarantineJournalRef())) {
+                record.setQuarantinedAt(LocalDateTime.now());
+                record.setQuarantineGlAccount(SNCI_QUARANTINE_GL);
+                JournalEntry quarantineJournal = postQuarantineJournal(record);
+                if (quarantineJournal != null) {
+                    record.setQuarantineJournalRef(quarantineJournal.getJournalNumber());
+                    charityFundService.recordSnciPurificationInflow(
+                            record.getId(),
+                            record.getAmount(),
+                            quarantineJournal.getJournalNumber(),
+                            record.getCurrencyCode());
+                }
+            }
             log.info("Dispute on SNCI {} resolved — confirmed non-compliant, returned to QUARANTINED by {}",
                     record.getSnciRef(), resolvedBy);
         } else {
             // Income found compliant — waive by SSB, reverse quarantine
+            String reversalJournalRef = reverseQuarantineJournal(record, resolvedBy);
             record.setQuarantineStatus(QuarantineStatus.WAIVED_BY_SSB);
             record.setQuarantineGlAccount(null);
             record.setQuarantinedAt(null);
+            record.setPurificationBatchId(null);
+            record.setApprovedForPurificationBy(null);
+            record.setApprovedForPurificationAt(null);
+            record.setPurifiedAt(null);
+            record.setPurificationJournalRef(null);
+            record.setCharityRecipient(null);
+            if (StringUtils.hasText(reversalJournalRef)) {
+                record.setDisputeResolution((StringUtils.hasText(record.getDisputeResolution())
+                        ? record.getDisputeResolution() + System.lineSeparator()
+                        : "") + "Quarantine reversed via journal " + reversalJournalRef);
+            }
             log.info("Dispute on SNCI {} resolved — found compliant, WAIVED_BY_SSB by {}",
                     record.getSnciRef(), resolvedBy);
         }
@@ -518,5 +544,42 @@ public class SnciService {
                 .updatedBy(r.getUpdatedBy())
                 .version(r.getVersion())
                 .build();
+    }
+
+    private JournalEntry postQuarantineJournal(SnciRecord record) {
+        try {
+            return postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                    .txnType(IslamicTransactionType.CHARITY_DISTRIBUTION)
+                    .contractTypeCode("SNCI_QUARANTINE")
+                    .amount(record.getAmount())
+                    .reference(record.getSnciRef())
+                    .narration("SNCI quarantine — " + record.getNonComplianceType()
+                            + " from " + (record.getSourceContractRef() != null ? record.getSourceContractRef() : "unknown"))
+                    .build());
+        } catch (Exception e) {
+            log.error("GL posting failed for SNCI quarantine {}: {}", record.getSnciRef(), e.getMessage(), e);
+            throw new BusinessException(
+                    "GL posting failed for SNCI quarantine: " + e.getMessage(),
+                    "SNCI_GL_POSTING_FAILED");
+        }
+    }
+
+    private String reverseQuarantineJournal(SnciRecord record, String resolvedBy) {
+        if (!StringUtils.hasText(record.getQuarantineJournalRef())) {
+            return null;
+        }
+        JournalEntry original = journalEntryRepository.findByJournalNumber(record.getQuarantineJournalRef())
+                .orElse(null);
+        if (original == null || "REVERSED".equalsIgnoreCase(original.getStatus())) {
+            return null;
+        }
+        JournalEntry reversal = generalLedgerService.reverseJournal(original.getId(), resolvedBy);
+        charityFundLedgerRepository.findFirstByJournalRefOrderByCreatedAtDesc(record.getQuarantineJournalRef())
+                .ifPresent(entry -> charityFundService.recordReversal(
+                        entry.getId(),
+                        record.getAmount(),
+                        reversal.getJournalNumber(),
+                        "SNCI dispute resolved as compliant; quarantine inflow reversed"));
+        return reversal.getJournalNumber();
     }
 }

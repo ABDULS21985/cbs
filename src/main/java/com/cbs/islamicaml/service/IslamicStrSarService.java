@@ -42,7 +42,7 @@ public class IslamicStrSarService {
     private final CurrentActorProvider actorProvider;
     private final CurrentTenantResolver tenantResolver;
 
-    private static final AtomicLong SAR_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
+    private static final AtomicLong SAR_SEQ = new AtomicLong(System.nanoTime());
 
     // ===================== CREATE SAR =====================
 
@@ -374,7 +374,7 @@ public class IslamicStrSarService {
         String islamicContractRef = alert.getInvolvedContracts() != null && !alert.getInvolvedContracts().isEmpty()
                 ? alert.getInvolvedContracts().get(0) : null;
 
-        SarJurisdiction jurisdiction = SarJurisdiction.SA_SAFIU;
+        SarJurisdiction jurisdiction = resolveJurisdictionFromCountry(customer.getNationality(), customer.getCountryOfResidence());
         boolean isUrgent = alert.getRiskScore() != null
                 && alert.getRiskScore().compareTo(new BigDecimal("90")) > 0;
         LocalDate filingDeadline = calculateFilingDeadline(jurisdiction, isUrgent);
@@ -562,6 +562,23 @@ public class IslamicStrSarService {
     }
 
     // ===================== PRIVATE HELPERS =====================
+
+    private SarJurisdiction resolveJurisdictionFromCountry(String nationality, String countryOfResidence) {
+        String country = StringUtils.hasText(nationality) ? nationality.toUpperCase()
+                : StringUtils.hasText(countryOfResidence) ? countryOfResidence.toUpperCase()
+                : null;
+        if (country == null) {
+            return SarJurisdiction.SA_SAFIU;
+        }
+        return switch (country) {
+            case "AE", "UAE" -> SarJurisdiction.AE_GOAML;
+            case "QA", "QATAR" -> SarJurisdiction.QA_QFIU;
+            case "BH", "BAHRAIN" -> SarJurisdiction.BH_CBB;
+            case "KW", "KUWAIT" -> SarJurisdiction.KW_KFIU;
+            case "OM", "OMAN" -> SarJurisdiction.OM_CBO;
+            default -> SarJurisdiction.SA_SAFIU;
+        };
+    }
 
     private LocalDate calculateFilingDeadline(SarJurisdiction jurisdiction, boolean isUrgent) {
         if (isUrgent) {

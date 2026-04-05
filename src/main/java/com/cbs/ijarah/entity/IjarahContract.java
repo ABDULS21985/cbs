@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -186,6 +187,11 @@ public class IjarahContract extends AuditableEntity {
     @lombok.Builder.Default
     private Boolean latePenaltyApplicable = true;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "late_penalty_method", length = 30)
+    @lombok.Builder.Default
+    private IjarahDomainEnums.LatePenaltyMethod latePenaltyMethod = IjarahDomainEnums.LatePenaltyMethod.PERCENTAGE_OF_OVERDUE;
+
     @Column(name = "late_penalty_to_charity", nullable = false)
     @lombok.Builder.Default
     private Boolean latePenaltyToCharity = true;
@@ -241,4 +247,7 @@ public class IjarahContract extends AuditableEntity {
 
     @Column(name = "tenant_id")
     private Long tenantId;
+
+    @Version
+    private Long version;
 }

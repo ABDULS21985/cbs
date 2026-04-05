@@ -7,6 +7,7 @@ import com.cbs.islamicaml.entity.SanctionsScreeningResult;
 import com.cbs.islamicaml.repository.SanctionsScreeningResultRepository;
 import com.cbs.shariahcompliance.dto.ShariahScreeningRequest;
 import com.cbs.shariahcompliance.dto.ShariahScreeningResultResponse;
+import com.cbs.shariahcompliance.entity.ExclusionListType;
 import com.cbs.shariahcompliance.entity.ScreeningOverallResult;
 import com.cbs.shariahcompliance.entity.ShariahExclusionList;
 import com.cbs.shariahcompliance.entity.ShariahExclusionListEntry;
@@ -23,7 +24,9 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -130,46 +133,149 @@ public class CombinedEntityScreeningService {
 
     public List<OverlappingEntity> findOverlappingEntities() {
         log.info("Finding overlapping entities across Shariah and sanctions lists");
-
-        // Collect entity names from Shariah screening results that were not PASS
-        List<ShariahScreeningResult> shariahResults = shariahResultRepository
-                .findByOverallResult(ScreeningOverallResult.FAIL);
-        // Collect entity names from sanctions screening results that were not CLEAR
-        List<SanctionsScreeningResult> sanctionsMatches = sanctionsResultRepository
-                .findByOverallResult(SanctionsOverallResult.POTENTIAL_MATCH);
-        List<SanctionsScreeningResult> sanctionsConfirmed = sanctionsResultRepository
-                .findByOverallResult(SanctionsOverallResult.CONFIRMED_MATCH);
-
-        // Build a set of sanctioned entity names (lowercased for matching)
-        Set<String> sanctionedNames = new HashSet<>();
-        List<SanctionsScreeningResult> allSanctionsHits = new ArrayList<>(sanctionsMatches);
-        allSanctionsHits.addAll(sanctionsConfirmed);
-        for (SanctionsScreeningResult sr : allSanctionsHits) {
-            if (sr.getEntityName() != null) {
-                sanctionedNames.add(sr.getEntityName().toLowerCase());
-            }
-        }
-
-        // Find Shariah-flagged entities that also appear in sanctions results
+        List<EntitySource> shariahSources = collectShariahSources();
+        List<EntitySource> sanctionsSources = collectSanctionsSources();
         List<OverlappingEntity> overlaps = new ArrayList<>();
         Set<String> seen = new HashSet<>();
 
-        for (ShariahScreeningResult sr : shariahResults) {
-            String name = sr.getCounterpartyName();
-            if (name == null) continue;
-            String normalizedName = name.toLowerCase();
-            if (sanctionedNames.contains(normalizedName) && seen.add(normalizedName)) {
+        for (EntitySource shariahSource : shariahSources) {
+            for (EntitySource sanctionsSource : sanctionsSources) {
+                if (!isOverlap(shariahSource, sanctionsSource)) {
+                    continue;
+                }
+                String dedupeKey = shariahSource.normalizedName + "|"
+                        + shariahSource.listCode + "|" + sanctionsSource.listCode;
+                if (!seen.add(dedupeKey)) {
+                    continue;
+                }
                 overlaps.add(OverlappingEntity.builder()
-                        .entityName(name)
-                        .shariahListCode(sr.getContractTypeCode())
-                        .sanctionsListCode("SANCTIONS")
-                        .shariahReason(sr.getBlockReason())
-                        .sanctionsReason("Matched in sanctions screening")
+                        .entityName(shariahSource.rawName)
+                        .shariahListCode(shariahSource.listCode)
+                        .sanctionsListCode(sanctionsSource.listCode)
+                        .shariahReason(shariahSource.reason)
+                        .sanctionsReason(sanctionsSource.reason)
                         .build());
             }
         }
 
         log.info("Found {} overlapping entities across Shariah and sanctions lists", overlaps.size());
         return overlaps;
+    }
+
+    private List<EntitySource> collectShariahSources() {
+        List<EntitySource> sources = new ArrayList<>();
+
+        List<ShariahScreeningResult> results = new ArrayList<>(shariahResultRepository.findByOverallResult(ScreeningOverallResult.FAIL));
+        results.addAll(shariahResultRepository.findByOverallResult(ScreeningOverallResult.ALERT));
+        for (ShariahScreeningResult result : results) {
+            if (StringUtils.hasText(result.getCounterpartyName())) {
+                sources.add(new EntitySource(
+                        result.getCounterpartyName(),
+                        normalize(result.getCounterpartyName()),
+                        StringUtils.hasText(result.getContractTypeCode()) ? result.getContractTypeCode() : "SHARIAH_SCREENING",
+                        StringUtils.hasText(result.getBlockReason()) ? result.getBlockReason() : "Flagged in Shariah screening"));
+            }
+        }
+
+        for (ShariahExclusionList list : exclusionListRepository.findByStatus("ACTIVE")) {
+            if (list.getListType() != ExclusionListType.COUNTERPARTY_ID
+                    && list.getListType() != ExclusionListType.KEYWORD) {
+                continue;
+            }
+            for (ShariahExclusionListEntry entry : exclusionListEntryRepository.findByListIdAndStatus(list.getId(), "ACTIVE")) {
+                if (!StringUtils.hasText(entry.getEntryValue())) {
+                    continue;
+                }
+                sources.add(new EntitySource(
+                        entry.getEntryValue(),
+                        normalize(entry.getEntryValue()),
+                        list.getListCode(),
+                        StringUtils.hasText(entry.getReason()) ? entry.getReason() : list.getName()));
+            }
+        }
+
+        return deduplicateSources(sources);
+    }
+
+    private List<EntitySource> collectSanctionsSources() {
+        List<EntitySource> sources = new ArrayList<>();
+        List<SanctionsScreeningResult> allSanctionsHits = new ArrayList<>(sanctionsResultRepository
+                .findByOverallResult(SanctionsOverallResult.POTENTIAL_MATCH));
+        allSanctionsHits.addAll(sanctionsResultRepository.findByOverallResult(SanctionsOverallResult.CONFIRMED_MATCH));
+
+        for (SanctionsScreeningResult result : allSanctionsHits) {
+            if (StringUtils.hasText(result.getEntityName())) {
+                sources.add(new EntitySource(
+                        result.getEntityName(),
+                        normalize(result.getEntityName()),
+                        "SANCTIONS_SCREENING",
+                        "Entity screened as sanctions hit with overall result " + result.getOverallResult()));
+            }
+            if (result.getMatchDetails() == null) {
+                continue;
+            }
+            for (Map<String, Object> matchDetail : result.getMatchDetails()) {
+                String matchedName = stringValue(matchDetail.get("matchedName"));
+                if (!StringUtils.hasText(matchedName)) {
+                    continue;
+                }
+                String listCode = stringValue(matchDetail.get("listCode"));
+                String matchType = stringValue(matchDetail.get("matchType"));
+                String matchScore = stringValue(matchDetail.get("matchScore"));
+                sources.add(new EntitySource(
+                        matchedName,
+                        normalize(matchedName),
+                        StringUtils.hasText(listCode) ? listCode : "SANCTIONS",
+                        "Matched in sanctions screening"
+                                + (StringUtils.hasText(matchType) ? " (" + matchType + ")" : "")
+                                + (StringUtils.hasText(matchScore) ? " score=" + matchScore : "")));
+            }
+        }
+        return deduplicateSources(sources);
+    }
+
+    private List<EntitySource> deduplicateSources(List<EntitySource> sources) {
+        Map<String, EntitySource> deduped = new LinkedHashMap<>();
+        for (EntitySource source : sources) {
+            if (!StringUtils.hasText(source.normalizedName)) {
+                continue;
+            }
+            deduped.putIfAbsent(source.normalizedName + "|" + source.listCode, source);
+        }
+        return new ArrayList<>(deduped.values());
+    }
+
+    private boolean isOverlap(EntitySource shariahSource, EntitySource sanctionsSource) {
+        if (!StringUtils.hasText(shariahSource.normalizedName) || !StringUtils.hasText(sanctionsSource.normalizedName)) {
+            return false;
+        }
+        if (shariahSource.normalizedName.equals(sanctionsSource.normalizedName)) {
+            return true;
+        }
+        return sanctionsScreeningService.calculateNameSimilarity(
+                shariahSource.normalizedName,
+                sanctionsSource.normalizedName) >= 90.0;
+    }
+
+    private String normalize(String value) {
+        return sanctionsScreeningService.normalizeArabicName(value);
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private static final class EntitySource {
+        private final String rawName;
+        private final String normalizedName;
+        private final String listCode;
+        private final String reason;
+
+        private EntitySource(String rawName, String normalizedName, String listCode, String reason) {
+            this.rawName = rawName;
+            this.normalizedName = normalizedName;
+            this.listCode = listCode;
+            this.reason = reason;
+        }
     }
 }

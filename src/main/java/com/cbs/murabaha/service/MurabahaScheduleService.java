@@ -268,6 +268,21 @@ public class MurabahaScheduleService {
         }
 
         if (totalPenaltySettled.compareTo(BigDecimal.ZERO) > 0) {
+            if (Boolean.TRUE.equals(contract.getLatePenaltiesToCharity())) {
+                postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                        .contractTypeCode("MURABAHA")
+                        .txnType(IslamicTransactionType.CHARITY_DISTRIBUTION)
+                        .accountId(contract.getAccountId())
+                        .amount(totalPenaltySettled)
+                        .valueDate(request.getPaymentDate())
+                        .reference(generatedRef + "-CHARITY")
+                        .narration("Late penalty to charity fund for contract " + contract.getContractRef())
+                        .build());
+                contract.setTotalCharityDonations(MurabahaSupport.money(
+                        contract.getTotalCharityDonations().add(totalPenaltySettled)));
+            }
+            contract.setTotalLatePenaltiesCharged(MurabahaSupport.money(
+                    contract.getTotalLatePenaltiesCharged().add(totalPenaltySettled)));
             log.info("AUDIT: Late penalty {} directed to charity fund for contract {} (SHARIAH-MRB-002)",
                     totalPenaltySettled, contractId);
         }

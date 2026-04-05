@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Transactional
 public class MusharakahLossService {
 
-    private static final AtomicLong LOSS_SEQUENCE = new AtomicLong(System.currentTimeMillis() % 100000);
+    private static final AtomicLong LOSS_SEQUENCE = new AtomicLong(System.nanoTime());
 
     private final MusharakahContractRepository contractRepository;
     private final MusharakahOwnershipUnitRepository ownershipUnitRepository;

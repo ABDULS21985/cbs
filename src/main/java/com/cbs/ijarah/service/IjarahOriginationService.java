@@ -39,8 +39,8 @@ import java.util.concurrent.atomic.AtomicLong;
 @Transactional
 public class IjarahOriginationService {
 
-    private static final AtomicLong APPLICATION_SEQUENCE = new AtomicLong(System.currentTimeMillis() % 100000);
-    private static final AtomicLong CONTRACT_SEQUENCE = new AtomicLong((System.currentTimeMillis() + 9000L) % 100000);
+    private static final AtomicLong APPLICATION_SEQUENCE = new AtomicLong(System.nanoTime());
+    private static final AtomicLong CONTRACT_SEQUENCE = new AtomicLong(System.nanoTime());
     private static final BigDecimal DEFAULT_DSR_LIMIT = new BigDecimal("50.00");
 
     private final IjarahApplicationRepository applicationRepository;

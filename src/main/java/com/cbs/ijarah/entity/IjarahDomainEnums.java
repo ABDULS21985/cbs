@@ -203,6 +203,12 @@ public final class IjarahDomainEnums {
         INSURANCE_WRITE_OFF
     }
 
+    public enum LatePenaltyMethod {
+        PERCENTAGE_OF_OVERDUE,
+        FLAT_PER_INSTALLMENT,
+        DAILY_RATE
+    }
+
     public enum RentalInstallmentStatus {
         SCHEDULED,
         DUE,

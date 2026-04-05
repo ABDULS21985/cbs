@@ -17,6 +17,8 @@ public interface CharityFundLedgerEntryRepository extends JpaRepository<CharityF
 
     Optional<CharityFundLedgerEntry> findTopByOrderByEntryDateDescIdDesc();
 
+        Optional<CharityFundLedgerEntry> findFirstByJournalRefOrderByCreatedAtDesc(String journalRef);
+
     Page<CharityFundLedgerEntry> findByEntryDateBetweenOrderByEntryDateDescIdDesc(LocalDate fromDate, LocalDate toDate, Pageable pageable);
 
     List<CharityFundLedgerEntry> findByEntryDateBetweenOrderByEntryDateAscIdAsc(LocalDate fromDate, LocalDate toDate);

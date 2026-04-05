@@ -48,7 +48,7 @@ public class IslamicSanctionsScreeningService {
     private final CurrentActorProvider actorProvider;
     private final CurrentTenantResolver tenantResolver;
 
-    private static final AtomicLong SCREENING_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
+    private static final AtomicLong SCREENING_SEQ = new AtomicLong(System.nanoTime());
     private static final BigDecimal MATCH_THRESHOLD = new BigDecimal("70.0000");
 
     // ===================== CUSTOMER SCREENING =====================
@@ -589,9 +589,9 @@ public class IslamicSanctionsScreeningService {
     }
 
     String normalizeArabicName(String name) {
-        if (name == null) return "";
+        if (name == null || name.isBlank()) return "";
 
-        String normalized = name.trim();
+        String normalized = name.trim().toLowerCase();
 
         // Remove common titles
         normalized = normalized.replaceAll("(?i)\\b(sheikh|shaikh|shaykh|dr|mr|mrs|ms|prof|eng|haj|hajj)\\b\\.?", "");
@@ -616,17 +616,17 @@ public class IslamicSanctionsScreeningService {
         normalized = normalized.replaceAll("(?i)\\bahmed\\b", "ahmad");
         normalized = normalized.replaceAll("(?i)\\bali\\b", "ali");
 
-        // Remove Arabic diacritical marks (tashkeel/harakat) only, preserving Arabic letters
-        // U+064B-U+065F: Arabic combining marks (fathah, dammah, kasrah, shadda, sukun, etc.)
-        // U+0610-U+061A: Additional Arabic signs above/below
+        // Strip Arabic diacritics/tashkeel only, not Arabic letters
+        // U+064B-U+0652: fathah, dammah, kasrah, shadda, sukun, etc.
         // U+0670: Superscript alef
-        normalized = normalized.replaceAll("[\\u064B-\\u065F\\u0610-\\u061A\\u0670]", "");
+        // U+0640: Tatweel (kashida)
+        normalized = normalized.replaceAll("[\u064B-\u0652\u0670\u0640]", "");
         // Normalize common Arabic letter variants: alef with hamza -> plain alef
         normalized = normalized.replaceAll("[\\u0622\\u0623\\u0625\\u0627]", "\u0627"); // All alef forms -> alef
         normalized = normalized.replaceAll("\\u0629", "\u0647"); // taa marbuta -> haa
         normalized = normalized.replaceAll("[`'\\-]", " ");
 
-        // Collapse multiple spaces
+        // Normalize whitespace
         normalized = normalized.replaceAll("\\s+", " ").trim();
 
         return normalized;

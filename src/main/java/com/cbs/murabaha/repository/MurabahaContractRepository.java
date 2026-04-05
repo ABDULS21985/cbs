@@ -37,4 +37,45 @@ public interface MurabahaContractRepository extends JpaRepository<MurabahaContra
     BigDecimal sumUnrecognisedProfitByStatus(@Param("status") MurabahaDomainEnums.ContractStatus status);
 
     List<MurabahaContract> findByOwnershipVerifiedFalseAndStatusIn(Collection<MurabahaDomainEnums.ContractStatus> statuses);
+
+    @Query("SELECT COUNT(c) FROM MurabahaContract c WHERE c.status = :status")
+    long countByStatus(@Param("status") MurabahaDomainEnums.ContractStatus status);
+
+    @Query("SELECT COALESCE(SUM(c.financedAmount), 0) FROM MurabahaContract c WHERE c.status IN :statuses")
+    BigDecimal sumFinancedAmountByStatuses(@Param("statuses") Collection<MurabahaDomainEnums.ContractStatus> statuses);
+
+    @Query("SELECT COALESCE(SUM(c.recognisedProfit), 0) FROM MurabahaContract c WHERE c.status IN :statuses")
+    BigDecimal sumRecognisedProfitByStatuses(@Param("statuses") Collection<MurabahaDomainEnums.ContractStatus> statuses);
+
+    @Query("SELECT COALESCE(SUM(c.unrecognisedProfit), 0) FROM MurabahaContract c WHERE c.status IN :statuses")
+    BigDecimal sumUnrecognisedProfitByStatuses(@Param("statuses") Collection<MurabahaDomainEnums.ContractStatus> statuses);
+
+    @Query("SELECT COALESCE(SUM(c.impairmentProvisionBalance), 0) FROM MurabahaContract c WHERE c.status IN :statuses")
+    BigDecimal sumImpairmentProvisionByStatuses(@Param("statuses") Collection<MurabahaDomainEnums.ContractStatus> statuses);
+
+    @Query("SELECT COALESCE(SUM(c.markupRate), 0) FROM MurabahaContract c WHERE c.status IN :statuses")
+    BigDecimal sumMarkupRateByStatuses(@Param("statuses") Collection<MurabahaDomainEnums.ContractStatus> statuses);
+
+    @Query("SELECT COUNT(c) FROM MurabahaContract c WHERE c.status IN :statuses")
+    long countByStatusIn(@Param("statuses") Collection<MurabahaDomainEnums.ContractStatus> statuses);
+
+    @Query("SELECT c.status, COUNT(c) FROM MurabahaContract c WHERE c.status IN :statuses GROUP BY c.status")
+    List<Object[]> countGroupByStatus(@Param("statuses") Collection<MurabahaDomainEnums.ContractStatus> statuses);
+
+    @Query("SELECT c.murabahahType, COUNT(c) FROM MurabahaContract c WHERE c.status IN :statuses GROUP BY c.murabahahType")
+    List<Object[]> countGroupByMurabahahType(@Param("statuses") Collection<MurabahaDomainEnums.ContractStatus> statuses);
+
+    @Query("SELECT COALESCE(SUM(c.ibraAmount), 0) FROM MurabahaContract c WHERE c.status IN :statuses")
+    BigDecimal sumIbraAmountByStatuses(@Param("statuses") Collection<MurabahaDomainEnums.ContractStatus> statuses);
+
+    @Query("SELECT COALESCE(SUM(c.recognisedProfit), 0) FROM MurabahaContract c WHERE c.lastProfitRecognitionDate BETWEEN :from AND :to AND c.status IN :statuses")
+    BigDecimal sumRecognisedProfitInPeriod(@Param("from") java.time.LocalDate from, @Param("to") java.time.LocalDate to, @Param("statuses") Collection<MurabahaDomainEnums.ContractStatus> statuses);
+
+    @Query("SELECT c.murabahahType, COALESCE(SUM(c.recognisedProfit), 0) FROM MurabahaContract c WHERE c.status IN :statuses GROUP BY c.murabahahType")
+    List<Object[]> sumRecognisedProfitGroupByMurabahahType(@Param("statuses") Collection<MurabahaDomainEnums.ContractStatus> statuses);
+
+    @Query("SELECT c.profitRecognitionMethod, COALESCE(SUM(c.recognisedProfit), 0) FROM MurabahaContract c WHERE c.status IN :statuses GROUP BY c.profitRecognitionMethod")
+    List<Object[]> sumRecognisedProfitGroupByRecognitionMethod(@Param("statuses") Collection<MurabahaDomainEnums.ContractStatus> statuses);
+
+    List<MurabahaContract> findByStatusIn(Collection<MurabahaDomainEnums.ContractStatus> statuses);
 }

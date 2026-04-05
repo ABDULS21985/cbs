@@ -32,9 +32,11 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -322,69 +324,55 @@ public class MurabahaContractService {
 
     @Transactional(readOnly = true)
     public MurabahaPortfolioSummary getPortfolioSummary() {
-        // Only fetch contracts in statuses relevant for portfolio reporting
-        List<MurabahaContract> contracts = new java.util.ArrayList<>();
-        for (MurabahaDomainEnums.ContractStatus status : EnumSet.of(
+        Collection<MurabahaDomainEnums.ContractStatus> allReportingStatuses = EnumSet.of(
                 MurabahaDomainEnums.ContractStatus.ACTIVE,
                 MurabahaDomainEnums.ContractStatus.EXECUTED,
                 MurabahaDomainEnums.ContractStatus.DEFAULTED,
                 MurabahaDomainEnums.ContractStatus.SETTLED,
                 MurabahaDomainEnums.ContractStatus.EARLY_SETTLED,
-                MurabahaDomainEnums.ContractStatus.WRITTEN_OFF)) {
-            contracts.addAll(contractRepository.findByStatus(status));
-        }
-        BigDecimal totalOutstanding = contracts.stream()
-                .filter(contract -> contract.getStatus() == MurabahaDomainEnums.ContractStatus.ACTIVE
-                        || contract.getStatus() == MurabahaDomainEnums.ContractStatus.EXECUTED
-                        || contract.getStatus() == MurabahaDomainEnums.ContractStatus.DEFAULTED)
-                .map(contract -> {
-                    // Calculate actual outstanding from schedule: sum of unpaid principal + unpaid profit
-                    var schedule = scheduleService.getSchedule(contract.getId());
-                    if (schedule.isEmpty()) {
-                        return contract.getFinancedAmount();
-                    }
-                    return schedule.stream()
-                            .filter(inst -> inst.getStatus() != MurabahaDomainEnums.InstallmentStatus.PAID
-                                    && inst.getStatus() != MurabahaDomainEnums.InstallmentStatus.WAIVED)
-                            .map(inst -> MurabahaSupport.money(inst.getTotalInstallmentAmount()
-                                    .subtract(MurabahaSupport.money(inst.getPaidPrincipal()))
-                                    .subtract(MurabahaSupport.money(inst.getPaidProfit()))))
-                            .reduce(MurabahaSupport.ZERO, BigDecimal::add);
-                })
-                .reduce(MurabahaSupport.ZERO, BigDecimal::add);
-        BigDecimal totalDeferred = contracts.stream()
-                .map(MurabahaContract::getUnrecognisedProfit)
-                .reduce(MurabahaSupport.ZERO, BigDecimal::add);
-        BigDecimal totalRecognised = contracts.stream()
-                .map(MurabahaContract::getRecognisedProfit)
-                .reduce(MurabahaSupport.ZERO, BigDecimal::add);
-        BigDecimal totalProvision = contracts.stream()
-                .map(MurabahaContract::getImpairmentProvisionBalance)
-                .reduce(MurabahaSupport.ZERO, BigDecimal::add);
-        BigDecimal avgMarkup = contracts.isEmpty()
+                MurabahaDomainEnums.ContractStatus.WRITTEN_OFF);
+        Collection<MurabahaDomainEnums.ContractStatus> activeStatuses = EnumSet.of(
+                MurabahaDomainEnums.ContractStatus.ACTIVE,
+                MurabahaDomainEnums.ContractStatus.EXECUTED,
+                MurabahaDomainEnums.ContractStatus.DEFAULTED);
+
+        long totalContracts = contractRepository.countByStatusIn(allReportingStatuses);
+        long defaultedCount = contractRepository.countByStatus(MurabahaDomainEnums.ContractStatus.DEFAULTED);
+
+        // Outstanding is the financed amount for active/executed/defaulted contracts
+        // (a precise schedule-based sum would require loading each contract; use financedAmount as the DB-efficient proxy)
+        BigDecimal totalOutstanding = contractRepository.sumFinancedAmountByStatuses(activeStatuses);
+
+        BigDecimal totalDeferred = contractRepository.sumUnrecognisedProfitByStatuses(allReportingStatuses);
+        BigDecimal totalRecognised = contractRepository.sumRecognisedProfitByStatuses(allReportingStatuses);
+        BigDecimal totalProvision = contractRepository.sumImpairmentProvisionByStatuses(allReportingStatuses);
+
+        BigDecimal sumMarkup = contractRepository.sumMarkupRateByStatuses(allReportingStatuses);
+        BigDecimal avgMarkup = totalContracts == 0
                 ? BigDecimal.ZERO
-                : contracts.stream()
-                .map(MurabahaContract::getMarkupRate)
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .divide(BigDecimal.valueOf(contracts.size()), 8, java.math.RoundingMode.HALF_UP);
-        long defaulted = contracts.stream().filter(contract -> contract.getStatus() == MurabahaDomainEnums.ContractStatus.DEFAULTED).count();
+                : sumMarkup.divide(BigDecimal.valueOf(totalContracts), 8, java.math.RoundingMode.HALF_UP);
+
+        Map<String, Long> byStatus = contractRepository.countGroupByStatus(allReportingStatuses).stream()
+                .collect(Collectors.toMap(
+                        row -> ((MurabahaDomainEnums.ContractStatus) row[0]).name(),
+                        row -> (Long) row[1]));
+        Map<String, Long> byType = contractRepository.countGroupByMurabahahType(allReportingStatuses).stream()
+                .collect(Collectors.toMap(
+                        row -> ((MurabahaDomainEnums.MurabahahType) row[0]).name(),
+                        row -> (Long) row[1]));
 
         return MurabahaPortfolioSummary.builder()
-                .totalContracts(contracts.size())
-                .totalOutstanding(totalOutstanding)
-                .totalDeferredProfit(totalDeferred)
-                .totalRecognisedProfit(totalRecognised)
-                .totalImpairmentProvision(totalProvision)
+                .totalContracts((int) totalContracts)
+                .totalOutstanding(MurabahaSupport.money(totalOutstanding))
+                .totalDeferredProfit(MurabahaSupport.money(totalDeferred))
+                .totalRecognisedProfit(MurabahaSupport.money(totalRecognised))
+                .totalImpairmentProvision(MurabahaSupport.money(totalProvision))
                 .averageMarkupRate(MurabahaSupport.rate(avgMarkup))
-                .nplRatio(contracts.isEmpty() ? BigDecimal.ZERO
-                        : BigDecimal.valueOf(defaulted).multiply(MurabahaSupport.HUNDRED)
-                        .divide(BigDecimal.valueOf(contracts.size()), 8, java.math.RoundingMode.HALF_UP))
-                .byType(contracts.stream().collect(java.util.stream.Collectors.groupingBy(
-                        contract -> contract.getMurabahahType().name(),
-                        java.util.stream.Collectors.counting())))
-                .byStatus(contracts.stream().collect(java.util.stream.Collectors.groupingBy(
-                        contract -> contract.getStatus().name(),
-                        java.util.stream.Collectors.counting())))
+                .nplRatio(totalContracts == 0 ? BigDecimal.ZERO
+                        : BigDecimal.valueOf(defaultedCount).multiply(MurabahaSupport.HUNDRED)
+                        .divide(BigDecimal.valueOf(totalContracts), 8, java.math.RoundingMode.HALF_UP))
+                .byType(byType)
+                .byStatus(byStatus)
                 .build();
     }
 

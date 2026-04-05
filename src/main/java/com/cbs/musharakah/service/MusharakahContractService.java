@@ -31,10 +31,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -42,6 +38,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -325,34 +322,24 @@ public class MusharakahContractService {
 
     @Transactional(readOnly = true)
     public MusharakahResponses.MusharakahPortfolioSummary getPortfolioSummary() {
-        int totalContracts = 0;
-        BigDecimal totalBankCapital = MusharakahSupport.ZERO;
-        BigDecimal totalRentalExpected = MusharakahSupport.ZERO;
-        BigDecimal totalRentalReceived = MusharakahSupport.ZERO;
-        BigDecimal totalBuyoutExpected = MusharakahSupport.ZERO;
-        BigDecimal totalBuyoutReceived = MusharakahSupport.ZERO;
-        Map<String, Long> byType = new HashMap<>();
-        Map<String, Long> byStatus = new HashMap<>();
+        long totalContracts = contractRepository.countAll();
+        BigDecimal totalBankCapital = MusharakahSupport.money(contractRepository.sumBankCapitalContribution());
+        BigDecimal totalRentalExpected = MusharakahSupport.money(contractRepository.sumTotalRentalExpected());
+        BigDecimal totalRentalReceived = MusharakahSupport.money(contractRepository.sumTotalRentalReceived());
+        BigDecimal totalBuyoutExpected = MusharakahSupport.money(contractRepository.sumTotalBuyoutPaymentsExpected());
+        BigDecimal totalBuyoutReceived = MusharakahSupport.money(contractRepository.sumTotalBuyoutPaymentsReceived());
 
-        Pageable pageable = PageRequest.of(0, 500);
-        Page<MusharakahContract> page;
-        do {
-            page = contractRepository.findAll(pageable);
-            for (MusharakahContract contract : page.getContent()) {
-                totalContracts++;
-                totalBankCapital = totalBankCapital.add(MusharakahSupport.money(contract.getBankCapitalContribution()));
-                totalRentalExpected = totalRentalExpected.add(MusharakahSupport.money(contract.getTotalRentalExpected()));
-                totalRentalReceived = totalRentalReceived.add(MusharakahSupport.money(contract.getTotalRentalReceived()));
-                totalBuyoutExpected = totalBuyoutExpected.add(MusharakahSupport.money(contract.getTotalBuyoutPaymentsExpected()));
-                totalBuyoutReceived = totalBuyoutReceived.add(MusharakahSupport.money(contract.getTotalBuyoutPaymentsReceived()));
-                byType.merge(contract.getMusharakahType().name(), 1L, Long::sum);
-                byStatus.merge(contract.getStatus().name(), 1L, Long::sum);
-            }
-            pageable = page.nextPageable();
-        } while (page.hasNext());
+        Map<String, Long> byType = contractRepository.countGroupByMusharakahType().stream()
+                .collect(Collectors.toMap(
+                        row -> ((MusharakahDomainEnums.MusharakahType) row[0]).name(),
+                        row -> (Long) row[1]));
+        Map<String, Long> byStatus = contractRepository.countGroupByStatus().stream()
+                .collect(Collectors.toMap(
+                        row -> ((MusharakahDomainEnums.ContractStatus) row[0]).name(),
+                        row -> (Long) row[1]));
 
         return MusharakahResponses.MusharakahPortfolioSummary.builder()
-                .totalContracts(totalContracts)
+                .totalContracts((int) totalContracts)
                 .totalBankCapital(totalBankCapital)
                 .totalRentalExpected(totalRentalExpected)
                 .totalRentalReceived(totalRentalReceived)

@@ -64,7 +64,7 @@ public class IslamicAmlMonitoringService {
     private final CurrentActorProvider actorProvider;
     private final CurrentTenantResolver tenantResolver;
 
-    private static final AtomicLong ALERT_SEQ = new AtomicLong(System.currentTimeMillis());
+    private static final AtomicLong ALERT_SEQ = new AtomicLong(System.nanoTime());
 
     private static final BigDecimal DEFAULT_THRESHOLD = new BigDecimal("50000");
     private static final int DEFAULT_VELOCITY_LIMIT = 10;

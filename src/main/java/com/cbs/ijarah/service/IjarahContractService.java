@@ -15,7 +15,9 @@ import com.cbs.ijarah.dto.IjarahRequests;
 import com.cbs.ijarah.dto.IjarahResponses;
 import com.cbs.ijarah.entity.IjarahContract;
 import com.cbs.ijarah.entity.IjarahDomainEnums;
+import com.cbs.ijarah.entity.IjarahRentalInstallment;
 import com.cbs.ijarah.repository.IjarahContractRepository;
+import com.cbs.ijarah.repository.IjarahRentalInstallmentRepository;
 import com.cbs.productfactory.islamic.entity.IslamicProductTemplate;
 import com.cbs.productfactory.islamic.repository.IslamicProductTemplateRepository;
 import com.cbs.profitdistribution.dto.AssignAssetToPoolRequest;
@@ -33,6 +35,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +45,7 @@ import java.util.Map;
 public class IjarahContractService {
 
     private final IjarahContractRepository contractRepository;
+    private final IjarahRentalInstallmentRepository installmentRepository;
     private final CustomerRepository customerRepository;
     private final ProductRepository productRepository;
     private final IslamicProductTemplateRepository islamicProductTemplateRepository;
@@ -161,10 +166,7 @@ public class IjarahContractService {
         if (Boolean.TRUE.equals(product.getFatwaRequired()) && product.getActiveFatwaId() == null) {
             throw new BusinessException("Ijarah product requires an active fatwa before execution", "PRODUCT_FATWA_REQUIRED");
         }
-        if (contract.getIjarahType() == IjarahDomainEnums.IjarahType.IJARAH_MUNTAHIA_BITTAMLEEK
-                && contract.getImbTransferMechanismId() == null) {
-            throw new BusinessException("IMB requires a separate transfer mechanism before execution", "SHARIAH-IJR-004");
-        }
+        validateImbTransferSeparation(contract);
         if (contract.getAccountId() == null) {
             contract.setAccountId(openFinancingAccount(contract));
         }
@@ -226,6 +228,47 @@ public class IjarahContractService {
         return IjarahSupport.toContractResponse(contract);
     }
 
+    private void validateImbTransferSeparation(IjarahContract contract) {
+        if (contract.getIjarahType() != IjarahDomainEnums.IjarahType.IJARAH_MUNTAHIA_BITTAMLEEK) {
+            return;
+        }
+        if (contract.getImbTransferMechanismId() == null) {
+            throw new BusinessException("IMB requires a separately documented transfer mechanism before execution", "SHARIAH-IJR-004");
+        }
+
+        var mechanism = transferService.getTransferMechanism(contract.getImbTransferMechanismId());
+        if (!Objects.equals(mechanism.getIjarahContractId(), contract.getId())) {
+            throw new BusinessException("IMB transfer mechanism must reference the same contract being executed", "SHARIAH-IJR-004");
+        }
+        if (!Boolean.TRUE.equals(mechanism.getIsSeparateDocument())) {
+            throw new BusinessException("IMB transfer undertaking must remain a separate document from the lease", "SHARIAH-IJR-004");
+        }
+        if (!StringUtils.hasText(mechanism.getDocumentReference())
+                || mechanism.getDocumentReference().equalsIgnoreCase(contract.getContractRef())) {
+            throw new BusinessException("IMB transfer document reference must be distinct from the lease contract reference", "SHARIAH-IJR-004");
+        }
+        if (mechanism.getDocumentDate() == null || mechanism.getDocumentDate().isAfter(LocalDate.now())) {
+            throw new BusinessException("IMB transfer document must be dated on or before execution", "SHARIAH-IJR-004");
+        }
+        if (!Boolean.TRUE.equals(mechanism.getSignedByBank()) || !Boolean.TRUE.equals(mechanism.getSignedByCustomer())) {
+            throw new BusinessException("IMB transfer undertaking must be signed by both bank and customer before execution", "SHARIAH-IJR-004");
+        }
+        if (mechanism.getStatus() != IjarahDomainEnums.TransferStatus.ACTIVE) {
+            throw new BusinessException("IMB transfer undertaking must be active before lease execution", "SHARIAH-IJR-004");
+        }
+        if (contract.getImbTransferType() != null && mechanism.getTransferType() != contract.getImbTransferType()) {
+            throw new BusinessException("IMB transfer mechanism type must match the contract transfer type", "SHARIAH-IJR-004");
+        }
+        if (mechanism.getTransferType() == IjarahDomainEnums.TransferType.GRADUAL_TRANSFER) {
+            if (mechanism.getTotalTransferUnits() == null || mechanism.getTotalTransferUnits() <= 0) {
+                throw new BusinessException("Gradual IMB transfer must define total transfer units before execution", "SHARIAH-IJR-004");
+            }
+            if (mechanism.getUnitTransferAmount() == null || mechanism.getUnitTransferAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BusinessException("Gradual IMB transfer must define a positive unit transfer amount", "SHARIAH-IJR-004");
+            }
+        }
+    }
+
     public void recordAssetDamage(Long contractId, IjarahRequests.AssetDamageReportRequest request) {
         if (request.isTotalLoss()) {
             recordAssetTotalLoss(contractId, IjarahRequests.AssetTotalLossRequest.builder()
@@ -280,11 +323,11 @@ public class IjarahContractService {
                         "insuranceRecovery", insuranceRecovery))
                 .build());
 
-        rentalService.getSchedule(contractId).stream()
+        List<IjarahRentalInstallment> cancelledInstallments = rentalService.getSchedule(contractId).stream()
                 .filter(installment -> installment.getDueDate().isAfter(request.getLossDate()))
-                .forEach(installment -> {
-                    installment.setStatus(IjarahDomainEnums.RentalInstallmentStatus.CANCELLED);
-                });
+                .peek(installment -> installment.setStatus(IjarahDomainEnums.RentalInstallmentStatus.CANCELLED))
+                .collect(Collectors.toList());
+        installmentRepository.saveAll(cancelledInstallments);
 
         asset.setStatus(IjarahDomainEnums.AssetStatus.TOTAL_LOSS);
         contract.setStatus(IjarahDomainEnums.ContractStatus.TERMINATED_ASSET_LOSS);
@@ -379,6 +422,7 @@ public class IjarahContractService {
             if (contract.getImbTransferMechanismId() != null) {
                 var mechanism = transferService.getTransferMechanism(contract.getImbTransferMechanismId());
                 mechanism.setStatus(IjarahDomainEnums.TransferStatus.PENDING_EXECUTION);
+                transferService.saveTransferMechanism(mechanism);
             }
         }
         contractRepository.save(contract);
@@ -389,10 +433,12 @@ public class IjarahContractService {
         IjarahContract contract = findContract(contractId);
         LocalDate terminationDate = request.getTerminationDate() != null ? request.getTerminationDate() : LocalDate.now();
 
-        rentalService.getSchedule(contractId).stream()
+        List<IjarahRentalInstallment> cancelledInstallments = rentalService.getSchedule(contractId).stream()
                 .filter(installment -> installment.getStatus() == IjarahDomainEnums.RentalInstallmentStatus.SCHEDULED
                         || installment.getStatus() == IjarahDomainEnums.RentalInstallmentStatus.DUE)
-                .forEach(installment -> installment.setStatus(IjarahDomainEnums.RentalInstallmentStatus.CANCELLED));
+                .peek(installment -> installment.setStatus(IjarahDomainEnums.RentalInstallmentStatus.CANCELLED))
+                .collect(Collectors.toList());
+        installmentRepository.saveAll(cancelledInstallments);
 
         // GL posting for early termination accounting
         BigDecimal negotiatedAmount = IjarahSupport.money(request.getNegotiatedPurchaseAmount());

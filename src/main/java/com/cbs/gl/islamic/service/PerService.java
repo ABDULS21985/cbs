@@ -246,6 +246,9 @@ public class PerService {
             return;
         }
         PerPolicy policy = getActivePolicy(poolId);
+        if (Boolean.TRUE.equals(policy.getApprovalRequired()) && (approvedBy == null || approvedBy.isBlank())) {
+            throw new BusinessException("PER release requires approval", "PER_APPROVAL_REQUIRED");
+        }
         BigDecimal balanceBefore = getPerBalance(poolId);
 
         // Validate sufficient balance before release (prevents TOCTOU race condition)

@@ -177,6 +177,7 @@ public class IslamicPostingRuleService {
                 .createdBy("PREVIEW")
                 .build();
 
+        BigDecimal previewFxRate = request.getFxRate() != null ? request.getFxRate() : BigDecimal.ONE;
         int lineNumber = 1;
         for (ResolvedLine line : resolvedJournal.lines()) {
             preview.addLine(JournalLine.builder()
@@ -185,9 +186,9 @@ public class IslamicPostingRuleService {
                     .debitAmount(line.debitAmount())
                     .creditAmount(line.creditAmount())
                     .currencyCode(line.currencyCode())
-                    .localDebit(line.debitAmount())
-                    .localCredit(line.creditAmount())
-                    .fxRate(BigDecimal.ONE)
+                    .localDebit(line.debitAmount().multiply(previewFxRate).setScale(2, RoundingMode.HALF_UP))
+                    .localCredit(line.creditAmount().multiply(previewFxRate).setScale(2, RoundingMode.HALF_UP))
+                    .fxRate(previewFxRate)
                     .narration(line.narration())
                     .branchCode(line.branchCode())
                     .accountId(line.accountId())
@@ -200,13 +201,14 @@ public class IslamicPostingRuleService {
     @Transactional
     public JournalEntry postIslamicTransaction(IslamicPostingRequest request) {
         ResolvedJournal resolvedJournal = resolveJournal(request);
+        BigDecimal effectiveFxRate = request.getFxRate() != null ? request.getFxRate() : BigDecimal.ONE;
         List<GeneralLedgerService.JournalLineRequest> lineRequests = resolvedJournal.lines().stream()
                 .map(line -> new GeneralLedgerService.JournalLineRequest(
                         line.glCode(),
                         line.debitAmount(),
                         line.creditAmount(),
                         line.currencyCode(),
-                        BigDecimal.ONE,
+                        effectiveFxRate,
                         line.narration(),
                         null,
                         line.branchCode(),

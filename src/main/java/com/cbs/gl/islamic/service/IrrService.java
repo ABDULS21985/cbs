@@ -224,6 +224,9 @@ public class IrrService {
             return;
         }
         IrrPolicy policy = getActivePolicy(poolId);
+        if (Boolean.TRUE.equals(policy.getApprovalRequired()) && (approvedBy == null || approvedBy.isBlank())) {
+            throw new BusinessException("IRR release requires approval", "IRR_APPROVAL_REQUIRED");
+        }
         JournalEntryRef journalRef = postReserveJournal(poolId, calculation.getAbsorbed(), IslamicTransactionType.IRR_RELEASE,
                 LocalDate.now(), "IRR release for loss absorption");
         IrrTransaction transaction = IrrTransaction.builder()

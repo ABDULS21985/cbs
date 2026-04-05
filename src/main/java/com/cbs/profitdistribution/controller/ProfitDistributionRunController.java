@@ -166,6 +166,16 @@ public class ProfitDistributionRunController {
                 "SSB certification recorded successfully"));
     }
 
+    @PostMapping("/{runId}/waive-ssb")
+    @PreAuthorize("hasRole('SHARIAH_BOARD')")
+    public ResponseEntity<ApiResponse<ProfitDistributionRunResponse>> waiveSsb(
+            @PathVariable Long runId,
+            @Valid @RequestBody SsbCertificationRequest request) {
+        log.info("Recording SSB waiver for run: {}", runId);
+        ProfitDistributionRunResponse response = profitDistributionRunService.waiveSsbCertification(runId, request);
+        return ResponseEntity.ok(ApiResponse.ok(response, "SSB waiver recorded successfully"));
+    }
+
     @PostMapping("/{runId}/complete")
     @PreAuthorize("hasAnyRole('FINANCE','CBS_ADMIN')")
     public ResponseEntity<ApiResponse<ProfitDistributionRunResponse>> completeRun(

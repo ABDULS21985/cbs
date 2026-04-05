@@ -332,25 +332,39 @@ public class PurificationService {
 
         String currentActor = actorProvider.getCurrentActor();
         BigDecimal totalDisbursed = BigDecimal.ZERO;
-        charityFundService.recordSnciPurificationInflow(batch.getId(), batch.getTotalAmount(), batch.getBatchRef());
+                Map<Long, SnciRecord> touchedSnciRecords = new HashMap<>();
 
         for (PurificationDisbursement disbursement : disbursements) {
-            disbursement.setPaymentStatus(DisbursementPaymentStatus.SENT);
-            disbursement.setPaymentDate(LocalDate.now());
-            disbursementRepository.save(disbursement);
-
-            // GL posting: DR SNCI Quarantine Account, CR Cash/Bank (disbursement to charity)
             CharityRecipient glRecipient = recipientRepository.findById(disbursement.getRecipientId()).orElse(null);
-            log.info("Purification GL: debit SNCI quarantine 2350-000-001 amount={}, credit cash for charity disbursement to {}",
-                    disbursement.getAmount(), glRecipient != null ? glRecipient.getName() : "unknown");
+                        String paymentRef = batch.getBatchRef() + "-" + disbursement.getId();
             try {
-                postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                                var journal = postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
                         .txnType(IslamicTransactionType.CHARITY_DISTRIBUTION)
                         .amount(disbursement.getAmount())
                         .contractTypeCode("SNCI_PURIFICATION")
-                        .reference("PUR-" + batch.getBatchRef() + "-" + disbursement.getId())
+                                                .reference(paymentRef)
                         .narration("SNCI purification disbursement to " + (glRecipient != null ? glRecipient.getName() : "unknown"))
                         .build());
+
+                                disbursement.setPaymentRef(paymentRef);
+                                disbursement.setJournalRef(journal != null ? journal.getJournalNumber() : null);
+                                disbursement.setPaymentStatus(DisbursementPaymentStatus.SENT);
+                                disbursement.setPaymentDate(LocalDate.now());
+                                disbursementRepository.save(disbursement);
+
+                                if (disbursement.getSnciRecordIds() != null) {
+                                        for (Long snciRecordId : disbursement.getSnciRecordIds()) {
+                                                SnciRecord record = touchedSnciRecords.computeIfAbsent(snciRecordId,
+                                                                id -> snciRepository.findById(id).orElse(null));
+                                                if (record == null) {
+                                                        continue;
+                                                }
+                                                record.setPurificationJournalRef(disbursement.getJournalRef());
+                                                record.setCharityRecipient(glRecipient != null ? glRecipient.getName() : record.getCharityRecipient());
+                                                record.setApprovedForPurificationBy(batch.getSsbApprovedBy());
+                                                record.setApprovedForPurificationAt(batch.getSsbApprovedAt());
+                                        }
+                                }
             } catch (Exception e) {
                 log.error("GL posting failed for purification disbursement {} in batch {}: {}",
                         disbursement.getId(), batch.getBatchRef(), e.getMessage(), e);
@@ -372,8 +386,8 @@ public class PurificationService {
             charityFundService.recordPurificationDisbursementOutflow(
                     disbursement.getRecipientId(),
                     disbursement.getAmount(),
-                    batch.getBatchRef(),
-                    batch.getBatchRef() + "-" + disbursement.getId(),
+                    disbursement.getJournalRef(),
+                    paymentRef,
                     disbursement.getPurpose()
             );
 
@@ -391,13 +405,13 @@ public class PurificationService {
         for (SnciRecord record : snciRecords) {
             record.setQuarantineStatus(QuarantineStatus.PURIFIED);
             record.setPurifiedAt(LocalDateTime.now());
-            // Set charity recipient name from the first disbursement recipient (for reporting)
-            if (!disbursements.isEmpty()) {
-                CharityRecipient firstRecipient = recipientRepository.findById(disbursements.get(0).getRecipientId()).orElse(null);
-                if (firstRecipient != null) {
-                    record.setCharityRecipient(firstRecipient.getName());
-                }
-            }
+                        SnciRecord touchedRecord = touchedSnciRecords.get(record.getId());
+                        if (touchedRecord != null) {
+                                record.setPurificationJournalRef(touchedRecord.getPurificationJournalRef());
+                                record.setCharityRecipient(touchedRecord.getCharityRecipient());
+                                record.setApprovedForPurificationBy(touchedRecord.getApprovedForPurificationBy());
+                                record.setApprovedForPurificationAt(touchedRecord.getApprovedForPurificationAt());
+                        }
         }
         snciRepository.saveAll(snciRecords);
 

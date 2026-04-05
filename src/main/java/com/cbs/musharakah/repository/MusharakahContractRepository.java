@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,4 +32,28 @@ public interface MusharakahContractRepository extends JpaRepository<MusharakahCo
 
     @Query("select coalesce(sum(c.bankCapitalContribution), 0) from MusharakahContract c where c.status = :status")
     BigDecimal sumBankCapitalContributionByStatus(@Param("status") MusharakahDomainEnums.ContractStatus status);
+
+    @Query("SELECT COUNT(c) FROM MusharakahContract c")
+    long countAll();
+
+    @Query("SELECT COALESCE(SUM(c.bankCapitalContribution), 0) FROM MusharakahContract c")
+    BigDecimal sumBankCapitalContribution();
+
+    @Query("SELECT COALESCE(SUM(c.totalRentalExpected), 0) FROM MusharakahContract c")
+    BigDecimal sumTotalRentalExpected();
+
+    @Query("SELECT COALESCE(SUM(c.totalRentalReceived), 0) FROM MusharakahContract c")
+    BigDecimal sumTotalRentalReceived();
+
+    @Query("SELECT COALESCE(SUM(c.totalBuyoutPaymentsExpected), 0) FROM MusharakahContract c")
+    BigDecimal sumTotalBuyoutPaymentsExpected();
+
+    @Query("SELECT COALESCE(SUM(c.totalBuyoutPaymentsReceived), 0) FROM MusharakahContract c")
+    BigDecimal sumTotalBuyoutPaymentsReceived();
+
+    @Query("SELECT c.musharakahType, COUNT(c) FROM MusharakahContract c GROUP BY c.musharakahType")
+    List<Object[]> countGroupByMusharakahType();
+
+    @Query("SELECT c.status, COUNT(c) FROM MusharakahContract c GROUP BY c.status")
+    List<Object[]> countGroupByStatus();
 }

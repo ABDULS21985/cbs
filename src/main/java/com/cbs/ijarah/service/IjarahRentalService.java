@@ -21,6 +21,7 @@ import com.cbs.ijarah.repository.IjarahRentalInstallmentRepository;
 import com.cbs.profitdistribution.dto.RecordPoolIncomeRequest;
 import com.cbs.profitdistribution.service.PoolAssetManagementService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional
 public class IjarahRentalService {
 
@@ -248,9 +250,8 @@ public class IjarahRentalService {
             recordPoolIncomeIfApplicable(contract, totalRentalSettled, request.getPaymentDate(), journal.getJournalNumber());
         }
 
-        // CRITICAL: Handle overpayments - credit excess back to customer account
+        // CRITICAL: Handle overpayments - post excess to suspense account pending resolution
         if (remaining.compareTo(BigDecimal.ZERO) > 0) {
-            Account debitAccount = resolveDebitAccount(request.getDebitAccountId());
             postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
                     .contractTypeCode("IJARAH")
                     .txnType(IslamicTransactionType.RENTAL_PAYMENT)
@@ -258,11 +259,11 @@ public class IjarahRentalService {
                     .amount(remaining)
                     .valueDate(request.getPaymentDate())
                     .reference(generatedRef + "-OVERPAY")
-                    .narration("Overpayment credit returned to customer")
-                    .additionalContext(debitAccount != null && debitAccount.getProduct() != null
-                            ? Map.of("customerAccountGlCode", debitAccount.getProduct().getGlAccountCode(), "overpayment", true)
-                            : Map.of("customerAccountGlCode", "1620-IJR-001", "overpayment", true))
+                    .narration("Overpayment suspense for contract " + contract.getContractRef())
+                    .additionalContext(Map.of("suspenseType", "OVERPAYMENT_SUSPENSE"))
                     .build());
+            log.warn("Overpayment of {} detected on Ijarah contract {}. Posted to suspense account.",
+                    remaining, contract.getContractRef());
         }
 
         contract.setTotalRentalsReceived(IjarahSupport.money(contract.getTotalRentalsReceived().add(totalRentalSettled)));
@@ -295,6 +296,15 @@ public class IjarahRentalService {
             if (outstanding.compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
+
+            // For non-DAILY_RATE penalty methods, skip if a penalty has already been accrued on this
+            // installment — re-accrual would constitute prohibited compounding. For DAILY_RATE, the
+            // penalty must continue to accrue on each daily run regardless of any existing balance.
+            boolean isDailyRate = contract.getLatePenaltyMethod() == IjarahDomainEnums.LatePenaltyMethod.DAILY_RATE;
+            if (!isDailyRate && IjarahSupport.money(installment.getLatePenaltyAmount()).compareTo(BigDecimal.ZERO) > 0) {
+                continue;
+            }
+
             latePenaltyService.processLatePenalty(IslamicFeeResponses.LatePenaltyRequest.builder()
                     .contractId(contract.getId())
                     .contractRef(contract.getContractRef())

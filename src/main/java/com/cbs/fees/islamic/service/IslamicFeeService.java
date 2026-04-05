@@ -32,9 +32,12 @@ import com.cbs.tenant.service.CurrentTenantResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.expression.MapAccessor;
 import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.SpelEvaluationException;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
-import org.springframework.expression.spel.support.StandardEvaluationContext;
+import org.springframework.expression.spel.support.SimpleEvaluationContext;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -213,6 +216,15 @@ public class IslamicFeeService {
                         request.getTriggerRef());
             }
             throw new BusinessException("Calculated fee amount must be positive", "ISLAMIC_FEE_NON_POSITIVE");
+        }
+
+        // Idempotency check: prevent duplicate fee charges for the same trigger
+        String idempotencyRef = StringUtils.hasText(request.getTriggerRef()) ? request.getTriggerRef() : null;
+        if (idempotencyRef != null && feeChargeLogRepository.existsByTriggerRef(idempotencyRef)) {
+            throw new BusinessException(
+                    "Fee already charged for trigger: " + idempotencyRef,
+                    HttpStatus.CONFLICT,
+                    "DUPLICATE_FEE_CHARGE");
         }
 
         shariahScreeningService.ensureAllowed(shariahScreeningService.preScreenTransaction(
@@ -507,14 +519,29 @@ public class IslamicFeeService {
         if (!StringUtils.hasText(configuration.getFormulaExpression())) {
             return BigDecimal.ZERO;
         }
-        StandardEvaluationContext evaluationContext = new StandardEvaluationContext(context);
-        evaluationContext.setVariable("transactionAmount", context.getTransactionAmount());
-        evaluationContext.setVariable("financingAmount", context.getFinancingAmount());
-        evaluationContext.setVariable("accountBalance", context.getAccountBalance());
-        evaluationContext.setVariable("tenorMonths", context.getTenorMonths());
-        evaluationContext.setVariable("daysOverdue", context.getDaysOverdue());
-        Object result = spelParser.parseExpression(configuration.getFormulaExpression()).getValue(evaluationContext);
-        return IslamicFeeSupport.money(IslamicFeeSupport.toDecimal(result));
+        try {
+            Map<String, Object> variables = new HashMap<>();
+            variables.put("transactionAmount", context.getTransactionAmount());
+            variables.put("financingAmount", context.getFinancingAmount());
+            variables.put("accountBalance", context.getAccountBalance());
+            variables.put("tenorMonths", context.getTenorMonths());
+            variables.put("daysOverdue", context.getDaysOverdue());
+            SimpleEvaluationContext evaluationContext = SimpleEvaluationContext
+                    .forPropertyAccessors(new MapAccessor())
+                    .build();
+            Object result = spelParser.parseExpression(configuration.getFormulaExpression()).getValue(evaluationContext, variables);
+            return IslamicFeeSupport.money(IslamicFeeSupport.toDecimal(result));
+        } catch (SpelEvaluationException e) {
+            throw new BusinessException(
+                    "Fee formula evaluation failed for " + configuration.getFeeCode() + ": " + e.getMessage(),
+                    HttpStatus.BAD_REQUEST,
+                    "ISLAMIC_FEE_FORMULA_ERROR");
+        } catch (Exception e) {
+            throw new BusinessException(
+                    "Unexpected error evaluating fee formula for " + configuration.getFeeCode() + ": " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "ISLAMIC_FEE_FORMULA_ERROR");
+        }
     }
 
     private BigDecimal resolvePercentageBase(IslamicFeeConfiguration configuration,

@@ -41,8 +41,8 @@ import java.util.concurrent.atomic.AtomicLong;
 @lombok.extern.slf4j.Slf4j
 public class MusharakahOriginationService {
 
-    private static final AtomicLong APPLICATION_SEQUENCE = new AtomicLong(System.currentTimeMillis() % 100000);
-    private static final AtomicLong CONTRACT_SEQUENCE = new AtomicLong((System.currentTimeMillis() + 11_000L) % 100000);
+    private static final AtomicLong APPLICATION_SEQUENCE = new AtomicLong(System.nanoTime());
+    private static final AtomicLong CONTRACT_SEQUENCE = new AtomicLong(System.nanoTime());
     private static final BigDecimal DEFAULT_DSR_LIMIT = new BigDecimal("50.00");
     private static final String RENTAL_RATE_DECISION_TABLE = "MSH_RENTAL_RATE_BY_AMOUNT_TENOR";
 

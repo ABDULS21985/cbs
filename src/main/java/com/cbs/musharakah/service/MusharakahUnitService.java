@@ -32,7 +32,7 @@ import com.cbs.common.exception.ResourceNotFoundException;
 @Transactional
 public class MusharakahUnitService {
 
-    private static final AtomicLong TRANSFER_SEQUENCE = new AtomicLong(System.currentTimeMillis() % 100000);
+    private static final AtomicLong TRANSFER_SEQUENCE = new AtomicLong(System.nanoTime());
 
     private final MusharakahContractRepository contractRepository;
     private final MusharakahOwnershipUnitRepository ownershipUnitRepository;
@@ -197,9 +197,8 @@ public class MusharakahUnitService {
                         .periodFrom(transfer.getTransferDate().withDayOfMonth(1))
                         .periodTo(transfer.getTransferDate())
                         .journalRef(transfer.getJournalRef())
-                        .assetReferenceCode(contract.getContractRef())
                         .contractTypeCode("MUSHARAKAH")
-                        .notes("Musharakah unit transfer gain")
+                        .notes("Musharakah unit transfer gain for " + contract.getContractRef())
                         .build());
             } else if (loss.compareTo(BigDecimal.ZERO) > 0) {
                 poolAssetManagementService.recordExpense(contract.getInvestmentPoolId(),
@@ -212,9 +211,7 @@ public class MusharakahUnitService {
                                 .periodFrom(transfer.getTransferDate().withDayOfMonth(1))
                                 .periodTo(transfer.getTransferDate())
                                 .journalRef(transfer.getJournalRef())
-                                .assetReferenceCode(contract.getContractRef())
-                                .contractTypeCode("MUSHARAKAH")
-                                .notes("Musharakah unit transfer loss — book value exceeded transfer price")
+                                .description("Musharakah unit transfer loss for " + contract.getContractRef())
                                 .build());
             }
         }
@@ -227,6 +224,7 @@ public class MusharakahUnitService {
         List<MusharakahUnitTransfer> scheduledTransfers = unitTransferRepository.findByStatusInAndTransferDateBefore(
                         List.of(MusharakahDomainEnums.InstallmentStatus.SCHEDULED, MusharakahDomainEnums.InstallmentStatus.DUE),
                         asOfDate.plusDays(1));
+        List<MusharakahUnitTransfer> overdueTransfers = new java.util.ArrayList<>();
         for (MusharakahUnitTransfer scheduled : scheduledTransfers) {
             try {
                 transferUnits(
@@ -239,9 +237,22 @@ public class MusharakahUnitService {
                 scheduled.setPaidDate(asOfDate);
             } catch (BusinessException e) {
                 scheduled.setStatus(MusharakahDomainEnums.InstallmentStatus.OVERDUE);
+                overdueTransfers.add(scheduled);
             }
-            unitTransferRepository.save(scheduled);
         }
+        unitTransferRepository.saveAll(scheduledTransfers);
+
+        // Update contract status to BUYOUT_ARREARS for any contracts with overdue transfers
+        overdueTransfers.stream()
+                .map(MusharakahUnitTransfer::getContractId)
+                .distinct()
+                .forEach(contractId -> {
+                    MusharakahContract contract = contractRepository.findById(contractId).orElse(null);
+                    if (contract != null && contract.getStatus() == MusharakahDomainEnums.ContractStatus.ACTIVE) {
+                        contract.setStatus(MusharakahDomainEnums.ContractStatus.BUYOUT_ARREARS);
+                        contractRepository.save(contract);
+                    }
+                });
     }
 
     public void updateUnitFairValue(Long contractId, BigDecimal currentMarketValue, String appraiser) {

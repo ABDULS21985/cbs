@@ -98,7 +98,7 @@ final class MurabahaSupport {
         if (startDate == null || endDate == null || endDate.isBefore(startDate)) {
             return 0;
         }
-        return ChronoUnit.DAYS.between(startDate, endDate) + 1;
+        return ChronoUnit.DAYS.between(startDate, endDate);
     }
 
     static String nextReference(String prefix, AtomicLong sequence) {

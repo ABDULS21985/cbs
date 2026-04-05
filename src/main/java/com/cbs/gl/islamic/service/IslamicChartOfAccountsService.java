@@ -243,6 +243,14 @@ public class IslamicChartOfAccountsService {
         validateGlCodeIfPresent(request.getGlPerAccountCode());
         validateGlCodeIfPresent(request.getGlIrrAccountCode());
 
+        BigDecimal totalRatio = (request.getProfitSharingRatioBank() != null ? request.getProfitSharingRatioBank() : BigDecimal.ZERO)
+                .add(request.getProfitSharingRatioInvestors() != null ? request.getProfitSharingRatioInvestors() : BigDecimal.ZERO);
+        if (totalRatio.compareTo(new BigDecimal("100")) != 0) {
+            throw new BusinessException(
+                    "Bank + investor profit sharing ratios must sum to 100, got: " + totalRatio,
+                    "INVALID_PROFIT_SHARING_RATIO");
+        }
+
         InvestmentPool pool = InvestmentPool.builder()
                 .poolCode(request.getPoolCode().trim().toUpperCase())
                 .name(request.getName())

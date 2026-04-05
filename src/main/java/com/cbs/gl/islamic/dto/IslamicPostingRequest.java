@@ -39,6 +39,8 @@ public class IslamicPostingRequest {
     private LocalDate valueDate = LocalDate.now();
     private String reference;
     private String narration;
+    private BigDecimal fxRate;
+    private String localCurrencyCode;
     @Builder.Default
     private Map<String, Object> additionalContext = new HashMap<>();
 }

@@ -7,8 +7,8 @@ import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
-import com.cbs.gl.dto.JournalLineRequest;
 import com.cbs.gl.service.GeneralLedgerService;
+import com.cbs.gl.service.GeneralLedgerService.JournalLineRequest;
 import com.cbs.gl.islamic.dto.PerCalculationResult;
 import com.cbs.gl.islamic.dto.IrrRetentionResult;
 import com.cbs.gl.islamic.service.PerService;
@@ -213,10 +213,17 @@ public class PoolWeightageService {
             // Look up the Mudarabah account to get PSR
             MudarabahAccount ma = mudarabahAccountRepository.findByAccountId(accountId).orElse(null);
             BigDecimal customerPsr = ma != null ? ma.getProfitSharingRatioCustomer() : new BigDecimal("70.0000");
-            BigDecimal bankPsr = ma != null ? ma.getProfitSharingRatioBank() : new BigDecimal("30.0000");
 
-            BigDecimal customerProfit = netShare.multiply(customerPsr).divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
-            BigDecimal bankProfit = netShare.subtract(customerProfit);
+            BigDecimal customerProfit;
+            BigDecimal bankProfit;
+            if (netShare.compareTo(BigDecimal.ZERO) >= 0) {
+                customerProfit = netShare.multiply(customerPsr).divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
+                bankProfit = netShare.subtract(customerProfit);
+            } else {
+                customerProfit = netShare;
+                bankProfit = BigDecimal.ZERO;
+                warningNotes.append("Loss allocated fully to capital provider after reserves; bank share suppressed. ");
+            }
 
             // Calculate effective rate (annualised)
             long periodDays = ChronoUnit.DAYS.between(periodFrom, periodTo);

@@ -40,7 +40,6 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -169,9 +168,16 @@ public class HibahDistributionService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
         BigDecimal averageRate = computeAverageRate(items);
+        HibahPatternAnalysis projectedAnalysis = analyzeProjectedHibahPatterns(
+            tenantId,
+            request.getDistributionDate(),
+            averageRate);
 
         validateDistributionCaps(policy, totalAmount, averageRate);
         validateVariability(policy, recentCompleted, averageRate);
+        validateProjectedSystematicControls(policy, projectedAnalysis);
+
+        String batchNotes = enrichBatchNotes(request.getNotes(), projectedAnalysis);
 
         HibahDistributionBatch batch = hibahDistributionBatchRepository.save(HibahDistributionBatch.builder()
                 .policyId(policy.getId())
@@ -187,7 +193,7 @@ public class HibahDistributionService {
                 .fundingSource(request.getFundingSource())
                 .fundingSourceGl(policy.getFundingSourceGl())
                 .status(WadiahDomainEnums.HibahBatchStatus.DRAFT)
-                .notes(request.getNotes())
+                .notes(batchNotes)
                 .tenantId(tenantId)
                 .build());
 
@@ -238,8 +244,14 @@ public class HibahDistributionService {
         HibahPolicy policy = batch.getPolicyId() != null
                 ? hibahPolicyRepository.findById(batch.getPolicyId()).orElse(null)
                 : null;
+        HibahPatternAnalysis projectedAnalysis = analyzeProjectedHibahPatterns(
+            batch.getTenantId(),
+            batch.getDistributionDate(),
+            defaultAmount(batch.getAverageHibahRate()));
         if (batch.getStatus() != WadiahDomainEnums.HibahBatchStatus.APPROVED
-                && !(policy != null && !Boolean.TRUE.equals(policy.getApprovalRequired())
+            && !(policy != null
+            && !Boolean.TRUE.equals(policy.getApprovalRequired())
+            && projectedAnalysis.getSystematicRisk() == RiskLevel.LOW
                 && batch.getStatus() == WadiahDomainEnums.HibahBatchStatus.DRAFT)) {
             throw new BusinessException("Batch must be approved before processing", "BATCH_NOT_APPROVED");
         }
@@ -249,6 +261,8 @@ public class HibahDistributionService {
                     "Four-eyes principle violated: batch processor must differ from the batch approver",
                     "FOUR_EYES_VIOLATION");
         }
+
+        enforcePreCreditControls(batch, policy, projectedAnalysis);
 
         List<HibahDistributionItem> items = hibahDistributionItemRepository.findByBatchIdOrderByIdAsc(batchId);
         int journalEntries = 0;
@@ -289,7 +303,7 @@ public class HibahDistributionService {
         batch.setJournalBatchRef(batch.getBatchRef());
         // Send Shariah board notification and set flag based on actual delivery success
         boolean notified = notifyShariahBoard(batch);
-        batch.setShariahBoardNotified(notified);
+        batch.setShariahBoardNotified(Boolean.TRUE.equals(batch.getShariahBoardNotified()) || notified);
         hibahDistributionBatchRepository.save(batch);
 
         HibahPatternAnalysis analysis = analyzeHibahPatterns(batch.getTenantId());
@@ -482,6 +496,175 @@ public class HibahDistributionService {
                 .sorted(Comparator.comparing(HibahDistributionBatch::getDistributionDate).reversed())
                 .toList()
                 : tenantBatches;
+    }
+
+    private HibahPatternAnalysis analyzeProjectedHibahPatterns(Long tenantId,
+                                                               LocalDate distributionDate,
+                                                               BigDecimal proposedRate) {
+        LocalDate cutoff = distributionDate.minusMonths(12);
+        List<HibahDistributionBatch> batches = batchesForTenant(tenantId).stream()
+                .filter(item -> item.getStatus() == WadiahDomainEnums.HibahBatchStatus.COMPLETED)
+                .filter(item -> !item.getDistributionDate().isBefore(cutoff))
+                .sorted(Comparator.comparing(HibahDistributionBatch::getDistributionDate))
+                .toList();
+
+        List<BigDecimal> projectedRates = new ArrayList<>(batches.stream()
+                .map(item -> defaultAmount(item.getAverageHibahRate()))
+                .toList());
+        List<Long> projectedIntervals = new ArrayList<>();
+        for (int index = 1; index < batches.size(); index++) {
+            projectedIntervals.add(ChronoUnit.DAYS.between(
+                    batches.get(index - 1).getDistributionDate(),
+                    batches.get(index).getDistributionDate()));
+        }
+
+        if (!batches.isEmpty()) {
+            projectedIntervals.add(ChronoUnit.DAYS.between(
+                    batches.getLast().getDistributionDate(),
+                    distributionDate));
+        }
+        if (proposedRate != null && proposedRate.compareTo(BigDecimal.ZERO) > 0) {
+            projectedRates.add(defaultAmount(proposedRate));
+        }
+
+        List<String> alerts = new ArrayList<>();
+        if (projectedRates.isEmpty()) {
+            return HibahPatternAnalysis.builder()
+                    .distributionsInLast12Months(0)
+                    .averageRate(BigDecimal.ZERO)
+                    .rateStandardDeviation(BigDecimal.ZERO)
+                    .rateCoefficientOfVariation(BigDecimal.ZERO)
+                    .frequencyRegular(false)
+                    .rateStable(false)
+                    .systematicRisk(RiskLevel.LOW)
+                    .alerts(alerts)
+                    .build();
+        }
+
+        BigDecimal averageRate = average(projectedRates);
+        BigDecimal stdDev = standardDeviation(projectedRates, averageRate);
+        BigDecimal coefficient = averageRate.compareTo(BigDecimal.ZERO) == 0
+                ? BigDecimal.ZERO
+                : stdDev.divide(averageRate, 4, RoundingMode.HALF_UP);
+        boolean frequencyRegular = projectedIntervals.size() >= 2 && intervalStandardDeviation(projectedIntervals) <= 5D;
+        boolean rateStable = projectedRates.size() >= 3 && coefficient.compareTo(new BigDecimal("0.1000")) < 0;
+
+        if (frequencyRegular) {
+            alerts.add("Projected distribution cadence is becoming regular enough to create depositor expectations");
+        }
+        if (rateStable) {
+            alerts.add("Projected Hibah rate variation remains too low for a discretionary gift pattern");
+        }
+        if (projectedRates.size() >= 4 && recentRatesTooSimilar(projectedRates)) {
+            alerts.add("Projected batch would create four near-identical Hibah rates in succession");
+        }
+
+        RiskLevel riskLevel = RiskLevel.LOW;
+        if (frequencyRegular || rateStable) {
+            riskLevel = RiskLevel.MEDIUM;
+        }
+        if (frequencyRegular && rateStable) {
+            riskLevel = RiskLevel.HIGH;
+        }
+
+        return HibahPatternAnalysis.builder()
+                .distributionsInLast12Months(projectedRates.size())
+                .averageRate(averageRate)
+                .rateStandardDeviation(stdDev)
+                .rateCoefficientOfVariation(coefficient)
+                .frequencyRegular(frequencyRegular)
+                .rateStable(rateStable)
+                .systematicRisk(riskLevel)
+                .alerts(alerts)
+                .build();
+    }
+
+    private void validateProjectedSystematicControls(HibahPolicy policy, HibahPatternAnalysis projectedAnalysis) {
+        if (policy == null) {
+            throw new BusinessException("An active Hibah policy is required before batch creation", "HIBAH_POLICY_REQUIRED");
+        }
+        if (projectedAnalysis.getSystematicRisk() == RiskLevel.HIGH && policy.getFatwaId() == null) {
+            throw new BusinessException(
+                    "Systematic Hibah risk requires an explicit policy fatwa reference before batch creation",
+                    "HIBAH_POLICY_FATWA_REQUIRED");
+        }
+    }
+
+    private void enforcePreCreditControls(HibahDistributionBatch batch,
+                                          HibahPolicy policy,
+                                          HibahPatternAnalysis projectedAnalysis) {
+        if (policy == null) {
+            throw new BusinessException("Batch is not linked to an active Hibah policy", "HIBAH_POLICY_REQUIRED");
+        }
+        if (policy.getStatus() != WadiahDomainEnums.HibahPolicyStatus.ACTIVE) {
+            throw new BusinessException("Only ACTIVE Hibah policies may be used for distribution", "HIBAH_POLICY_INACTIVE");
+        }
+        if (policy.getNextSsbReview() != null && batch.getDistributionDate().isAfter(policy.getNextSsbReview())) {
+            throw new BusinessException(
+                    "The active Hibah policy is overdue for SSB review and cannot be used for posting",
+                    "HIBAH_POLICY_SSB_REVIEW_OVERDUE");
+        }
+        if (projectedAnalysis.getSystematicRisk() == RiskLevel.MEDIUM && batch.getStatus() != WadiahDomainEnums.HibahBatchStatus.APPROVED) {
+            throw new BusinessException(
+                    "Elevated Hibah pattern risk requires formal approval before posting",
+                    "HIBAH_ESCALATED_APPROVAL_REQUIRED");
+        }
+        if (projectedAnalysis.getSystematicRisk() != RiskLevel.HIGH) {
+            return;
+        }
+        if (!hasSystematicOverrideJustification(batch.getNotes())) {
+            throw new BusinessException(
+                    "Projected Hibah pattern is too systematic. Add a SYSTEMATIC_OVERRIDE justification in batch notes and resubmit for Shariah escalation before posting.",
+                    "HIBAH_SYSTEMATIC_ESCALATION_REQUIRED");
+        }
+        boolean escalationSent = notifySystematicHibahEscalation(batch, projectedAnalysis);
+        if (!escalationSent) {
+            throw new BusinessException(
+                    "Systematic Hibah escalation could not be delivered to the Shariah board",
+                    "HIBAH_SSB_ESCALATION_FAILED");
+        }
+        batch.setShariahBoardNotified(true);
+        hibahDistributionBatchRepository.save(batch);
+    }
+
+    private boolean hasSystematicOverrideJustification(String notes) {
+        return StringUtils.hasText(notes)
+                && notes.lines().anyMatch(line -> line.trim().toUpperCase().startsWith("SYSTEMATIC_OVERRIDE:"));
+    }
+
+    private String enrichBatchNotes(String existingNotes, HibahPatternAnalysis projectedAnalysis) {
+        if (projectedAnalysis.getSystematicRisk() == RiskLevel.LOW || projectedAnalysis.getAlerts() == null || projectedAnalysis.getAlerts().isEmpty()) {
+            return existingNotes;
+        }
+        String joinedAlerts = String.join("; ", projectedAnalysis.getAlerts());
+        String systemNote = "SYSTEMATIC_RISK_ALERT: " + projectedAnalysis.getSystematicRisk() + " - " + joinedAlerts;
+        if (StringUtils.hasText(existingNotes) && existingNotes.contains(systemNote)) {
+            return existingNotes;
+        }
+        return appendReason(existingNotes, systemNote + System.lineSeparator()
+                + "SYSTEMATIC_OVERRIDE: provide SSB-approved justification before posting if the pattern remains high-risk.");
+    }
+
+    private boolean notifySystematicHibahEscalation(HibahDistributionBatch batch, HibahPatternAnalysis projectedAnalysis) {
+        try {
+            notificationService.sendDirect(
+                    NotificationChannel.EMAIL,
+                    "shariah-board@cbs.internal",
+                    "Shariah Supervisory Board",
+                    "Systematic Hibah Escalation - " + batch.getBatchRef(),
+                    "Projected Hibah pattern risk for batch " + batch.getBatchRef()
+                            + " is " + projectedAnalysis.getSystematicRisk()
+                            + ". Alerts: " + String.join("; ", projectedAnalysis.getAlerts())
+                            + ". Override justification: " + defaultText(batch.getNotes(), "not provided"),
+                    null,
+                    "HIBAH_SYSTEMATIC_ESCALATION"
+            );
+            log.warn("Systematic Hibah escalation sent for batch {}", batch.getBatchRef());
+            return true;
+        } catch (Exception exception) {
+            log.error("Failed to escalate systematic Hibah risk for batch {}", batch.getBatchRef(), exception);
+            return false;
+        }
     }
 
     private void validateBatchTiming(HibahPolicy policy, LocalDate distributionDate) {
@@ -807,6 +990,10 @@ public class HibahDistributionService {
             return existing;
         }
         return StringUtils.hasText(existing) ? existing + System.lineSeparator() + reason : reason;
+    }
+
+    private String defaultText(String value, String fallback) {
+        return StringUtils.hasText(value) ? value : fallback;
     }
 
     private String generateBatchReference(LocalDate distributionDate) {

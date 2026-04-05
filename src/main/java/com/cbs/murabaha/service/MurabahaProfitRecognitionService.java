@@ -25,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.Collection;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -144,6 +146,8 @@ public class MurabahaProfitRecognitionService {
                 .reference(contract.getContractRef() + "-IBRA")
                 .build());
         contract.setIbraAmount(MurabahaSupport.money(ibraAmount));
+        BigDecimal earnedPortion = MurabahaSupport.money(contract.getUnrecognisedProfit().subtract(ibraAmount).max(BigDecimal.ZERO));
+        contract.setRecognisedProfit(MurabahaSupport.money(contract.getRecognisedProfit().add(earnedPortion)));
         contract.setUnrecognisedProfit(MurabahaSupport.money(contract.getUnrecognisedProfit().subtract(ibraAmount).max(BigDecimal.ZERO)));
         contractRepository.save(contract);
     }
@@ -215,51 +219,30 @@ public class MurabahaProfitRecognitionService {
 
     @Transactional(readOnly = true)
     public MurabahaProfitRecognitionReport getProfitRecognitionReport(LocalDate fromDate, LocalDate toDate) {
-        // Fetch only relevant statuses instead of findAll()
-        List<MurabahaContract> contracts = new java.util.ArrayList<>();
-        contracts.addAll(contractRepository.findByStatus(MurabahaDomainEnums.ContractStatus.ACTIVE));
-        contracts.addAll(contractRepository.findByStatus(MurabahaDomainEnums.ContractStatus.EXECUTED));
-        contracts.addAll(contractRepository.findByStatus(MurabahaDomainEnums.ContractStatus.EARLY_SETTLED));
-        contracts.addAll(contractRepository.findByStatus(MurabahaDomainEnums.ContractStatus.SETTLED));
-        contracts.addAll(contractRepository.findByStatus(MurabahaDomainEnums.ContractStatus.DEFAULTED));
-        contracts.addAll(contractRepository.findByStatus(MurabahaDomainEnums.ContractStatus.WRITTEN_OFF));
-        // Calculate incremental profit recognised during the period, not cumulative
-        BigDecimal recognisedThisPeriod = contracts.stream()
-                .filter(contract -> contract.getLastProfitRecognitionDate() != null
-                        && !contract.getLastProfitRecognitionDate().isBefore(fromDate)
-                        && !contract.getLastProfitRecognitionDate().isAfter(toDate))
-                .map(contract -> {
-                    // Incremental = totalDeferredProfit - unrecognisedProfit gives cumulative recognised;
-                    // We need only the portion recognised in this period which is:
-                    // recognisedProfit - (totalDeferredProfit - unrecognisedProfit - what was recognised before fromDate)
-                    // Best approximation: use schedule installments paid in this period
-                    List<MurabahaInstallment> periodInstallments = installmentRepository
-                            .findByContractIdOrderByInstallmentNumberAsc(contract.getId()).stream()
-                            .filter(inst -> inst.getPaidDate() != null
-                                    && !inst.getPaidDate().isBefore(fromDate)
-                                    && !inst.getPaidDate().isAfter(toDate))
-                            .toList();
-                    if (!periodInstallments.isEmpty()) {
-                        return periodInstallments.stream()
-                                .map(inst -> MurabahaSupport.money(inst.getPaidProfit()))
-                                .reduce(MurabahaSupport.ZERO, BigDecimal::add);
-                    }
-                    // Fallback: calculate target cumulative at toDate minus target at fromDate
-                    BigDecimal targetTo = calculateTargetCumulativeRecognition(contract, toDate);
-                    BigDecimal targetFrom = calculateTargetCumulativeRecognition(contract, fromDate.minusDays(1));
-                    return MurabahaSupport.money(targetTo.subtract(targetFrom).max(BigDecimal.ZERO));
-                })
-                .reduce(MurabahaSupport.ZERO, BigDecimal::add);
+        Collection<MurabahaDomainEnums.ContractStatus> allReportingStatuses = EnumSet.of(
+                MurabahaDomainEnums.ContractStatus.ACTIVE,
+                MurabahaDomainEnums.ContractStatus.EXECUTED,
+                MurabahaDomainEnums.ContractStatus.EARLY_SETTLED,
+                MurabahaDomainEnums.ContractStatus.SETTLED,
+                MurabahaDomainEnums.ContractStatus.DEFAULTED,
+                MurabahaDomainEnums.ContractStatus.WRITTEN_OFF);
 
-        Map<String, BigDecimal> byType = contracts.stream()
-                .collect(Collectors.groupingBy(contract -> contract.getMurabahahType().name(),
-                        Collectors.mapping(MurabahaContract::getRecognisedProfit,
-                                Collectors.reducing(MurabahaSupport.ZERO, BigDecimal::add))));
+        // Sum profit recognised during the period: contracts whose lastProfitRecognitionDate falls within [fromDate, toDate]
+        BigDecimal recognisedThisPeriod = contractRepository.sumRecognisedProfitInPeriod(fromDate, toDate, allReportingStatuses);
 
-        Map<String, BigDecimal> byMethod = contracts.stream()
-                .collect(Collectors.groupingBy(contract -> contract.getProfitRecognitionMethod().name(),
-                        Collectors.mapping(MurabahaContract::getRecognisedProfit,
-                                Collectors.reducing(MurabahaSupport.ZERO, BigDecimal::add))));
+        // Aggregate byType and byMethod using DB GROUP BY queries
+        Map<String, BigDecimal> byType = contractRepository.sumRecognisedProfitGroupByMurabahahType(allReportingStatuses).stream()
+                .collect(Collectors.toMap(
+                        row -> ((MurabahaDomainEnums.MurabahahType) row[0]).name(),
+                        row -> MurabahaSupport.money((BigDecimal) row[1])));
+
+        Map<String, BigDecimal> byMethod = contractRepository.sumRecognisedProfitGroupByRecognitionMethod(allReportingStatuses).stream()
+                .collect(Collectors.toMap(
+                        row -> ((MurabahaDomainEnums.ProfitRecognitionMethod) row[0]).name(),
+                        row -> MurabahaSupport.money((BigDecimal) row[1])));
+
+        BigDecimal totalIbra = contractRepository.sumIbraAmountByStatuses(allReportingStatuses);
+        BigDecimal totalProvision = contractRepository.sumImpairmentProvisionByStatuses(allReportingStatuses);
 
         return MurabahaProfitRecognitionReport.builder()
                 .fromDate(fromDate)
@@ -267,12 +250,8 @@ public class MurabahaProfitRecognitionService {
                 .recognisedThisPeriod(MurabahaSupport.money(recognisedThisPeriod))
                 .totalDeferredProfit(getTotalDeferredProfit())
                 .totalRecognisedProfit(getTotalRecognisedProfit(fromDate, toDate))
-                .totalIbraExpense(contracts.stream()
-                        .map(contract -> MurabahaSupport.money(contract.getIbraAmount()))
-                        .reduce(MurabahaSupport.ZERO, BigDecimal::add))
-                .totalImpairmentProvision(contracts.stream()
-                        .map(MurabahaContract::getImpairmentProvisionBalance)
-                        .reduce(MurabahaSupport.ZERO, BigDecimal::add))
+                .totalIbraExpense(MurabahaSupport.money(totalIbra))
+                .totalImpairmentProvision(MurabahaSupport.money(totalProvision))
                 .byMurabahaType(byType)
                 .byRecognitionMethod(byMethod)
                 .build();
@@ -291,17 +270,12 @@ public class MurabahaProfitRecognitionService {
 
     @Transactional(readOnly = true)
     public BigDecimal getTotalRecognisedProfit(LocalDate fromDate, LocalDate toDate) {
-        List<MurabahaContract> contracts = new java.util.ArrayList<>();
-        contracts.addAll(contractRepository.findByStatus(MurabahaDomainEnums.ContractStatus.ACTIVE));
-        contracts.addAll(contractRepository.findByStatus(MurabahaDomainEnums.ContractStatus.EXECUTED));
-        contracts.addAll(contractRepository.findByStatus(MurabahaDomainEnums.ContractStatus.EARLY_SETTLED));
-        contracts.addAll(contractRepository.findByStatus(MurabahaDomainEnums.ContractStatus.SETTLED));
-        return contracts.stream()
-                .filter(contract -> contract.getLastProfitRecognitionDate() != null
-                        && !contract.getLastProfitRecognitionDate().isBefore(fromDate)
-                        && !contract.getLastProfitRecognitionDate().isAfter(toDate))
-                .map(MurabahaContract::getRecognisedProfit)
-                .reduce(MurabahaSupport.ZERO, BigDecimal::add);
+        Collection<MurabahaDomainEnums.ContractStatus> statuses = EnumSet.of(
+                MurabahaDomainEnums.ContractStatus.ACTIVE,
+                MurabahaDomainEnums.ContractStatus.EXECUTED,
+                MurabahaDomainEnums.ContractStatus.EARLY_SETTLED,
+                MurabahaDomainEnums.ContractStatus.SETTLED);
+        return MurabahaSupport.money(contractRepository.sumRecognisedProfitInPeriod(fromDate, toDate, statuses));
     }
 
     private BigDecimal calculateTargetCumulativeRecognition(MurabahaContract contract, LocalDate toDate) {

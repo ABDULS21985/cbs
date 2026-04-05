@@ -31,6 +31,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -316,12 +317,21 @@ public class MusharakahRentalService {
         List<MusharakahRentalInstallment> candidates = installmentRepository.findByStatusInAndDueDateBefore(
                 List.of(MusharakahDomainEnums.InstallmentStatus.SCHEDULED, MusharakahDomainEnums.InstallmentStatus.DUE, MusharakahDomainEnums.InstallmentStatus.PARTIAL),
                 LocalDate.now());
+        List<MusharakahRentalInstallment> touchedInstallments = new ArrayList<>();
+        Map<Long, MusharakahContract> touchedContracts = new java.util.LinkedHashMap<>();
         for (MusharakahRentalInstallment installment : candidates) {
             MusharakahContract contract = getContract(installment.getContractId());
             long overdue = ChronoUnit.DAYS.between(installment.getDueDate(), LocalDate.now());
+            boolean changed = false;
             if (overdue > (contract.getGracePeriodDays() != null ? contract.getGracePeriodDays() : 0)) {
-                installment.setStatus(MusharakahDomainEnums.InstallmentStatus.OVERDUE);
-                installment.setDaysOverdue((int) overdue);
+                if (installment.getStatus() != MusharakahDomainEnums.InstallmentStatus.OVERDUE) {
+                    installment.setStatus(MusharakahDomainEnums.InstallmentStatus.OVERDUE);
+                    changed = true;
+                }
+                if (!Objects.equals(installment.getDaysOverdue(), (int) overdue)) {
+                    installment.setDaysOverdue((int) overdue);
+                    changed = true;
+                }
                 if (MusharakahSupport.money(installment.getLatePenaltyAmount()).compareTo(BigDecimal.ZERO) == 0) {
                     IslamicFeeResponses.LatePenaltyResult penaltyResult = latePenaltyService.processLatePenalty(
                             IslamicFeeResponses.LatePenaltyRequest.builder()
@@ -336,11 +346,25 @@ public class MusharakahRentalService {
                                     .build());
                     if (penaltyResult.isPenaltyCharged() && penaltyResult.getPenaltyAmount() != null) {
                         installment.setLatePenaltyAmount(MusharakahSupport.money(penaltyResult.getPenaltyAmount()));
+                        changed = true;
                     }
                 }
+                contract.setStatus(MusharakahDomainEnums.ContractStatus.RENTAL_ARREARS);
+                touchedContracts.put(contract.getId(), contract);
             } else if (installment.getStatus() == MusharakahDomainEnums.InstallmentStatus.SCHEDULED) {
                 installment.setStatus(MusharakahDomainEnums.InstallmentStatus.DUE);
+                installment.setDaysOverdue(0);
+                changed = true;
             }
+            if (changed) {
+                touchedInstallments.add(installment);
+            }
+        }
+        if (!touchedInstallments.isEmpty()) {
+            installmentRepository.saveAll(touchedInstallments);
+        }
+        if (!touchedContracts.isEmpty()) {
+            contractRepository.saveAll(touchedContracts.values());
         }
     }
 
@@ -416,8 +440,12 @@ public class MusharakahRentalService {
                 dueDate = buyoutDate;
             }
 
-            BigDecimal rentalPortion = includeRental ? MusharakahSupport.money(rental.getRentalAmount()) : MusharakahSupport.ZERO;
-            BigDecimal buyoutPortion = includeBuyout ? MusharakahSupport.money(buyout.getTotalBuyoutAmount()) : MusharakahSupport.ZERO;
+                BigDecimal rentalPortion = includeRental && rental != null
+                    ? MusharakahSupport.money(rental.getRentalAmount())
+                    : MusharakahSupport.ZERO;
+                BigDecimal buyoutPortion = includeBuyout && buyout != null
+                    ? MusharakahSupport.money(buyout.getTotalBuyoutAmount())
+                    : MusharakahSupport.ZERO;
             BigDecimal totalPayment = MusharakahSupport.money(rentalPortion.add(buyoutPortion));
             cumulativePaid = cumulativePaid.add(totalPayment);
             installmentNum++;
@@ -427,8 +455,8 @@ public class MusharakahRentalService {
                     .rentalPortion(rentalPortion)
                     .buyoutPortion(buyoutPortion)
                     .totalPayment(totalPayment)
-                    .bankOwnershipBefore(includeRental ? rental.getBankOwnershipAtPeriodStart() : null)
-                    .bankOwnershipAfter(includeBuyout ? buyout.getBankPercentageAfter() : null)
+                    .bankOwnershipBefore(includeRental && rental != null ? rental.getBankOwnershipAtPeriodStart() : null)
+                    .bankOwnershipAfter(includeBuyout && buyout != null ? buyout.getBankPercentageAfter() : null)
                     .cumulativeTotalPaid(cumulativePaid)
                     .build());
 
@@ -457,6 +485,8 @@ public class MusharakahRentalService {
 
     private void refreshPastDueStatuses(MusharakahContract contract) {
         List<MusharakahRentalInstallment> installments = installmentRepository.findByContractIdOrderByInstallmentNumberAsc(contract.getId());
+        List<MusharakahRentalInstallment> touchedInstallments = new ArrayList<>();
+        boolean contractChanged = false;
         for (MusharakahRentalInstallment installment : installments) {
             if (installment.getStatus() == MusharakahDomainEnums.InstallmentStatus.PAID
                     || installment.getStatus() == MusharakahDomainEnums.InstallmentStatus.WAIVED
@@ -484,10 +514,20 @@ public class MusharakahRentalService {
                             installment.setLatePenaltyAmount(MusharakahSupport.money(penaltyResult.getPenaltyAmount()));
                         }
                     }
+                    contract.setStatus(MusharakahDomainEnums.ContractStatus.RENTAL_ARREARS);
+                    contractChanged = true;
                 } else if (installment.getStatus() == MusharakahDomainEnums.InstallmentStatus.SCHEDULED) {
                     installment.setStatus(MusharakahDomainEnums.InstallmentStatus.DUE);
+                    installment.setDaysOverdue(0);
                 }
+                touchedInstallments.add(installment);
             }
+        }
+        if (!touchedInstallments.isEmpty()) {
+            installmentRepository.saveAll(touchedInstallments);
+        }
+        if (contractChanged) {
+            contractRepository.save(contract);
         }
     }
 

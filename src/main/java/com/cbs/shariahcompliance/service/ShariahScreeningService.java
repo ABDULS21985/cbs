@@ -3,6 +3,7 @@ package com.cbs.shariahcompliance.service;
 import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.rulesengine.dto.BusinessRuleResponse;
 import com.cbs.rulesengine.entity.BusinessRuleStatus;
 import com.cbs.rulesengine.service.BusinessRuleService;
 import com.cbs.shariahcompliance.dto.*;
@@ -12,11 +13,13 @@ import com.cbs.tenant.service.CurrentTenantResolver;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.expression.MapAccessor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -518,23 +521,7 @@ public class ShariahScreeningService {
                 case ENTITY_LIST -> evaluateEntityList(rule, request);
                 case THRESHOLD -> evaluateThreshold(rule, request);
                 case CONDITION_EXPRESSION -> evaluateCondition(rule, request);
-                case BUSINESS_RULE_REF -> {
-                    if (StringUtils.hasText(rule.getBusinessRuleCode())) {
-                        try {
-                            var ruleResponse = businessRuleService.getRuleByCode(rule.getBusinessRuleCode());
-                            if (ruleResponse != null && ruleResponse.getStatus() == BusinessRuleStatus.ACTIVE) {
-                                // Rule exists and is active — considered triggered for screening purposes
-                                yield true;
-                            }
-                        } catch (Exception e) {
-                            log.warn("Failed to evaluate BUSINESS_RULE_REF for rule {} (businessRuleCode={}): {}",
-                                    rule.getRuleCode(), rule.getBusinessRuleCode(), e.getMessage());
-                        }
-                    }
-                    // Fail-closed: if business rule not found or evaluation failed, treat as triggered
-                    log.warn("BUSINESS_RULE_REF rule {} could not be resolved — failing closed.", rule.getRuleCode());
-                    yield true;
-                }
+                case BUSINESS_RULE_REF -> evaluateBusinessRuleReference(rule, request);
                 case COMPOSITE -> evaluateCompositeRule(rule, request);
                 default -> {
                     log.warn("Unhandled rule type {} for rule {} — defaulting to fail-closed", rule.getRuleType(), rule.getRuleCode());
@@ -545,6 +532,102 @@ public class ShariahScreeningService {
             log.error("Error evaluating rule {} — failing closed for safety: {}", rule.getRuleCode(), e.getMessage());
             return true; // fail-closed on error: treat evaluation failure as triggered (safe default)
         }
+    }
+
+    private boolean evaluateBusinessRuleReference(ShariahScreeningRule screeningRule, ShariahScreeningRequest request) {
+        if (!StringUtils.hasText(screeningRule.getBusinessRuleCode())) {
+            log.warn("BUSINESS_RULE_REF rule {} has no businessRuleCode — failing closed", screeningRule.getRuleCode());
+            return true;
+        }
+
+        try {
+            BusinessRuleResponse businessRule = businessRuleService.getRuleByCode(screeningRule.getBusinessRuleCode());
+            if (businessRule == null || businessRule.getStatus() != BusinessRuleStatus.ACTIVE) {
+                log.warn("Referenced business rule {} is missing or not active for screening rule {}",
+                        screeningRule.getBusinessRuleCode(), screeningRule.getRuleCode());
+                return true;
+            }
+            if (!isBusinessRuleApplicable(businessRule, request.getContractTypeCode())) {
+                return false;
+            }
+
+            Boolean compliant = evaluateBusinessRuleCompliance(businessRule, request);
+            if (compliant == null) {
+                log.warn("Referenced business rule {} returned no boolean result for screening rule {} — failing closed",
+                        businessRule.getRuleCode(), screeningRule.getRuleCode());
+                return true;
+            }
+            return !compliant;
+        } catch (Exception exception) {
+            log.error("Failed to evaluate referenced business rule {} for screening rule {} — failing closed: {}",
+                    screeningRule.getBusinessRuleCode(), screeningRule.getRuleCode(), exception.getMessage(), exception);
+            return true;
+        }
+    }
+
+    private boolean isBusinessRuleApplicable(BusinessRuleResponse businessRule, String contractTypeCode) {
+        if (businessRule.getApplicableProducts() == null || businessRule.getApplicableProducts().isEmpty()) {
+            return true;
+        }
+        if (businessRule.getApplicableProducts().stream().anyMatch("*"::equals)) {
+            return true;
+        }
+        return StringUtils.hasText(contractTypeCode)
+                && businessRule.getApplicableProducts().stream().anyMatch(product -> product.equalsIgnoreCase(contractTypeCode));
+    }
+
+    private Boolean evaluateBusinessRuleCompliance(BusinessRuleResponse businessRule, ShariahScreeningRequest request) {
+        if (!StringUtils.hasText(businessRule.getEvaluationExpression())) {
+            return null;
+        }
+
+        Map<String, Object> evaluationRoot = buildBusinessRuleContext(request, businessRule.getParameters());
+        StandardEvaluationContext evaluationContext = new StandardEvaluationContext(evaluationRoot);
+        evaluationContext.addPropertyAccessor(new MapAccessor());
+        evaluationContext.setVariable("params", businessRule.getParameters());
+        evaluationContext.setVariable("request", request);
+
+        Object value = spelParser.parseExpression(businessRule.getEvaluationExpression()).getValue(evaluationContext);
+        if (value instanceof Boolean booleanValue) {
+            return booleanValue;
+        }
+        if (value instanceof Number numberValue) {
+            return numberValue.intValue() != 0;
+        }
+        return value != null ? Boolean.valueOf(String.valueOf(value)) : null;
+    }
+
+    private Map<String, Object> buildBusinessRuleContext(ShariahScreeningRequest request, Map<String, Object> parameters) {
+        Map<String, Object> root = new LinkedHashMap<>();
+
+        Map<String, Object> transaction = new LinkedHashMap<>();
+        transaction.put("ref", request.getTransactionRef());
+        transaction.put("type", request.getTransactionType());
+        transaction.put("amount", request.getAmount() != null ? request.getAmount() : BigDecimal.ZERO);
+        transaction.put("currency", request.getCurrencyCode());
+        transaction.put("purpose", request.getPurpose());
+        transaction.put("merchantCategoryCode", request.getMerchantCategoryCode());
+        root.put("transaction", transaction);
+
+        Map<String, Object> contract = new LinkedHashMap<>();
+        contract.put("ref", request.getContractRef());
+        contract.put("typeCode", request.getContractTypeCode());
+        root.put("contract", contract);
+
+        Map<String, Object> counterparty = new LinkedHashMap<>();
+        counterparty.put("id", request.getCounterpartyId());
+        counterparty.put("name", request.getCounterpartyName());
+        root.put("counterparty", counterparty);
+
+        root.put("customerId", request.getCustomerId());
+        root.put("merchantCategoryCode", request.getMerchantCategoryCode());
+        root.put("params", parameters != null ? parameters : Map.of());
+
+        if (request.getAdditionalContext() != null) {
+            root.putAll(request.getAdditionalContext());
+        }
+
+        return root;
     }
 
     private boolean evaluateMccList(ShariahScreeningRule rule, ShariahScreeningRequest request) {

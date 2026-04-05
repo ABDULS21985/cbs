@@ -387,12 +387,44 @@ public class ProfitDistributionRunService {
         return toResponse(run);
     }
 
+    public ProfitDistributionRunResponse waiveSsbCertification(Long runId, SsbCertificationRequest request) {
+        ProfitDistributionRun run = getRunEntity(runId);
+        validateStatus(run, DistributionRunStatus.SSB_REVIEW_PENDING);
+
+        if (!StringUtils.hasText(request.getSsbComments())) {
+            throw new BusinessException(
+                    "SSB waiver requires documented justification in ssbComments",
+                    "SSB_WAIVER_JUSTIFICATION_REQUIRED");
+        }
+
+        String waiverRef = request.getSsbCertificationRef().trim();
+        if (!waiverRef.toUpperCase().startsWith("WAIVER-")) {
+            throw new BusinessException(
+                    "SSB waiver reference must start with WAIVER- for audit traceability",
+                    "INVALID_SSB_WAIVER_REFERENCE");
+        }
+
+        run.setSsbCertificationRef(waiverRef);
+        run.setSsbComments(request.getSsbComments());
+        run.setSsbReviewedBy(request.getReviewedBy());
+        run.setSsbReviewedAt(LocalDateTime.now());
+        run.setStatus(DistributionRunStatus.SSB_WAIVED);
+        run = runRepo.save(run);
+
+        logStep(run.getId(), 9, "SSB_WAIVER", StepStatus.COMPLETED,
+                null,
+                Map.of(
+                        "ssbWaiverRef", waiverRef,
+                        "reviewedBy", request.getReviewedBy()));
+        return toResponse(run);
+    }
+
     public ProfitDistributionRunResponse completeRun(Long runId) {
         ProfitDistributionRun run = getRunEntity(runId);
-        if (run.getStatus() != DistributionRunStatus.DISTRIBUTED
-                && run.getStatus() != DistributionRunStatus.SSB_CERTIFIED) {
+        if (run.getStatus() != DistributionRunStatus.SSB_CERTIFIED
+                && run.getStatus() != DistributionRunStatus.SSB_WAIVED) {
             throw new BusinessException(
-                    "Run must be distributed or SSB certified to complete, current status: " + run.getStatus(),
+                    "Run must be SSB certified or formally waived before completion, current status: " + run.getStatus(),
                     "INVALID_STATE");
         }
         run.setStatus(DistributionRunStatus.COMPLETED);
@@ -438,7 +470,8 @@ public class ProfitDistributionRunService {
         ProfitDistributionRun run = getRunEntity(runId);
         if (run.getStatus() != DistributionRunStatus.DISTRIBUTED
                 && run.getStatus() != DistributionRunStatus.COMPLETED
-                && run.getStatus() != DistributionRunStatus.SSB_CERTIFIED) {
+                && run.getStatus() != DistributionRunStatus.SSB_CERTIFIED
+                && run.getStatus() != DistributionRunStatus.SSB_WAIVED) {
             throw new BusinessException("Only distributed or completed runs can be reversed", "INVALID_STATE");
         }
 
@@ -585,7 +618,7 @@ public class ProfitDistributionRunService {
             com.cbs.gl.islamic.service.PerService perService = reserveService.getPerService();
             com.cbs.gl.islamic.service.IrrService irrService = reserveService.getIrrService();
             BigDecimal perBalance = perService.getPerBalance(run.getPoolId());
-            BigDecimal irrBalance = irrService.getIrrBalance(run.getPoolId());
+                irrService.getIrrBalance(run.getPoolId());
             com.cbs.gl.islamic.entity.PerPolicy perPolicy = perService.getActivePolicies().stream()
                     .filter(p -> p.getInvestmentPoolId().equals(run.getPoolId()))
                     .findFirst().orElse(null);
@@ -968,10 +1001,6 @@ public class ProfitDistributionRunService {
 
     private int defaultInt(Integer value) {
         return value != null ? value : 0;
-    }
-
-    private String nonBlank(String value, String fallback) {
-        return StringUtils.hasText(value) ? value : fallback;
     }
 
     private static final BigDecimal ZERO = BigDecimal.ZERO;

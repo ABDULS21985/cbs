@@ -10,6 +10,7 @@ import com.cbs.ijarah.entity.IjarahContract;
 import com.cbs.ijarah.entity.IjarahDomainEnums;
 import com.cbs.ijarah.entity.IjarahGradualTransferUnit;
 import com.cbs.ijarah.entity.IjarahTransferMechanism;
+import com.cbs.ijarah.repository.IjarahAssetRepository;
 import com.cbs.ijarah.repository.IjarahContractRepository;
 import com.cbs.ijarah.repository.IjarahGradualTransferUnitRepository;
 import com.cbs.ijarah.repository.IjarahRentalInstallmentRepository;
@@ -31,12 +32,13 @@ import java.util.concurrent.atomic.AtomicLong;
 @Transactional
 public class IjarahTransferService {
 
-    private static final AtomicLong TRANSFER_SEQUENCE = new AtomicLong(System.currentTimeMillis() % 100000);
+    private static final AtomicLong TRANSFER_SEQUENCE = new AtomicLong(System.nanoTime());
 
     private final IjarahTransferMechanismRepository transferRepository;
     private final IjarahGradualTransferUnitRepository unitRepository;
     private final IjarahContractRepository contractRepository;
     private final IjarahRentalInstallmentRepository installmentRepository;
+    private final IjarahAssetRepository ijarahAssetRepository;
     private final IjarahAssetService assetService;
     private final IslamicPostingRuleService postingRuleService;
     private final PoolAssetManagementService poolAssetManagementService;
@@ -163,6 +165,7 @@ public class IjarahTransferService {
         asset.setDisposalMethod(IjarahDomainEnums.DisposalMethod.GIFTED_IMB);
         asset.setDisposalProceeds(proceeds);
         asset.setDisposalJournalRef(journal.getJournalNumber());
+        ijarahAssetRepository.save(asset);
 
         contract.setImbTransferCompleted(true);
         contract.setImbTransferDate(LocalDate.now());
@@ -224,6 +227,7 @@ public class IjarahTransferService {
             contract.setStatus(IjarahDomainEnums.ContractStatus.TRANSFERRED_TO_CUSTOMER);
             // Update asset status when all units are transferred
             asset.setStatus(IjarahDomainEnums.AssetStatus.TRANSFERRED_TO_CUSTOMER);
+            ijarahAssetRepository.save(asset);
             // Unassign from investment pool on gradual transfer completion
             if (contract.getPoolAssetAssignmentId() != null) {
                 poolAssetManagementService.unassignAssetFromPool(contract.getPoolAssetAssignmentId(), "IJARAH_GRADUAL_TRANSFER_COMPLETE");
@@ -259,6 +263,10 @@ public class IjarahTransferService {
     public IjarahTransferMechanism getTransferMechanism(Long transferId) {
         return transferRepository.findById(transferId)
                 .orElseThrow(() -> new ResourceNotFoundException("IjarahTransferMechanism", "id", transferId));
+    }
+
+    public IjarahTransferMechanism saveTransferMechanism(IjarahTransferMechanism mechanism) {
+        return transferRepository.save(mechanism);
     }
 
     @Transactional(readOnly = true)

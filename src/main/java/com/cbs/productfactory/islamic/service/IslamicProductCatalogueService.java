@@ -1,17 +1,23 @@
 package com.cbs.productfactory.islamic.service;
 
+import com.cbs.common.exception.BusinessException;
+import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.customer.entity.Customer;
+import com.cbs.customer.repository.CustomerRepository;
 import com.cbs.productfactory.islamic.dto.IslamicProductCatalogueEntry;
 import com.cbs.productfactory.islamic.dto.IslamicProductCatalogueSummary;
 import com.cbs.productfactory.islamic.entity.IslamicDomainEnums;
 import com.cbs.productfactory.islamic.entity.IslamicProductTemplate;
 import com.cbs.productfactory.islamic.repository.IslamicProductTemplateRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.*;
 
 @Service
@@ -21,6 +27,7 @@ public class IslamicProductCatalogueService {
 
     private final IslamicProductTemplateRepository productRepository;
     private final IslamicProductService islamicProductService;
+        private final CustomerRepository customerRepository;
 
     public Page<IslamicProductCatalogueEntry> getCatalogue(
             String category,
@@ -35,24 +42,16 @@ public class IslamicProductCatalogueService {
             boolean includeInactive,
             Pageable pageable
     ) {
-        List<IslamicProductCatalogueEntry> filtered = productRepository.findAll().stream()
-                .filter(product -> includeInactive || product.getStatus() == IslamicDomainEnums.IslamicProductStatus.ACTIVE)
+        List<IslamicProductCatalogueEntry> filtered = productRepository
+                .findAll(buildCatalogueSpecification(category, contractType, complianceStatus, search, includeInactive), resolveSort(pageable))
+                .stream()
                 .map(islamicProductService::toCatalogueEntry)
-                .filter(entry -> !StringUtils.hasText(category) || entry.getCategory().name().equalsIgnoreCase(category))
-                .filter(entry -> !StringUtils.hasText(contractType) || entry.getContractTypeCode().equalsIgnoreCase(contractType))
-                .filter(entry -> !StringUtils.hasText(complianceStatus) || entry.getComplianceStatus().name().equalsIgnoreCase(complianceStatus))
                 .filter(entry -> !StringUtils.hasText(country) || entry.getEligibleCountries().isEmpty()
                         || entry.getEligibleCountries().stream().anyMatch(code -> code.equalsIgnoreCase(country)))
                 .filter(entry -> !StringUtils.hasText(currency) || entry.getCurrencies().stream().anyMatch(code -> code.equalsIgnoreCase(currency)))
                 .filter(entry -> !StringUtils.hasText(customerType) || entry.getEligibleCustomerTypes().stream().anyMatch(type -> type.equalsIgnoreCase(customerType)))
                 .filter(entry -> minAmount == null || parseMinAmount(entry.getAmountRange()).compareTo(minAmount) >= 0)
-                .filter(entry -> maxAmount == null || parseMinAmount(entry.getAmountRange()).compareTo(maxAmount) <= 0)
-                .filter(entry -> !StringUtils.hasText(search)
-                        || containsIgnoreCase(entry.getProductCode(), search)
-                        || containsIgnoreCase(entry.getName(), search)
-                        || containsIgnoreCase(entry.getDescription(), search)
-                        || containsIgnoreCase(entry.getContractTypeName(), search))
-                .sorted(Comparator.comparing(IslamicProductCatalogueEntry::getProductCode))
+                .filter(entry -> maxAmount == null || parseMaxAmount(entry.getAmountRange()).compareTo(maxAmount) <= 0)
                 .toList();
 
         int start = (int) pageable.getOffset();
@@ -63,7 +62,7 @@ public class IslamicProductCatalogueService {
 
     public IslamicProductCatalogueEntry getProductDetail(String productCode) {
         IslamicProductTemplate product = productRepository.findByProductCodeIgnoreCase(productCode)
-                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("IslamicProductTemplate", "productCode", productCode));
+                                .orElseThrow(() -> new ResourceNotFoundException("IslamicProductTemplate", "productCode", productCode));
         return islamicProductService.toCatalogueEntry(product);
     }
 
@@ -103,30 +102,155 @@ public class IslamicProductCatalogueService {
     }
 
     public List<IslamicProductCatalogueEntry> compareProducts(List<String> productCodes) {
-        return productCodes.stream()
-                .limit(5)
-                .map(this::getProductDetail)
-                .toList();
+                List<String> requestedCodes = normalizeRequestedCodes(productCodes);
+                if (requestedCodes.isEmpty()) {
+                        return List.of();
+                }
+
+                List<IslamicProductTemplate> products = productRepository.findAll(byProductCodes(requestedCodes), Sort.by(Sort.Direction.ASC, "productCode"));
+                Map<String, IslamicProductCatalogueEntry> entriesByCode = new LinkedHashMap<>();
+                for (IslamicProductTemplate product : products) {
+                        entriesByCode.put(product.getProductCode().toLowerCase(Locale.ROOT), islamicProductService.toCatalogueEntry(product));
+                }
+
+                List<String> missingCodes = requestedCodes.stream()
+                                .filter(code -> !entriesByCode.containsKey(code))
+                                .toList();
+                if (!missingCodes.isEmpty()) {
+                        throw new BusinessException("Products not found for comparison: " + String.join(", ", missingCodes), "PRODUCT_COMPARE_NOT_FOUND");
+                }
+
+                return requestedCodes.stream()
+                                .map(entriesByCode::get)
+                                .toList();
     }
 
     public List<IslamicProductCatalogueEntry> getRecommendedProducts(Long customerId) {
-        return getAvailableProducts(customerId).stream()
-                .sorted(Comparator.comparing(IslamicProductCatalogueEntry::getComplianceStatus)
-                        .thenComparing(IslamicProductCatalogueEntry::getProductCode))
+                Customer customer = customerRepository.findById(customerId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", customerId));
+
+                return getAvailableProducts(customerId).stream()
+                                .sorted(Comparator
+                                                .comparingInt((IslamicProductCatalogueEntry entry) -> recommendationScore(entry, customer))
+                                                .reversed()
+                                                .thenComparing(IslamicProductCatalogueEntry::isAvailableForNewContracts, Comparator.reverseOrder())
+                                                .thenComparing(IslamicProductCatalogueEntry::getProductCode))
                 .limit(10)
                 .toList();
     }
 
-    private boolean containsIgnoreCase(String value, String search) {
-        return StringUtils.hasText(value) && value.toLowerCase(Locale.ROOT).contains(search.toLowerCase(Locale.ROOT));
-    }
+        private Specification<IslamicProductTemplate> buildCatalogueSpecification(
+                        String category,
+                        String contractType,
+                        String complianceStatus,
+                        String search,
+                        boolean includeInactive
+        ) {
+                return (root, query, cb) -> {
+                        List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+                        LocalDate today = LocalDate.now();
+                        if (!includeInactive) {
+                                predicates.add(cb.equal(root.get("status"), IslamicDomainEnums.IslamicProductStatus.ACTIVE));
+                                predicates.add(cb.lessThanOrEqualTo(root.get("effectiveFrom"), today));
+                                predicates.add(cb.or(cb.isNull(root.get("effectiveTo")), cb.greaterThanOrEqualTo(root.get("effectiveTo"), today)));
+                        }
+                        if (StringUtils.hasText(category)) {
+                                predicates.add(cb.equal(cb.upper(root.get("productCategory").as(String.class)), category.trim().toUpperCase(Locale.ROOT)));
+                        }
+                        if (StringUtils.hasText(contractType)) {
+                                predicates.add(cb.equal(cb.upper(root.get("contractType").get("code")), contractType.trim().toUpperCase(Locale.ROOT)));
+                        }
+                        if (StringUtils.hasText(complianceStatus)) {
+                                predicates.add(cb.equal(cb.upper(root.get("shariahComplianceStatus").as(String.class)), complianceStatus.trim().toUpperCase(Locale.ROOT)));
+                        }
+                        if (StringUtils.hasText(search)) {
+                                String like = "%" + search.trim().toLowerCase(Locale.ROOT) + "%";
+                                predicates.add(cb.or(
+                                                cb.like(cb.lower(root.get("productCode")), like),
+                                                cb.like(cb.lower(root.get("name")), like),
+                                                cb.like(cb.lower(root.get("description")), like),
+                                                cb.like(cb.lower(root.get("subCategory")), like),
+                                                cb.like(cb.lower(root.get("contractType").get("code")), like),
+                                                cb.like(cb.lower(root.get("contractType").get("name")), like)
+                                ));
+                        }
+                        return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+                };
+        }
+
+        private Sort resolveSort(Pageable pageable) {
+                return pageable.getSort().isSorted() ? pageable.getSort() : Sort.by(Sort.Direction.ASC, "productCode");
+        }
+
+        private Specification<IslamicProductTemplate> byProductCodes(List<String> productCodes) {
+                return (root, query, cb) -> cb.lower(root.get("productCode")).in(productCodes);
+        }
+
+        private List<String> normalizeRequestedCodes(List<String> productCodes) {
+                if (productCodes == null) {
+                        return List.of();
+                }
+                return productCodes.stream()
+                                .filter(StringUtils::hasText)
+                                .map(code -> code.trim().toLowerCase(Locale.ROOT))
+                                .distinct()
+                                .limit(5)
+                                .toList();
+        }
+
+        private int recommendationScore(IslamicProductCatalogueEntry entry, Customer customer) {
+                int score = 0;
+                if (entry.isAvailableForNewContracts()) {
+                        score += 35;
+                }
+                if (entry.getComplianceStatus() == IslamicDomainEnums.ShariahComplianceStatus.COMPLIANT) {
+                        score += 25;
+                } else if (entry.getComplianceStatus() == IslamicDomainEnums.ShariahComplianceStatus.FATWA_ISSUED) {
+                        score += 18;
+                }
+                if (entry.isHasActiveFatwa()) {
+                        score += 15;
+                }
+                if (customer.getCustomerType() != null && entry.getEligibleCustomerTypes() != null) {
+                        String customerType = customer.getCustomerType().name();
+                        if (entry.getEligibleCustomerTypes().stream().anyMatch(type -> type.equalsIgnoreCase(customerType))) {
+                                score += 10;
+                                if (entry.getEligibleCustomerTypes().size() == 1) {
+                                        score += 4;
+                                }
+                        }
+                }
+                if (StringUtils.hasText(customer.getCountryOfResidence()) && entry.getEligibleCountries() != null
+                                && entry.getEligibleCountries().stream().anyMatch(country -> country.equalsIgnoreCase(customer.getCountryOfResidence()))) {
+                        score += 6;
+                        if (entry.getEligibleCountries().size() == 1) {
+                                score += 2;
+                        }
+                }
+                if (entry.getNextShariahReview() == null || !entry.getNextShariahReview().isBefore(LocalDate.now())) {
+                        score += 5;
+                }
+                return score;
+        }
 
     private BigDecimal parseMinAmount(String amountRange) {
         if (!StringUtils.hasText(amountRange)) {
             return BigDecimal.ZERO;
         }
-        String sanitized = amountRange.replaceAll("[^0-9. -]", "").trim();
-        String first = sanitized.split("-")[0].trim();
+                String first = sanitizedAmountRange(amountRange).split("-")[0].trim();
         return first.isBlank() ? BigDecimal.ZERO : new BigDecimal(first);
     }
+
+        private BigDecimal parseMaxAmount(String amountRange) {
+                if (!StringUtils.hasText(amountRange)) {
+                        return BigDecimal.valueOf(Long.MAX_VALUE);
+                }
+                String[] parts = sanitizedAmountRange(amountRange).split("-");
+                String last = parts[parts.length - 1].trim();
+                return last.isBlank() ? BigDecimal.valueOf(Long.MAX_VALUE) : new BigDecimal(last);
+        }
+
+        private String sanitizedAmountRange(String amountRange) {
+                return amountRange.replaceAll("[^0-9. -]", "").trim();
+        }
 }
