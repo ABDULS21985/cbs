@@ -3,12 +3,18 @@ package com.cbs.mudarabah.service;
 import com.cbs.account.entity.Account;
 import com.cbs.account.entity.AccountStatus;
 import com.cbs.account.entity.AccountType;
+import com.cbs.account.entity.Product;
 import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.entity.TransactionJournal;
 import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.repository.ProductRepository;
 import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
+import com.cbs.customer.entity.Customer;
+import com.cbs.customer.entity.CustomerStatus;
+import com.cbs.customer.repository.CustomerRepository;
 import com.cbs.mudarabah.dto.MudarabahDepositRequest;
 import com.cbs.mudarabah.dto.MudarabahWithdrawalRequest;
 import com.cbs.mudarabah.dto.OpenMudarabahSavingsRequest;
@@ -41,12 +47,17 @@ class MudarabahAccountServiceTest {
 
     @Mock private MudarabahAccountRepository mudarabahAccountRepository;
     @Mock private AccountRepository accountRepository;
+        @Mock private ProductRepository productRepository;
     @Mock private AccountPostingService accountPostingService;
     @Mock private DecisionTableEvaluator decisionTableEvaluator;
+        @Mock private CustomerRepository customerRepository;
+        @Mock private CurrentActorProvider actorProvider;
 
     @InjectMocks private MudarabahAccountService service;
 
     private Account baseAccount;
+        private Customer customer;
+        private Product product;
 
     @BeforeEach
     void setUp() {
@@ -64,6 +75,20 @@ class MudarabahAccountServiceTest {
                 .openedDate(LocalDate.now())
                 .activatedDate(LocalDate.now())
                 .build();
+
+        customer = Customer.builder()
+                .id(100L)
+                .status(CustomerStatus.ACTIVE)
+                .build();
+
+        product = Product.builder()
+                .id(200L)
+                .code("MDR-SAV")
+                .build();
+
+        when(customerRepository.findById(anyLong())).thenReturn(Optional.of(customer));
+        when(productRepository.findByCode(anyString())).thenReturn(Optional.of(product));
+        when(actorProvider.getCurrentActor()).thenReturn("test-user");
     }
 
     private OpenMudarabahSavingsRequest validRequest() {
@@ -128,7 +153,7 @@ class MudarabahAccountServiceTest {
                 eq(baseAccount), eq(TransactionType.CREDIT),
                 eq(new BigDecimal("5000.00")),
                 anyString(), eq(TransactionChannel.SYSTEM),
-                anyString(), eq("1001-000-001"), eq("MUDARABAH"), anyString());
+                anyString(), eq("1100-000-001"), eq("MUDARABAH"), anyString());
 
         // Verify MudarabahAccount was saved with correct PSR
         ArgumentCaptor<MudarabahAccount> maCaptor = ArgumentCaptor.forClass(MudarabahAccount.class);
@@ -207,7 +232,7 @@ class MudarabahAccountServiceTest {
                 eq(activeAccount), eq(TransactionType.CREDIT),
                 eq(new BigDecimal("2000.00")),
                 eq("Monthly deposit"), eq(TransactionChannel.SYSTEM),
-                isNull(), eq("1001-000-001"), eq("MUDARABAH"),
+                isNull(), eq("1100-000-001"), eq("MUDARABAH"),
                 eq("MDR-SAV-2026-000001"));
     }
 
@@ -250,7 +275,7 @@ class MudarabahAccountServiceTest {
                 eq(activeAccount), eq(TransactionType.DEBIT),
                 eq(new BigDecimal("3000.00")),
                 eq("Withdrawal"), eq(TransactionChannel.SYSTEM),
-                isNull(), eq("1001-000-001"), eq("MUDARABAH"),
+                isNull(), eq("1100-000-001"), eq("MUDARABAH"),
                 eq("MDR-SAV-2026-000001"));
     }
 

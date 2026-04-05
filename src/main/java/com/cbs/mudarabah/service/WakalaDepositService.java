@@ -45,7 +45,7 @@ public class WakalaDepositService {
     private final CustomerRepository customerRepository;
 
     private static final String WAKALA_INVESTMENT_GL = "3200-WKL-001";
-    private static final String CASH_GL = "1001-000-001";
+    private static final String CASH_GL = "1100-000-001";
     private static final String WAKALA_FEE_INCOME_GL = "4200-WKL-001";
     private static final String WAKALA_CUSTOMER_PROFIT_GL = "4100-WKL-002";
     private static final BigDecimal MINIMUM_WAKALA_DEPOSIT = new BigDecimal("1000");

@@ -135,7 +135,7 @@ class WakalaDepositServiceTest {
                 eq(baseAccount), eq(TransactionType.CREDIT),
                 eq(new BigDecimal("100000.00")),
                 anyString(), eq(TransactionChannel.SYSTEM),
-                anyString(), eq("1001-000-001"), eq("WAKALA"), anyString());
+                anyString(), eq("1100-000-001"), eq("WAKALA"), anyString());
 
         // Verify Wakala entity saved with correct fee rate
         ArgumentCaptor<WakalaDepositAccount> captor = ArgumentCaptor.forClass(WakalaDepositAccount.class);

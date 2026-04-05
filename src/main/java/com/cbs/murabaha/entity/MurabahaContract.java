@@ -9,7 +9,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -251,9 +250,6 @@ public class MurabahaContract extends AuditableEntity {
 
     @Column(name = "last_profit_recognition_date")
     private LocalDate lastProfitRecognitionDate;
-
-    @Version
-    private Long version;
 
     @Column(name = "tenant_id")
     private Long tenantId;

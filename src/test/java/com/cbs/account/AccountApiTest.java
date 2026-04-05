@@ -1,15 +1,16 @@
 package com.cbs.account;
 
 import com.cbs.AbstractIntegrationTest;
-import com.cbs.TestDataFactory;
 import com.cbs.TestSecurityConfig;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.ClassOrderer;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestClassOrder;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.TestRestTemplate;
@@ -27,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @Import(TestSecurityConfig.class)
 @TestMethodOrder(OrderAnnotation.class)
+@TestClassOrder(ClassOrderer.OrderAnnotation.class)
 class AccountApiTest extends AbstractIntegrationTest {
 
     @Autowired
@@ -80,6 +82,7 @@ class AccountApiTest extends AbstractIntegrationTest {
     // ========================================================================
 
     @Nested
+    @Order(0)
     @DisplayName("0 - Setup: Create test customers")
     @TestMethodOrder(OrderAnnotation.class)
     class SetupTests {
@@ -138,6 +141,7 @@ class AccountApiTest extends AbstractIntegrationTest {
     // ========================================================================
 
     @Nested
+    @Order(1)
     @DisplayName("1 - Account Opening (POST /v1/accounts)")
     @TestMethodOrder(OrderAnnotation.class)
     class AccountOpeningTests {
@@ -253,6 +257,7 @@ class AccountApiTest extends AbstractIntegrationTest {
     // ========================================================================
 
     @Nested
+    @Order(2)
     @DisplayName("2 - Get Account (GET /v1/accounts/{accountNumber})")
     @TestMethodOrder(OrderAnnotation.class)
     class GetAccountTests {
@@ -292,6 +297,7 @@ class AccountApiTest extends AbstractIntegrationTest {
     // ========================================================================
 
     @Nested
+    @Order(3)
     @DisplayName("3 - List / Search Accounts (GET /v1/accounts)")
     @TestMethodOrder(OrderAnnotation.class)
     class SearchAccountTests {
@@ -343,6 +349,7 @@ class AccountApiTest extends AbstractIntegrationTest {
     // ========================================================================
 
     @Nested
+    @Order(4)
     @DisplayName("4 - Change Account Status (PATCH /v1/accounts/{accountNumber}/status)")
     @TestMethodOrder(OrderAnnotation.class)
     class ChangeStatusTests {
@@ -404,6 +411,7 @@ class AccountApiTest extends AbstractIntegrationTest {
     // ========================================================================
 
     @Nested
+    @Order(5)
     @DisplayName("5 - Signatories (POST /v1/accounts/{accountNumber}/signatories)")
     @TestMethodOrder(OrderAnnotation.class)
     class SignatoryTests {
@@ -420,7 +428,7 @@ class AccountApiTest extends AbstractIntegrationTest {
                     String.format("""
                             {
                                 "customerId": %d,
-                                "role": "JOINT_HOLDER"
+                                "role": "JOINT"
                             }
                             """, secondCustomerId));
 
@@ -449,6 +457,7 @@ class AccountApiTest extends AbstractIntegrationTest {
     // ========================================================================
 
     @Nested
+    @Order(6)
     @DisplayName("6 - Transaction Limits (PATCH /v1/accounts/{accountNumber}/limits)")
     @TestMethodOrder(OrderAnnotation.class)
     class LimitTests {
@@ -494,6 +503,7 @@ class AccountApiTest extends AbstractIntegrationTest {
     // ========================================================================
 
     @Nested
+    @Order(7)
     @DisplayName("7 - Holds (POST /v1/accounts/{accountNumber}/holds)")
     @TestMethodOrder(OrderAnnotation.class)
     class HoldTests {
@@ -571,6 +581,7 @@ class AccountApiTest extends AbstractIntegrationTest {
     // ========================================================================
 
     @Nested
+    @Order(8)
     @DisplayName("8 - Transactions (POST /v1/accounts/transactions/debit and credit)")
     @TestMethodOrder(OrderAnnotation.class)
     class TransactionTests {
@@ -587,7 +598,8 @@ class AccountApiTest extends AbstractIntegrationTest {
                         "transactionType": "CREDIT",
                         "amount": 25000.00,
                         "narration": "Cash deposit at branch",
-                        "channel": "BRANCH"
+                        "channel": "BRANCH",
+                        "contraGlCode": "1100-000-001"
                     }
                     """, accountNumber));
 
@@ -611,7 +623,8 @@ class AccountApiTest extends AbstractIntegrationTest {
                         "transactionType": "DEBIT",
                         "amount": 5000.00,
                         "narration": "ATM withdrawal",
-                        "channel": "ATM"
+                        "channel": "ATM",
+                        "contraGlCode": "1100-000-001"
                     }
                     """, accountNumber));
 
@@ -632,7 +645,8 @@ class AccountApiTest extends AbstractIntegrationTest {
                         "transactionType": "DEBIT",
                         "amount": 99999999.00,
                         "narration": "Oversized withdrawal",
-                        "channel": "BRANCH"
+                        "channel": "BRANCH",
+                        "contraGlCode": "1100-000-001"
                     }
                     """, accountNumber));
 
@@ -675,6 +689,7 @@ class AccountApiTest extends AbstractIntegrationTest {
     // ========================================================================
 
     @Nested
+    @Order(9)
     @DisplayName("9 - Transfer (POST /v1/accounts/transactions/transfer)")
     @TestMethodOrder(OrderAnnotation.class)
     class TransferTests {
@@ -738,6 +753,7 @@ class AccountApiTest extends AbstractIntegrationTest {
     // ========================================================================
 
     @Nested
+    @Order(10)
     @DisplayName("10 - Interest Accrual (POST /v1/accounts/{id}/interest/accrue)")
     @TestMethodOrder(OrderAnnotation.class)
     class InterestTests {
@@ -778,6 +794,7 @@ class AccountApiTest extends AbstractIntegrationTest {
     // ========================================================================
 
     @Nested
+    @Order(11)
     @DisplayName("11 - Product Catalog (GET /v1/accounts/products)")
     @TestMethodOrder(OrderAnnotation.class)
     class ProductCatalogTests {
@@ -828,6 +845,7 @@ class AccountApiTest extends AbstractIntegrationTest {
     // ========================================================================
 
     @Nested
+    @Order(12)
     @DisplayName("12 - Account Summary (GET /v1/accounts/summary)")
     @TestMethodOrder(OrderAnnotation.class)
     class AccountSummaryTests {
@@ -871,6 +889,7 @@ class AccountApiTest extends AbstractIntegrationTest {
     // ========================================================================
 
     @Nested
+    @Order(13)
     @DisplayName("13 - Maintenance History (GET /v1/accounts/{accountNumber}/maintenance-history)")
     @TestMethodOrder(OrderAnnotation.class)
     class MaintenanceHistoryTests {
@@ -896,6 +915,7 @@ class AccountApiTest extends AbstractIntegrationTest {
     // ========================================================================
 
     @Nested
+    @Order(14)
     @DisplayName("14 - Linked Products (GET /v1/accounts/{accountNumber}/linked-products)")
     @TestMethodOrder(OrderAnnotation.class)
     class LinkedProductTests {

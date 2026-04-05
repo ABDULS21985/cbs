@@ -181,20 +181,22 @@ public class AccountController {
     @GetMapping("/{accountNumber}/holds")
     @Operation(summary = "Get holds on an account")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<com.cbs.account.entity.AccountHold>>> getHolds(
+    public ResponseEntity<ApiResponse<List<AccountHoldDto>>> getHolds(
             @PathVariable String accountNumber) {
-        return ResponseEntity.ok(ApiResponse.ok(accountService.getAccountHolds(accountNumber)));
+        return ResponseEntity.ok(ApiResponse.ok(accountService.getAccountHolds(accountNumber).stream()
+                .map(this::toHoldDto)
+                .toList()));
     }
 
     @PostMapping("/{accountNumber}/holds")
     @Operation(summary = "Place a hold/lien on an account")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<com.cbs.account.entity.AccountHold>> placeHold(
+    public ResponseEntity<ApiResponse<AccountHoldDto>> placeHold(
             @PathVariable String accountNumber,
             @Valid @RequestBody PlaceHoldRequest request) {
         com.cbs.account.entity.AccountHold hold = accountService.placeHold(accountNumber, request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok(hold, "Hold placed successfully"));
+                .body(ApiResponse.ok(toHoldDto(hold), "Hold placed successfully"));
     }
 
     @PostMapping("/{accountNumber}/holds/{holdId}/release")
@@ -374,5 +376,20 @@ public class AccountController {
     public ResponseEntity<ApiResponse<List<ProductDto>>> getProductsByCategory(
             @PathVariable ProductCategory category) {
         return ResponseEntity.ok(ApiResponse.ok(accountService.getProductsByCategory(category)));
+    }
+
+    private AccountHoldDto toHoldDto(com.cbs.account.entity.AccountHold hold) {
+        return AccountHoldDto.builder()
+                .id(hold.getId())
+                .reference(hold.getReference())
+                .amount(hold.getAmount())
+                .reason(hold.getReason())
+                .placedBy(hold.getPlacedBy())
+                .holdType(hold.getHoldType())
+                .status(hold.getStatus())
+                .releaseDate(hold.getReleaseDate())
+                .releasedBy(hold.getReleasedBy())
+                .releaseReason(hold.getReleaseReason())
+                .build();
     }
 }

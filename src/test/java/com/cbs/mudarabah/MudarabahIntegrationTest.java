@@ -31,6 +31,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Transactional
 class MudarabahIntegrationTest extends AbstractIntegrationTest {
 
+        private static final long PRIMARY_CUSTOMER_ID = 1L;
+        private static final long SECONDARY_CUSTOMER_ID = 2L;
+        private static final String BASE_PRODUCT_CODE = "SA-STD";
+
     @Autowired
     private MudarabahAccountService mudarabahAccountService;
 
@@ -60,8 +64,8 @@ class MudarabahIntegrationTest extends AbstractIntegrationTest {
     void openMudarabahSavingsAndDeposit_persistsAccountAndPostsGL() {
         // Open account with initial deposit
         OpenMudarabahSavingsRequest openRequest = OpenMudarabahSavingsRequest.builder()
-                .customerId(1L)
-                .productCode("MDR-SAVINGS-01")
+                .customerId(PRIMARY_CUSTOMER_ID)
+                .productCode(BASE_PRODUCT_CODE)
                 .currencyCode("SAR")
                 .initialDeposit(new BigDecimal("5000.00"))
                 .mudarabahType(MudarabahType.UNRESTRICTED)
@@ -126,8 +130,8 @@ class MudarabahIntegrationTest extends AbstractIntegrationTest {
     @Test
     void openWithInvalidPsr_sumNot100_throwsBusinessException() {
         OpenMudarabahSavingsRequest request = OpenMudarabahSavingsRequest.builder()
-                .customerId(2L)
-                .productCode("MDR-SAVINGS-01")
+                .customerId(SECONDARY_CUSTOMER_ID)
+                .productCode(BASE_PRODUCT_CODE)
                 .currencyCode("SAR")
                 .initialDeposit(new BigDecimal("1000.00"))
                 .mudarabahType(MudarabahType.UNRESTRICTED)
@@ -154,8 +158,8 @@ class MudarabahIntegrationTest extends AbstractIntegrationTest {
     @Test
     void openWithoutLossDisclosure_throwsBusinessException() {
         OpenMudarabahSavingsRequest request = OpenMudarabahSavingsRequest.builder()
-                .customerId(3L)
-                .productCode("MDR-SAVINGS-01")
+                .customerId(PRIMARY_CUSTOMER_ID)
+                .productCode(BASE_PRODUCT_CODE)
                 .currencyCode("SAR")
                 .initialDeposit(new BigDecimal("1000.00"))
                 .mudarabahType(MudarabahType.UNRESTRICTED)
@@ -178,8 +182,8 @@ class MudarabahIntegrationTest extends AbstractIntegrationTest {
     void psrChangeLifecycle_initiateConsentApproveApply_updatesAccount() {
         // First, open a Mudarabah savings account with default PSR 70:30
         OpenMudarabahSavingsRequest openRequest = OpenMudarabahSavingsRequest.builder()
-                .customerId(4L)
-                .productCode("MDR-SAVINGS-01")
+                .customerId(SECONDARY_CUSTOMER_ID)
+                .productCode(BASE_PRODUCT_CODE)
                 .currencyCode("SAR")
                 .initialDeposit(new BigDecimal("10000.00"))
                 .mudarabahType(MudarabahType.UNRESTRICTED)

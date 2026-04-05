@@ -3,14 +3,15 @@ package com.cbs.mudarabah.service;
 import com.cbs.account.entity.Account;
 import com.cbs.account.entity.AccountStatus;
 import com.cbs.account.entity.AccountType;
+import com.cbs.account.entity.Product;
 import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.repository.ProductRepository;
 import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.entity.Customer;
-import com.cbs.customer.entity.CustomerStatus;
 import com.cbs.customer.repository.CustomerRepository;
 import com.cbs.mudarabah.dto.MudarabahAccountResponse;
 import com.cbs.mudarabah.dto.MudarabahDepositRequest;
@@ -54,11 +55,12 @@ public class MudarabahAccountService {
     private final DecisionTableEvaluator decisionTableEvaluator;
     private final InvestmentPoolRepository investmentPoolRepository;
     private final CustomerRepository customerRepository;
+    private final ProductRepository productRepository;
     private final CurrentActorProvider actorProvider;
 
     // GL codes for Mudarabah
     private static final String MUDARABAH_INVESTMENT_GL = "3100-MDR-001";
-    private static final String CASH_GL = "1001-000-001";
+    private static final String CASH_GL = "1100-000-001";
 
     private final PoolWeightageService poolWeightageService;
 
@@ -102,11 +104,15 @@ public class MudarabahAccountService {
         // 5. Find or create base Account (assume customer already has an account or we create one)
         // For this implementation, we expect the customer to have a base account already created
         // We'll look up the customer's accounts or create a minimal account
+        Product product = productRepository.findByCode(request.getProductCode())
+            .orElseThrow(() -> new BusinessException("Product not found: " + request.getProductCode(), "PRODUCT_NOT_FOUND"));
+
         Account account = Account.builder()
                 .accountNumber(generateAccountNumber())
                 .accountName("Mudarabah Savings - " + request.getCustomerId())
                 .currencyCode(request.getCurrencyCode() != null ? request.getCurrencyCode() : "SAR")
                 .accountType(AccountType.INDIVIDUAL)
+            .product(product)
                 .status(AccountStatus.ACTIVE)
                 .bookBalance(BigDecimal.ZERO)
                 .availableBalance(BigDecimal.ZERO)
