@@ -144,7 +144,7 @@ public class InstantPaymentService {
     public void processDeferredScreening(Long paymentId) {
         InstantPaymentExtension extension = extensionRepository.findByPaymentId(paymentId)
                 .orElseThrow(() -> new BusinessException("Instant payment extension not found", "INSTANT_PAYMENT_NOT_FOUND"));
-    IslamicPaymentDomainEnums.InstantPaymentStatus priorStatus = extension.getStatus();
+        IslamicPaymentDomainEnums.InstantPaymentStatus priorStatus = extension.getStatus();
 
         if (extension.getDeferredScreeningResult() != IslamicPaymentDomainEnums.DeferredScreeningResult.PENDING) {
             log.info("Deferred screening already completed for payment {} with result {}",
@@ -154,7 +154,7 @@ public class InstantPaymentService {
 
         PaymentIslamicExtension islamicExtension = paymentIslamicExtensionRepository.findByPaymentId(paymentId)
                 .orElse(null);
-        PaymentInstruction payment = paymentInstructionRepository.findById(paymentId).orElse(null);
+        PaymentInstruction payment = paymentInstructionRepository.findByIdWithDetails(paymentId).orElse(null);
 
         IslamicPaymentDomainEnums.DeferredScreeningResult result;
         try {
@@ -167,7 +167,7 @@ public class InstantPaymentService {
 
             if (blocked) {
                 log.warn("Deferred screening FAILED for payment {} — action: {}",
-                paymentId, recommendedAction);
+                        paymentId, recommendedAction);
             }
         } catch (Exception e) {
             log.error("Deferred screening error for payment {} — failing closed: {}", paymentId, e.getMessage());
