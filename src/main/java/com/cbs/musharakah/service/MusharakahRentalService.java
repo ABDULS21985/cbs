@@ -141,7 +141,8 @@ public class MusharakahRentalService {
         }
 
         refreshPastDueStatuses(contract);
-        List<MusharakahRentalInstallment> unpaid = installmentRepository.findByContractIdAndStatusInOrderByInstallmentNumberAsc(
+        // Use optimistic locking to prevent concurrent payment processing on the same installments
+        List<MusharakahRentalInstallment> unpaid = installmentRepository.findUnpaidWithLock(
                 contractId,
                 List.of(
                         MusharakahDomainEnums.InstallmentStatus.OVERDUE,
@@ -292,6 +293,17 @@ public class MusharakahRentalService {
         if (contract.getNextRentalReviewDate() != null && !contract.getNextRentalReviewDate().equals(effectiveDate)) {
             throw new BusinessException("Rental review can only be applied on the pre-agreed review date", "SHARIAH-MSH-004");
         }
+        BigDecimal maxAllowedRate = MusharakahSupport.rate(contract.getBaseRentalRate())
+                .multiply(new BigDecimal("1.50"));
+        BigDecimal minAllowedRate = MusharakahSupport.rate(contract.getBaseRentalRate())
+                .multiply(new BigDecimal("0.50"));
+        BigDecimal proposedRate = MusharakahSupport.rate(newRate);
+        if (proposedRate.compareTo(maxAllowedRate) > 0 || proposedRate.compareTo(minAllowedRate) < 0) {
+            throw new BusinessException(
+                    "SHARIAH-MSH-005: Rental rate adjustment exceeds permitted bounds (50%-150% of current rate). Current: "
+                            + contract.getBaseRentalRate().toPlainString() + "%, proposed: " + newRate.toPlainString() + "%",
+                    "SHARIAH-MSH-005");
+        }
         contract.setBaseRentalRate(MusharakahSupport.rate(newRate));
         contract.setNextRentalReviewDate(contract.getRentalReviewFrequency() == MusharakahDomainEnums.RentalReviewFrequency.ANNUAL
                 ? effectiveDate.plusYears(1)
@@ -311,16 +323,20 @@ public class MusharakahRentalService {
                 installment.setStatus(MusharakahDomainEnums.InstallmentStatus.OVERDUE);
                 installment.setDaysOverdue((int) overdue);
                 if (MusharakahSupport.money(installment.getLatePenaltyAmount()).compareTo(BigDecimal.ZERO) == 0) {
-                    latePenaltyService.processLatePenalty(IslamicFeeResponses.LatePenaltyRequest.builder()
-                            .contractId(contract.getId())
-                            .contractRef(contract.getContractRef())
-                            .contractTypeCode("MUSHARAKAH")
-                            .installmentId(installment.getId())
-                            .overdueAmount(MusharakahSupport.money(
-                                    installment.getRentalAmount().subtract(MusharakahSupport.money(installment.getPaidAmount()))))
-                            .daysOverdue((int) overdue)
-                            .penaltyDate(LocalDate.now())
-                            .build());
+                    IslamicFeeResponses.LatePenaltyResult penaltyResult = latePenaltyService.processLatePenalty(
+                            IslamicFeeResponses.LatePenaltyRequest.builder()
+                                    .contractId(contract.getId())
+                                    .contractRef(contract.getContractRef())
+                                    .contractTypeCode("MUSHARAKAH")
+                                    .installmentId(installment.getId())
+                                    .overdueAmount(MusharakahSupport.money(
+                                            installment.getRentalAmount().subtract(MusharakahSupport.money(installment.getPaidAmount()))))
+                                    .daysOverdue((int) overdue)
+                                    .penaltyDate(LocalDate.now())
+                                    .build());
+                    if (penaltyResult.isPenaltyCharged() && penaltyResult.getPenaltyAmount() != null) {
+                        installment.setLatePenaltyAmount(MusharakahSupport.money(penaltyResult.getPenaltyAmount()));
+                    }
                 }
             } else if (installment.getStatus() == MusharakahDomainEnums.InstallmentStatus.SCHEDULED) {
                 installment.setStatus(MusharakahDomainEnums.InstallmentStatus.DUE);

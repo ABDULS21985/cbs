@@ -492,6 +492,11 @@ public class MudarabahTermDepositService {
         if (td.getStatus() != MudarabahTDStatus.ACTIVE) {
             throw new BusinessException("Can only place lien on active term deposits", "TD_NOT_ACTIVE");
         }
+        // Validate lien amount does not exceed principal
+        if (lienAmount.compareTo(td.getPrincipalAmount()) > 0) {
+            throw new BusinessException("Lien amount " + lienAmount
+                    + " exceeds principal amount " + td.getPrincipalAmount(), "LIEN_EXCEEDS_PRINCIPAL");
+        }
         td.setHasLien(true);
         td.setLienReference(financingReference);
         td.setLienAmount(lienAmount);
@@ -590,8 +595,23 @@ public class MudarabahTermDepositService {
     }
 
     private BigDecimal calculateEstimatedMaturity(BigDecimal principalAmount, int tenorDays) {
-        // Calculate estimated maturity amount based on indicative pool rate
-        BigDecimal indicativeRate = new BigDecimal("0.05"); // 5% indicative annual rate
+        return calculateEstimatedMaturity(principalAmount, tenorDays, null);
+    }
+
+    private BigDecimal calculateEstimatedMaturity(BigDecimal principalAmount, int tenorDays, Long poolId) {
+        // Try to use the pool's actual indicative rate instead of a hardcoded value
+        BigDecimal indicativeRate = new BigDecimal("0.05"); // fallback 5% indicative annual rate
+        if (poolId != null) {
+            try {
+                var poolOpt = investmentPoolRepository.findById(poolId);
+                if (poolOpt.isPresent() && poolOpt.get().getIndicativeRate() != null) {
+                    indicativeRate = poolOpt.get().getIndicativeRate()
+                            .divide(new BigDecimal("100"), 6, RoundingMode.HALF_UP);
+                }
+            } catch (Exception e) {
+                log.warn("Could not retrieve pool indicative rate for pool {}, using default", poolId);
+            }
+        }
         BigDecimal estimatedProfit = principalAmount
                 .multiply(indicativeRate)
                 .multiply(BigDecimal.valueOf(tenorDays))
@@ -642,6 +662,12 @@ public class MudarabahTermDepositService {
                 .originalDepositRef(td.getOriginalDepositRef())
                 .earlyWithdrawalAllowed(td.isEarlyWithdrawalAllowed())
                 .earlyWithdrawalPenaltyType(td.getEarlyWithdrawalPenaltyType() != null ? td.getEarlyWithdrawalPenaltyType().name() : null)
+                .earlyWithdrawalReducedPsr(td.getEarlyWithdrawalReducedPsr())
+                .earlyWithdrawalReason(td.getEarlyWithdrawalReason())
+                .earlyWithdrawnAt(td.getEarlyWithdrawnAt())
+                .renewalPsrCustomer(td.getRenewalPsrCustomer())
+                .renewalPsrBank(td.getRenewalPsrBank())
+                .renewalTenorDays(td.getRenewalTenorDays())
                 .status(td.getStatus().name())
                 .maturedAt(td.getMaturedAt())
                 .hasLien(td.isHasLien())

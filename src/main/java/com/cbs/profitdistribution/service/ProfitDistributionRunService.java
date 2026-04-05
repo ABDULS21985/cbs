@@ -383,10 +383,13 @@ public class ProfitDistributionRunService {
         ProfitDistributionRunResponse calculated = executeCalculation(initiated.getId());
         ProfitDistributionRunResponse current = calculated;
         if (autoApprove) {
-            current = approveCalculation(current.getId(), nonBlank(actorProvider.getCurrentActor() + "_APPROVER", "AUTO_CALC_APPROVER"));
+            log.warn("AUDIT: Auto-approve enabled for full distribution run on pool {}. "
+                    + "This bypasses human four-eyes approval and should not be used in production.", poolId);
+            String systemApprover = "SYSTEM_AUTO_APPROVE";
+            current = approveCalculation(current.getId(), systemApprover);
             current = applyReserves(current.getId());
             current = executeAllocation(current.getId());
-            current = approveAllocation(current.getId(), nonBlank(actorProvider.getCurrentActor() + "_ALLOC_APPROVER", "AUTO_ALLOC_APPROVER"));
+            current = approveAllocation(current.getId(), systemApprover);
             current = executeDistribution(current.getId());
         }
         return current;
@@ -509,6 +512,38 @@ public class ProfitDistributionRunService {
         boolean lossAllocatedToCapitalProviders = !run.isLoss() || allocations.stream()
                 .allMatch(allocation -> allocation.getBankProfitShare().compareTo(ZERO) == 0);
 
+        // Validate PER and IRR balances are within their policy-configured limits
+        boolean reservesWithinApprovedLimits = true;
+        try {
+            com.cbs.gl.islamic.service.PerService perService = reserveService.getPerService();
+            com.cbs.gl.islamic.service.IrrService irrService = reserveService.getIrrService();
+            BigDecimal perBalance = perService.getPerBalance(run.getPoolId());
+            BigDecimal irrBalance = irrService.getIrrBalance(run.getPoolId());
+            com.cbs.gl.islamic.entity.PerPolicy perPolicy = perService.getActivePolicies().stream()
+                    .filter(p -> p.getInvestmentPoolId().equals(run.getPoolId()))
+                    .findFirst().orElse(null);
+            if (perPolicy != null && perPolicy.getMaximumReserveBalance() != null
+                    && perBalance.compareTo(perPolicy.getMaximumReserveBalance()) > 0) {
+                reservesWithinApprovedLimits = false;
+                complianceNotes.add("PER balance " + perBalance + " exceeds policy maximum " + perPolicy.getMaximumReserveBalance());
+            }
+        } catch (Exception e) {
+            log.warn("Unable to validate reserve limits for pool {}: {}", run.getPoolId(), e.getMessage());
+            reservesWithinApprovedLimits = false;
+            complianceNotes.add("Reserve limit validation failed: " + e.getMessage());
+        }
+
+        // Verify no fixed return is guaranteed by checking pool configuration
+        InvestmentPool certPool = poolRepo.findById(run.getPoolId()).orElse(null);
+        boolean noFixedReturnGuaranteed = certPool == null
+                || (certPool.getProfitSharingRatioBank() != null
+                    && certPool.getProfitSharingRatioInvestors() != null
+                    && certPool.getProfitSharingRatioBank().add(certPool.getProfitSharingRatioInvestors())
+                        .subtract(new BigDecimal("100")).abs().compareTo(new BigDecimal("0.01")) <= 0);
+        if (!noFixedReturnGuaranteed) {
+            complianceNotes.add("Pool PSR configuration may imply fixed return guarantee");
+        }
+
         return SsbCertificationPackage.builder()
                 .runRef(run.getRunRef())
                 .poolCode(run.getPoolCode())
@@ -542,11 +577,11 @@ public class ProfitDistributionRunService {
                 .minRate(run.getMinimumRate())
                 .maxRate(run.getMaximumRate())
                 .psrAppliedAsContracted(allocations.stream().allMatch(allocation -> allocation.getCustomerPsr() != null))
-                .noFixedReturnGuaranteed(true)
+                .noFixedReturnGuaranteed(noFixedReturnGuaranteed)
                 .lossAllocatedToCapitalProviders(lossAllocatedToCapitalProviders)
                 .charityIncomeExcludedFromPool(defaultAmount(run.getCharityIncomeExcluded()).compareTo(ZERO) >= 0)
                 .poolGenuinelySegregated(segregation.isSegregated())
-                .reservesWithinApprovedLimits(true)
+                .reservesWithinApprovedLimits(reservesWithinApprovedLimits)
                 .complianceNotes(complianceNotes)
                 .build();
     }

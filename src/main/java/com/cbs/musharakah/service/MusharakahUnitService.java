@@ -79,7 +79,8 @@ public class MusharakahUnitService {
                                                 BigDecimal paymentAmount,
                                                 String paymentTransactionRef) {
         MusharakahContract contract = getContract(contractId);
-        MusharakahOwnershipUnit ownership = ownershipUnitRepository.findByContractId(contractId)
+        // Use optimistic locking to prevent concurrent unit transfers on the same ownership record
+        MusharakahOwnershipUnit ownership = ownershipUnitRepository.findByContractIdWithLock(contractId)
                 .orElseGet(() -> initialiseUnits(contractId));
         BigDecimal requestedUnits = MusharakahSupport.units(unitCount);
         if (requestedUnits.compareTo(BigDecimal.ZERO) <= 0) {

@@ -4,6 +4,7 @@ import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.gl.islamic.dto.IslamicPostingRequest;
 import com.cbs.gl.islamic.entity.IslamicTransactionType;
 import com.cbs.gl.islamic.service.IslamicPostingRuleService;
+import com.cbs.gl.repository.JournalEntryRepository;
 import com.cbs.ijarah.dto.IjarahResponses;
 import com.cbs.ijarah.entity.IjarahAsset;
 import com.cbs.ijarah.entity.IjarahAssetMaintenanceRecord;
@@ -14,11 +15,15 @@ import com.cbs.ijarah.repository.IjarahAssetRepository;
 import com.cbs.ijarah.repository.IjarahContractRepository;
 import com.cbs.ijarah.repository.IjarahRentalInstallmentRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 

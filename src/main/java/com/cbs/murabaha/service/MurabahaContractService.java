@@ -95,6 +95,17 @@ public class MurabahaContractService {
             throw new BusinessException("Murabaha contract is already active or settled", "INVALID_CONTRACT_STATUS");
         }
 
+        if (Boolean.TRUE.equals(contract.getTakafulRequired())
+                && !StringUtils.hasText(contract.getTakafulPolicyRef())) {
+            throw new BusinessException("Takaful policy reference is required before contract execution",
+                    "TAKAFUL_POLICY_MISSING");
+        }
+        if (Boolean.TRUE.equals(contract.getCollateralRequired())
+                && !StringUtils.hasText(contract.getCollateralDescription())) {
+            throw new BusinessException("Collateral details are required before contract execution",
+                    "COLLATERAL_MISSING");
+        }
+
         lockSellingPrice(contractId);
         if (contract.getAccountId() == null) {
             contract.setAccountId(openFinancingAccount(contract));
@@ -175,8 +186,13 @@ public class MurabahaContractService {
                                                            BigDecimal ibraAmount,
                                                            Long debitAccountId,
                                                            String externalRef) {
-        // Validate Ibra mode
         MurabahaContract contract = findContract(contractId);
+        if (!Boolean.TRUE.equals(contract.getEarlySettlementAllowed())) {
+            throw new BusinessException("Early settlement is not allowed for this Murabaha contract",
+                    "EARLY_SETTLEMENT_NOT_ALLOWED");
+        }
+
+        // Validate Ibra mode
         if (contract.getEarlySettlementRebateMethod() == MurabahaDomainEnums.EarlySettlementRebateMethod.IBRA_MANDATORY) {
             // Bank MUST waive all unrecognised profit
             BigDecimal expectedIbra = contract.getUnrecognisedProfit();
@@ -210,9 +226,10 @@ public class MurabahaContractService {
 
     public void markAsDefaulted(Long contractId, String reason) {
         MurabahaContract contract = findContract(contractId);
-        if (contract.getStatus() == MurabahaDomainEnums.ContractStatus.WRITTEN_OFF) {
-            throw new BusinessException("Written-off Murabaha contracts cannot be defaulted again",
-                    "INVALID_CONTRACT_STATUS");
+        if (contract.getStatus() != MurabahaDomainEnums.ContractStatus.ACTIVE
+                && contract.getStatus() != MurabahaDomainEnums.ContractStatus.EXECUTED) {
+            throw new BusinessException("Only active or executed Murabaha contracts can be defaulted. Current status: "
+                    + contract.getStatus(), "INVALID_CONTRACT_STATUS");
         }
         contract.setStatus(MurabahaDomainEnums.ContractStatus.DEFAULTED);
         contract.appendOwnershipEvent(Map.of(
@@ -224,10 +241,9 @@ public class MurabahaContractService {
 
     public void writeOff(Long contractId, String approvedBy, String reason) {
         MurabahaContract contract = findContract(contractId);
-        if (contract.getStatus() != MurabahaDomainEnums.ContractStatus.DEFAULTED
-                && contract.getStatus() != MurabahaDomainEnums.ContractStatus.ACTIVE) {
-            throw new BusinessException("Murabaha contract must be defaulted before write-off",
-                    "INVALID_CONTRACT_STATUS");
+        if (contract.getStatus() != MurabahaDomainEnums.ContractStatus.DEFAULTED) {
+            throw new BusinessException("Murabaha contract must be in DEFAULTED status before write-off. Current status: "
+                    + contract.getStatus(), "INVALID_CONTRACT_STATUS");
         }
         EarlySettlementQuote quote = scheduleService.calculateEarlySettlement(contractId, LocalDate.now());
         postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
@@ -361,6 +377,12 @@ public class MurabahaContractService {
     }
 
     private Long openFinancingAccount(MurabahaContract contract) {
+        if (contract.getAccountId() != null) {
+            var existing = accountRepository.findById(contract.getAccountId());
+            if (existing.isPresent()) {
+                return contract.getAccountId();
+            }
+        }
         Customer customer = customerRepository.findById(contract.getCustomerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", contract.getCustomerId()));
         IslamicProductTemplate productTemplate = islamicProductTemplateRepository.findById(contract.getIslamicProductTemplateId())

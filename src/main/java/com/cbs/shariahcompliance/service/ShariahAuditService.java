@@ -445,6 +445,14 @@ public class ShariahAuditService {
     public ShariahAuditResponse closeAudit(Long auditId) {
         ShariahAudit audit = loadAudit(auditId);
 
+        if (audit.getStatus() != ShariahAuditStatus.FINAL_REPORT
+                && audit.getStatus() != ShariahAuditStatus.SSB_REVIEW) {
+            throw new BusinessException(
+                    "Audit " + audit.getAuditRef() + " cannot be closed — current status: " + audit.getStatus()
+                            + ". Only audits in FINAL_REPORT or SSB_REVIEW status can be closed.",
+                    "AUDIT_INVALID_STATUS_FOR_CLOSE");
+        }
+
         audit.setStatus(ShariahAuditStatus.CLOSED);
         ShariahAudit saved = auditRepository.save(audit);
 

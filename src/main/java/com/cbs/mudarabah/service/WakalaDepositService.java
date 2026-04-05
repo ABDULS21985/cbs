@@ -9,6 +9,8 @@ import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.customer.entity.Customer;
+import com.cbs.customer.repository.CustomerRepository;
 import com.cbs.mudarabah.dto.OpenWakalaAccountRequest;
 import com.cbs.mudarabah.dto.WakalaDepositResponse;
 import com.cbs.mudarabah.dto.WakalaFeeDistributionResponse;
@@ -40,10 +42,12 @@ public class WakalaDepositService {
     private final WakalaDepositAccountRepository wakalaRepository;
     private final AccountRepository accountRepository;
     private final AccountPostingService accountPostingService;
+    private final CustomerRepository customerRepository;
 
     private static final String WAKALA_INVESTMENT_GL = "3200-WKL-001";
     private static final String CASH_GL = "1001-000-001";
     private static final String WAKALA_FEE_INCOME_GL = "4200-WKL-001";
+    private static final String WAKALA_CUSTOMER_PROFIT_GL = "4100-WKL-002";
     private static final AtomicLong WKL_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
 
     public WakalaDepositResponse openWakalaAccount(OpenWakalaAccountRequest request) {
@@ -77,6 +81,10 @@ public class WakalaDepositService {
             }
         }
 
+        // Validate and load customer
+        Customer customer = customerRepository.findById(request.getCustomerId())
+                .orElseThrow(() -> new BusinessException("Customer not found: " + request.getCustomerId(), "CUSTOMER_NOT_FOUND"));
+
         // Create base Account
         Account account = Account.builder()
                 .accountNumber("WKL" + System.currentTimeMillis() % 10000000000L)
@@ -91,6 +99,7 @@ public class WakalaDepositService {
                 .openedDate(LocalDate.now())
                 .activatedDate(LocalDate.now())
                 .build();
+        account.setCustomer(customer);
         account = accountRepository.save(account);
 
         String contractRef = "WKL-DEP-" + LocalDate.now().getYear() + "-" + String.format("%06d", WKL_SEQ.incrementAndGet());
@@ -165,6 +174,26 @@ public class WakalaDepositService {
         WakalaDepositAccount w = wakalaRepository.findByAccountId(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Wakala account not found"));
         Account account = w.getAccount();
+
+        // Handle negative gross profit (loss scenario)
+        if (grossProfit.compareTo(BigDecimal.ZERO) < 0) {
+            log.warn("Negative gross profit {} for Wakala account {}. Loss absorbed by customer as Muwakkil.",
+                    grossProfit, accountId);
+            // In a loss scenario, the bank (Wakil) charges no fee
+            w.setLastProfitDistributionDate(LocalDate.now());
+            wakalaRepository.save(w);
+
+            return WakalaFeeDistributionResponse.builder()
+                    .accountId(accountId)
+                    .accountNumber(account.getAccountNumber())
+                    .grossProfit(grossProfit)
+                    .wakalahFee(BigDecimal.ZERO)
+                    .customerProfit(grossProfit) // negative = loss passed to customer
+                    .effectiveRate(BigDecimal.ZERO)
+                    .periodFrom(periodFrom)
+                    .periodTo(periodTo)
+                    .build();
+        }
 
         BigDecimal wakalahFee;
         switch (w.getWakalaType()) {

@@ -158,6 +158,9 @@ public class IslamicFeeService {
         ensureChargeable(configuration);
         Account account = accountRepository.findByIdWithProduct(request.getAccountId())
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", request.getAccountId()));
+        Long effectiveCustomerId = request.getCustomerId() != null
+                ? request.getCustomerId()
+                : account.getCustomer() != null ? account.getCustomer().getId() : null;
 
         IslamicFeeResponses.FeeCalculationContext context = IslamicFeeResponses.FeeCalculationContext.builder()
                 .transactionAmount(request.getTransactionAmount())
@@ -168,7 +171,7 @@ public class IslamicFeeService {
                 .currencyCode(StringUtils.hasText(request.getCurrencyCode()) ? request.getCurrencyCode() : account.getCurrencyCode())
                 .build();
         IslamicFeeResponses.FeeCalculationResult calculation = calculateFee(configuration, context);
-        ChargeAdjustment waiverAdjustment = resolvePreChargeWaiver(configuration, request, calculation);
+        ChargeAdjustment waiverAdjustment = resolvePreChargeWaiver(configuration, request, calculation, effectiveCustomerId);
         if (waiverAdjustment.deferUntil() != null) {
             return buildSuppressedChargeResult(configuration, calculation,
                     "Fee deferred until " + waiverAdjustment.deferUntil(), waiverAdjustment.waiverId(), request.getTriggerRef());
@@ -220,7 +223,7 @@ public class IslamicFeeService {
                         .currencyCode(calculation.getCurrencyCode())
                         .contractRef(request.getContractRef())
                         .contractTypeCode(request.getContractTypeCode())
-                        .customerId(request.getCustomerId())
+                        .customerId(effectiveCustomerId)
                         .purpose(configuration.getDescription())
                         .additionalContext(Map.of(
                                 "late_payment_charity", configuration.isCharityRouted(),
@@ -262,7 +265,7 @@ public class IslamicFeeService {
                     calculation.getCalculatedAmount(),
                     request.getContractRef(),
                     request.getContractTypeCode(),
-                    request.getCustomerId(),
+                    effectiveCustomerId,
                     journalTxn.getJournal() != null ? journalTxn.getJournal().getJournalNumber() : null,
                     calculation.getCurrencyCode()
             ).getId();
@@ -271,7 +274,7 @@ public class IslamicFeeService {
         FeeChargeLog chargeLog = feeChargeLogRepository.save(FeeChargeLog.builder()
                 .feeCode(configuration.getFeeCode())
                 .accountId(account.getId())
-                .customerId(account.getCustomer() != null ? account.getCustomer().getId() : request.getCustomerId())
+                .customerId(effectiveCustomerId)
                 .baseAmount(IslamicFeeSupport.nvl(request.getTransactionAmount()))
                 .feeAmount(calculation.getCalculatedAmount())
                 .taxAmount(BigDecimal.ZERO)
@@ -577,8 +580,8 @@ public class IslamicFeeService {
 
     private ChargeAdjustment resolvePreChargeWaiver(IslamicFeeConfiguration configuration,
                                                     IslamicFeeRequests.ChargeFeeRequest request,
-                                                    IslamicFeeResponses.FeeCalculationResult calculation) {
-        Long effectiveCustomerId = request.getCustomerId();
+                                                    IslamicFeeResponses.FeeCalculationResult calculation,
+                                                    Long effectiveCustomerId) {
         IslamicFeeWaiver waiver = waiverRepository.findApplicablePreChargeWaivers(
                         configuration.getId(),
                         request.getAccountId(),

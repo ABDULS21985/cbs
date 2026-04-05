@@ -146,6 +146,10 @@ public class IjarahContractService {
 
     public IjarahResponses.IjarahContractResponse executeContract(Long contractId, String executedBy) {
         IjarahContract contract = findContract(contractId);
+        // Four-eyes check: executor must be different from contract creator
+        if (StringUtils.hasText(contract.getCreatedBy()) && contract.getCreatedBy().equalsIgnoreCase(executedBy)) {
+            throw new BusinessException("Contract executor must be different from the contract creator (four-eyes principle)", "FOUR_EYES_REQUIRED");
+        }
         if (!Boolean.TRUE.equals(contract.getAssetOwnedByBank()) || contract.getIjarahAssetId() == null) {
             throw new BusinessException("Bank must own the asset before lease execution", "SHARIAH-IJR-001");
         }
@@ -231,25 +235,25 @@ public class IjarahContractService {
                     .build());
             return;
         }
+        IjarahContract contract = findContract(contractId);
         if (request.isMajorDamage()) {
             recordMajorMaintenance(contractId, IjarahRequests.MaintenanceRecordRequest.builder()
                     .maintenanceType(IjarahDomainEnums.MaintenanceType.EMERGENCY_REPAIR)
                     .responsibleParty(IjarahDomainEnums.ResponsibleParty.BANK)
                     .description(request.getDescription())
                     .cost(request.getEstimatedCost() != null ? request.getEstimatedCost() : BigDecimal.ZERO)
-                    .currencyCode("SAR")
+                    .currencyCode(contract.getCurrencyCode())
                     .maintenanceDate(request.getEventDate() != null ? request.getEventDate() : LocalDate.now())
                     .completionDate(request.getEventDate() != null ? request.getEventDate() : LocalDate.now())
                     .build());
         } else {
             // Minor damage: record on the asset for audit trail
-            IjarahContract contract = findContract(contractId);
             assetService.recordMaintenance(contract.getIjarahAssetId(), IjarahRequests.MaintenanceRecordRequest.builder()
                     .maintenanceType(IjarahDomainEnums.MaintenanceType.MINOR_REPAIR)
                     .responsibleParty(IjarahDomainEnums.ResponsibleParty.CUSTOMER)
                     .description("Minor damage: " + request.getDescription())
                     .cost(request.getEstimatedCost() != null ? request.getEstimatedCost() : BigDecimal.ZERO)
-                    .currencyCode("SAR")
+                    .currencyCode(contract.getCurrencyCode())
                     .maintenanceDate(request.getEventDate() != null ? request.getEventDate() : LocalDate.now())
                     .completionDate(request.getEventDate() != null ? request.getEventDate() : LocalDate.now())
                     .build());
@@ -328,6 +332,45 @@ public class IjarahContractService {
     public IjarahResponses.IjarahContractResponse processLeaseMaturity(Long contractId) {
         IjarahContract contract = findContract(contractId);
         var asset = assetService.findAsset(contract.getIjarahAssetId());
+
+        // Check all rentals are paid before maturity processing
+        boolean hasUnpaidRentals = rentalService.getSchedule(contractId).stream()
+                .anyMatch(installment -> installment.getStatus() != IjarahDomainEnums.RentalInstallmentStatus.PAID
+                        && installment.getStatus() != IjarahDomainEnums.RentalInstallmentStatus.WAIVED
+                        && installment.getStatus() != IjarahDomainEnums.RentalInstallmentStatus.CANCELLED);
+        if (hasUnpaidRentals) {
+            throw new BusinessException("All rental obligations must be settled before lease maturity processing", "OUTSTANDING_RENTALS");
+        }
+
+        // Post final GL entries for maturity
+        BigDecimal nbv = IjarahSupport.money(asset.getNetBookValue());
+        postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                .contractTypeCode("IJARAH")
+                .txnType(IslamicTransactionType.CONTRACT_CANCELLATION)
+                .amount(nbv.max(BigDecimal.ONE))
+                .reference(contract.getContractRef() + "-MATURITY")
+                .valueDate(LocalDate.now())
+                .additionalContext(Map.of(
+                        "maturityEvent", true,
+                        "assetCost", IjarahSupport.money(asset.getAcquisitionCost()),
+                        "accumulatedDepreciation", IjarahSupport.money(asset.getAccumulatedDepreciation()),
+                        "netBookValue", nbv))
+                .build());
+
+        // Handle security deposit return
+        if (contract.getSecurityDeposit() != null && contract.getSecurityDeposit().compareTo(BigDecimal.ZERO) > 0) {
+            postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                    .contractTypeCode("IJARAH")
+                    .txnType(IslamicTransactionType.RENTAL_PAYMENT)
+                    .accountId(contract.getAccountId())
+                    .amount(IjarahSupport.money(contract.getSecurityDeposit()))
+                    .reference(contract.getContractRef() + "-DEPOSIT-RETURN")
+                    .valueDate(LocalDate.now())
+                    .narration("Security deposit return on lease maturity")
+                    .additionalContext(Map.of("depositReturn", true))
+                    .build());
+        }
+
         if (contract.getIjarahType() == IjarahDomainEnums.IjarahType.OPERATING_IJARAH) {
             asset.setStatus(IjarahDomainEnums.AssetStatus.RETURNED);
             contract.setStatus(IjarahDomainEnums.ContractStatus.CLOSED);

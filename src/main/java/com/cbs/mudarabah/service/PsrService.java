@@ -190,6 +190,12 @@ public class PsrService {
             throw new BusinessException("Change request must be approved before applying", "NOT_APPROVED");
         }
 
+        // Check that the effective date has been reached before applying
+        if (cr.getEffectiveDate() != null && cr.getEffectiveDate().isAfter(LocalDate.now())) {
+            throw new BusinessException("PSR change effective date " + cr.getEffectiveDate()
+                    + " has not been reached yet. Cannot apply before effective date.", "EFFECTIVE_DATE_NOT_REACHED");
+        }
+
         MudarabahAccount ma = cr.getMudarabahAccount();
         ma.setProfitSharingRatioCustomer(cr.getProposedPsrCustomer());
         ma.setProfitSharingRatioBank(cr.getProposedPsrBank());

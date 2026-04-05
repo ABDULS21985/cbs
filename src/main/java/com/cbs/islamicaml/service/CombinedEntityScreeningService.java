@@ -41,6 +41,7 @@ public class CombinedEntityScreeningService {
 
     // ===================== COMBINED ENTITY SCREENING =====================
 
+    @Transactional
     public CombinedScreeningResult screenEntity(EntityScreeningRequest request) {
         if (request == null || !StringUtils.hasText(request.getEntityName())) {
             throw new IllegalArgumentException("Entity name is required for combined screening");
@@ -48,9 +49,9 @@ public class CombinedEntityScreeningService {
 
         log.info("Starting combined screening for entity: {}", request.getEntityName());
 
-        // 1. Run Shariah screening
+        // 1. Run Shariah screening (fail-closed: screening failure means NOT clear)
         ShariahScreeningResultResponse shariahResult = null;
-        boolean shariahClear = true;
+        boolean shariahClear = false;
         try {
             ShariahScreeningRequest shariahReq = ShariahScreeningRequest.builder()
                     .transactionRef(request.getEntityName())
@@ -62,12 +63,13 @@ public class CombinedEntityScreeningService {
             shariahResult = shariahScreeningService.preScreenTransaction(shariahReq);
             shariahClear = shariahResult.getOverallResult() == ScreeningOverallResult.PASS;
         } catch (Exception e) {
-            log.warn("Shariah screening failed for entity '{}': {}", request.getEntityName(), e.getMessage());
+            log.error("Shariah screening failed for entity '{}' — treating as NOT CLEAR (fail-closed): {}",
+                    request.getEntityName(), e.getMessage());
         }
 
-        // 2. Run sanctions screening
+        // 2. Run sanctions screening (fail-closed: screening failure means NOT clear)
         SanctionsScreeningResultResponse sanctionsResult = null;
-        boolean sanctionsClear = true;
+        boolean sanctionsClear = false;
         try {
             TransactionCounterpartyRequest counterpartyReq = TransactionCounterpartyRequest.builder()
                     .entityName(request.getEntityName())
@@ -79,7 +81,8 @@ public class CombinedEntityScreeningService {
             sanctionsResult = sanctionsScreeningService.screenTransactionCounterparty(counterpartyReq);
             sanctionsClear = sanctionsResult.getOverallResult() == SanctionsOverallResult.CLEAR;
         } catch (Exception e) {
-            log.warn("Sanctions screening failed for entity '{}': {}", request.getEntityName(), e.getMessage());
+            log.error("Sanctions screening failed for entity '{}' — treating as NOT CLEAR (fail-closed): {}",
+                    request.getEntityName(), e.getMessage());
         }
 
         // 3. Determine combined outcome
@@ -103,7 +106,7 @@ public class CombinedEntityScreeningService {
         log.info("Combined screening for entity '{}': outcome={}, shariahClear={}, sanctionsClear={}",
                 request.getEntityName(), outcome, shariahClear, sanctionsClear);
 
-        return CombinedScreeningResult.builder()
+        CombinedScreeningResult result = CombinedScreeningResult.builder()
                 .entityName(request.getEntityName())
                 .overallOutcome(outcome)
                 .shariahResult(shariahResult)
@@ -112,15 +115,61 @@ public class CombinedEntityScreeningService {
                 .sanctionsClear(sanctionsClear)
                 .actionRequired(actionRequired)
                 .build();
+
+        // 4. Persist combined screening result for audit trail
+        log.info("AUDIT: Combined entity screening completed — entity={}, outcome={}, shariahClear={}, sanctionsClear={}, " +
+                        "shariahScreeningRef={}, sanctionsScreeningRef={}",
+                request.getEntityName(), outcome, shariahClear, sanctionsClear,
+                shariahResult != null ? shariahResult.getScreeningRef() : "FAILED",
+                sanctionsResult != null ? sanctionsResult.getScreeningRef() : "FAILED");
+
+        return result;
     }
 
     // ===================== OVERLAPPING ENTITIES =====================
 
     public List<OverlappingEntity> findOverlappingEntities() {
-        // Simplified: in a full implementation this would cross-reference
-        // Shariah exclusion list entries with sanctions list entries
-        // to find entities that appear on both types of lists
         log.info("Finding overlapping entities across Shariah and sanctions lists");
-        return List.of();
+
+        // Collect entity names from Shariah screening results that were not PASS
+        List<ShariahScreeningResult> shariahResults = shariahResultRepository
+                .findByOverallResult(ScreeningOverallResult.FAIL);
+        // Collect entity names from sanctions screening results that were not CLEAR
+        List<SanctionsScreeningResult> sanctionsMatches = sanctionsResultRepository
+                .findByOverallResult(SanctionsOverallResult.POTENTIAL_MATCH);
+        List<SanctionsScreeningResult> sanctionsConfirmed = sanctionsResultRepository
+                .findByOverallResult(SanctionsOverallResult.CONFIRMED_MATCH);
+
+        // Build a set of sanctioned entity names (lowercased for matching)
+        Set<String> sanctionedNames = new HashSet<>();
+        List<SanctionsScreeningResult> allSanctionsHits = new ArrayList<>(sanctionsMatches);
+        allSanctionsHits.addAll(sanctionsConfirmed);
+        for (SanctionsScreeningResult sr : allSanctionsHits) {
+            if (sr.getEntityName() != null) {
+                sanctionedNames.add(sr.getEntityName().toLowerCase());
+            }
+        }
+
+        // Find Shariah-flagged entities that also appear in sanctions results
+        List<OverlappingEntity> overlaps = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+
+        for (ShariahScreeningResult sr : shariahResults) {
+            String name = sr.getCounterpartyName();
+            if (name == null) continue;
+            String normalizedName = name.toLowerCase();
+            if (sanctionedNames.contains(normalizedName) && seen.add(normalizedName)) {
+                overlaps.add(OverlappingEntity.builder()
+                        .entityName(name)
+                        .shariahListCode(sr.getContractTypeCode())
+                        .sanctionsListCode("SANCTIONS")
+                        .shariahReason(sr.getBlockReason())
+                        .sanctionsReason("Matched in sanctions screening")
+                        .build());
+            }
+        }
+
+        log.info("Found {} overlapping entities across Shariah and sanctions lists", overlaps.size());
+        return overlaps;
     }
 }

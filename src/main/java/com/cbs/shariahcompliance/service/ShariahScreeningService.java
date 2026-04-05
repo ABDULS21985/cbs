@@ -14,8 +14,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.SimpleEvaluationContext;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
-import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -567,25 +567,29 @@ public class ShariahScreeningService {
         if (expr == null || expr.isBlank()) return false;
 
         try {
-            StandardEvaluationContext context = new StandardEvaluationContext();
-            // Populate context with request fields
-            context.setVariable("transactionRef", request.getTransactionRef());
-            context.setVariable("transactionType", request.getTransactionType());
-            context.setVariable("amount", request.getAmount() != null ? request.getAmount() : BigDecimal.ZERO);
-            context.setVariable("currencyCode", request.getCurrencyCode());
-            context.setVariable("contractRef", request.getContractRef());
-            context.setVariable("contractTypeCode", request.getContractTypeCode());
-            context.setVariable("customerId", request.getCustomerId());
-            context.setVariable("counterpartyName", request.getCounterpartyName());
-            context.setVariable("merchantCategoryCode", request.getMerchantCategoryCode());
-            context.setVariable("purpose", request.getPurpose());
+            // Use SimpleEvaluationContext to prevent arbitrary method invocation (e.g. T(Runtime).exec())
+            Map<String, Object> variables = new LinkedHashMap<>();
+            variables.put("transactionRef", request.getTransactionRef());
+            variables.put("transactionType", request.getTransactionType());
+            variables.put("amount", request.getAmount() != null ? request.getAmount() : BigDecimal.ZERO);
+            variables.put("currencyCode", request.getCurrencyCode());
+            variables.put("contractRef", request.getContractRef());
+            variables.put("contractTypeCode", request.getContractTypeCode());
+            variables.put("customerId", request.getCustomerId());
+            variables.put("counterpartyName", request.getCounterpartyName());
+            variables.put("merchantCategoryCode", request.getMerchantCategoryCode());
+            variables.put("purpose", request.getPurpose());
 
-            // Populate additional context fields
             if (request.getAdditionalContext() != null) {
-                request.getAdditionalContext().forEach(context::setVariable);
+                variables.putAll(request.getAdditionalContext());
             }
 
-            // Evaluate SpEL expression
+            SimpleEvaluationContext context = SimpleEvaluationContext
+                    .forReadOnlyDataBinding()
+                    .withInstanceMethods()
+                    .build();
+            variables.forEach(context::setVariable);
+
             Boolean result = spelParser.parseExpression(expr).getValue(context, Boolean.class);
             return Boolean.TRUE.equals(result);
         } catch (Exception e) {

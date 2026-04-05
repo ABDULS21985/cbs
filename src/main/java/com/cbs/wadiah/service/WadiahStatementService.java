@@ -171,6 +171,7 @@ public class WadiahStatementService {
 
         statementStore.put(statementRef, statement);
         statementIndexByAccount.computeIfAbsent(accountId, ignored -> new ArrayList<>()).add(0, statementRef);
+        persistStatementRecord(statementRef, accountId, start, end, statement);
         log.info("Wadiah statement generated: accountId={}, statementRef={}, language={}",
                 accountId, statementRef, preferredLanguage);
         return statement;
@@ -179,8 +180,15 @@ public class WadiahStatementService {
     @Transactional(readOnly = true)
     public List<WadiahStatement> listGeneratedStatements(Long accountId) {
         getWadiahAccount(accountId);
-        return statementIndexByAccount.getOrDefault(accountId, List.of()).stream()
+        List<WadiahStatement> cached = statementIndexByAccount.getOrDefault(accountId, List.of()).stream()
                 .map(statementStore::get)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        if (!cached.isEmpty()) {
+            return cached;
+        }
+        return wadiahStatementRecordRepository.findByAccountIdOrderByCreatedAtDesc(accountId).stream()
+                .map(record -> deserializeStatement(record.getStatementData()))
                 .filter(java.util.Objects::nonNull)
                 .toList();
     }
@@ -188,10 +196,12 @@ public class WadiahStatementService {
     @Transactional(readOnly = true)
     public WadiahStatement getGeneratedStatement(String statementRef) {
         WadiahStatement statement = statementStore.get(statementRef);
-        if (statement == null) {
-            throw new ResourceNotFoundException("WadiahStatement", "statementRef", statementRef);
+        if (statement != null) {
+            return statement;
         }
-        return statement;
+        return wadiahStatementRecordRepository.findByStatementRef(statementRef)
+                .map(record -> deserializeStatement(record.getStatementData()))
+                .orElseThrow(() -> new ResourceNotFoundException("WadiahStatement", "statementRef", statementRef));
     }
 
     @Transactional(readOnly = true)
@@ -404,6 +414,31 @@ public class WadiahStatementService {
 
     private String generateStatementReference(Long accountId) {
         return "WAD-STMT-" + accountId + "-" + String.format("%06d", STATEMENT_SEQ.incrementAndGet());
+    }
+
+    private void persistStatementRecord(String statementRef, Long accountId, LocalDate periodFrom,
+                                         LocalDate periodTo, WadiahStatement statement) {
+        try {
+            String json = objectMapper.writeValueAsString(statement);
+            wadiahStatementRecordRepository.save(WadiahStatementRecord.builder()
+                    .statementRef(statementRef)
+                    .accountId(accountId)
+                    .periodFrom(periodFrom)
+                    .periodTo(periodTo)
+                    .statementData(json)
+                    .build());
+        } catch (JsonProcessingException e) {
+            log.error("Failed to persist Wadiah statement record: statementRef={}", statementRef, e);
+        }
+    }
+
+    private WadiahStatement deserializeStatement(String json) {
+        try {
+            return objectMapper.readValue(json, WadiahStatement.class);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to deserialize Wadiah statement from DB", e);
+            return null;
+        }
     }
 
     private record TransactionView(String label, boolean credit, boolean debit, boolean hibah) {

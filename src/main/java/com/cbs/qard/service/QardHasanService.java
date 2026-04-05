@@ -308,6 +308,7 @@ public class QardHasanService {
             qardAccount.getAccount().debit(request.getAmount());
             accountRepository.save(qardAccount.getAccount());
         } else {
+            // Cash repayment: debit CASH (receive cash), credit Qard receivable (reduce loan)
             journal = accountPostingService.postDebitAgainstGl(
                     qardAccount.getAccount(),
                     TransactionType.DEBIT,
@@ -317,7 +318,7 @@ public class QardHasanService {
                     request.getExternalRef(),
                     List.of(accountPostingService.balanceLeg(
                             CASH_GL,
-                            AccountPostingService.EntrySide.DEBIT,
+                            AccountPostingService.EntrySide.CREDIT,
                             request.getAmount(),
                             qardAccount.getAccount().getCurrencyCode(),
                             BigDecimal.ONE,
