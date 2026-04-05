@@ -34,6 +34,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -73,21 +74,27 @@ class IslamicPaymentServiceTest {
                 .currencyCode("SAR")
                 .build();
 
-        when(paymentSupport.loadSourceAccount(1L)).thenReturn(sourceAccount);
-        when(paymentSupport.resolveSourceProfile(sourceAccount)).thenReturn(
+        lenient().when(paymentSupport.loadSourceAccount(1L)).thenReturn(sourceAccount);
+        lenient().when(paymentSupport.resolveSourceProfile(sourceAccount)).thenReturn(
                 new IslamicPaymentSupport.SourceAccountProfile(true, "WADIAH", "WAD-SAR-001", null, true)
         );
-        when(paymentSupport.currentTenantId()).thenReturn(1L);
-        when(paymentSupport.currentActor()).thenReturn("officer.user");
-        when(paymentSupport.resolvePurposeFlag(any(), any())).thenReturn(IslamicPaymentDomainEnums.ShariahPurposeFlag.COMPLIANT);
-        when(paymentSupport.resolveCountryCode(any())).thenReturn("SA");
-        when(paymentInstructionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(extensionRepository.findByPaymentId(any())).thenReturn(Optional.empty());
-        when(extensionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(screeningService.persistAuditLog(any(), any(), any(), any(), any())).thenReturn(
+        lenient().when(paymentSupport.currentTenantId()).thenReturn(1L);
+        lenient().when(paymentSupport.currentActor()).thenReturn("officer.user");
+        lenient().when(paymentSupport.resolvePurposeFlag(any(), any())).thenReturn(IslamicPaymentDomainEnums.ShariahPurposeFlag.COMPLIANT);
+        lenient().when(paymentSupport.resolveCountryCode(any())).thenReturn("SA");
+        lenient().when(paymentSupport.uppercase(any())).thenAnswer(invocation -> {
+            String value = invocation.getArgument(0, String.class);
+            return value == null ? null : value.toUpperCase();
+        });
+        lenient().when(paymentSupport.resolvePurposeCode(any())).thenAnswer(invocation ->
+                invocation.getArgument(0, IslamicPaymentDomainEnums.PaymentPurpose.class).name());
+        lenient().when(paymentInstructionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(extensionRepository.findByPaymentId(any())).thenReturn(Optional.empty());
+        lenient().when(extensionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(screeningService.persistAuditLog(any(), any(), any(), any(), any())).thenReturn(
                 PaymentShariahAuditLog.builder().id(1L).build()
         );
-        when(accountRepository.findByAccountNumber("2000000001")).thenReturn(Optional.of(creditAccount));
+        lenient().when(accountRepository.findByAccountNumber("2000000001")).thenReturn(Optional.of(creditAccount));
     }
 
     @Test
@@ -110,6 +117,7 @@ class IslamicPaymentServiceTest {
                         .overallResult(IslamicPaymentDomainEnums.PaymentScreeningResult.ALERT)
                         .screeningRef("SSR-1")
                         .screeningDurationMs(15L)
+                        .checkResults(List.of())
                         .build()
         );
         PaymentInstruction payment = PaymentInstruction.builder()

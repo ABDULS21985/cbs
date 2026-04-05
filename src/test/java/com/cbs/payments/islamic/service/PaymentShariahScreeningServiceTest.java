@@ -32,7 +32,10 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -62,15 +65,17 @@ class PaymentShariahScreeningServiceTest {
                 .currencyCode("SAR")
                 .build();
 
-        when(paymentSupport.normalize(anyString())).thenAnswer(invocation ->
+        lenient().when(paymentSupport.normalize(anyString())).thenAnswer(invocation ->
                 invocation.getArgument(0, String.class).toLowerCase());
-        when(paymentSupport.fuzzyMatch(anyString(), anyString())).thenAnswer(invocation -> {
+        lenient().when(paymentSupport.fuzzyMatch(anyString(), anyString())).thenAnswer(invocation -> {
             String left = invocation.getArgument(0, String.class).toLowerCase();
             String right = invocation.getArgument(1, String.class).toLowerCase();
             return left.contains(right) || right.contains(left);
         });
-        when(shariahScreeningService.preScreenTransaction(any())).thenReturn(basePassResult());
-        when(shariahScreeningService.screenTransaction(any())).thenReturn(basePassResult());
+        lenient().when(shariahScreeningService.preScreenTransaction(any())).thenReturn(basePassResult());
+        lenient().when(shariahScreeningService.screenTransaction(any())).thenReturn(basePassResult());
+        lenient().when(exclusionListEntryRepository.existsByListIdAndEntryValueAndStatus(anyLong(), anyString(), eq("ACTIVE")))
+                .thenReturn(false);
     }
 
     @Test
@@ -79,7 +84,7 @@ class PaymentShariahScreeningServiceTest {
         when(exclusionListEntryRepository.existsByListIdAndEntryValueAndStatus(1L, "5813", "ACTIVE")).thenReturn(true);
 
         IslamicPaymentResponses.PaymentScreeningResult result = service.previewScreening(
-                baseRequest().toBuilder().merchantCategoryCode("5813").build(),
+                requestWith("5813", "Clean Supplier", "Supplier settlement"),
                 sourceAccount,
                 new IslamicPaymentSupport.SourceAccountProfile(true, "WADIAH", "WAD-SAR-001", null, true)
         );
@@ -94,10 +99,9 @@ class PaymentShariahScreeningServiceTest {
         mockList("PROHIBITED_COUNTERPARTIES", 2L, List.of());
         mockList("PROHIBITED_BANKS", 3L, List.of());
         mockList("PROHIBITED_PAYMENT_PURPOSES", 4L, List.of());
-        when(exclusionListEntryRepository.existsByListIdAndEntryValueAndStatus(1L, "5411", "ACTIVE")).thenReturn(false);
 
         IslamicPaymentResponses.PaymentScreeningResult result = service.previewScreening(
-                baseRequest().toBuilder().merchantCategoryCode("5411").purposeDescription("Monthly grocery").build(),
+                requestWith("5411", "Clean Supplier", "Monthly grocery"),
                 sourceAccount,
                 new IslamicPaymentSupport.SourceAccountProfile(true, "WADIAH", "WAD-SAR-001", null, true)
         );
@@ -114,14 +118,9 @@ class PaymentShariahScreeningServiceTest {
         ));
         mockList("PROHIBITED_BANKS", 3L, List.of());
         mockList("PROHIBITED_PAYMENT_PURPOSES", 4L, List.of());
-        when(exclusionListEntryRepository.existsByListIdAndEntryValueAndStatus(1L, "5411", "ACTIVE")).thenReturn(false);
 
         IslamicPaymentResponses.PaymentScreeningResult result = service.previewScreening(
-                baseRequest().toBuilder()
-                        .merchantCategoryCode("5411")
-                        .beneficiaryName("Casino Royale")
-                        .purposeDescription("Supplier transfer")
-                        .build(),
+                requestWith("5411", "Casino Royale", "Supplier transfer"),
                 sourceAccount,
                 new IslamicPaymentSupport.SourceAccountProfile(true, "WADIAH", "WAD-SAR-001", null, true)
         );
@@ -132,21 +131,25 @@ class PaymentShariahScreeningServiceTest {
                         && check.getResult() == IslamicPaymentDomainEnums.CheckResult.ALERT);
     }
 
-    private IslamicPaymentRequests.IslamicPaymentRequest.IslamicPaymentRequestBuilder baseRequest() {
+    private IslamicPaymentRequests.IslamicPaymentRequest requestWith(String merchantCategoryCode,
+                                                                     String beneficiaryName,
+                                                                     String purposeDescription) {
         return IslamicPaymentRequests.IslamicPaymentRequest.builder()
                 .sourceAccountId(1L)
                 .destinationAccountNumber("2000000001")
                 .destinationBankCode("BANK1")
                 .destinationBankSwift("BANK1SWF")
-                .beneficiaryName("Clean Supplier")
+                .beneficiaryName(beneficiaryName)
                 .beneficiaryBankName("Beneficiary Bank")
                 .amount(new BigDecimal("5000.00"))
                 .currencyCode("SAR")
                 .paymentChannel("ACH")
                 .purpose(IslamicPaymentDomainEnums.PaymentPurpose.SUPPLIER_PAYMENT)
-                .purposeDescription("Supplier settlement")
+                .purposeDescription(purposeDescription)
                 .reference("PAY-REF-1")
-                .requireShariahScreening(true);
+                .requireShariahScreening(true)
+                .merchantCategoryCode(merchantCategoryCode)
+                .build();
     }
 
     private void mockList(String listCode, Long listId, List<ShariahExclusionListEntry> entries) {
