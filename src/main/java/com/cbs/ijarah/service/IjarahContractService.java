@@ -86,6 +86,11 @@ public class IjarahContractService {
     public IjarahResponses.IjarahContractResponse confirmAssetOwnership(Long contractId,
                                                                   IjarahRequests.AssetOwnershipConfirmationRequest request) {
         IjarahContract contract = findContract(contractId);
+        if (contract.getStatus() != IjarahDomainEnums.ContractStatus.ASSET_PROCUREMENT
+                && contract.getStatus() != IjarahDomainEnums.ContractStatus.DRAFT) {
+            throw new BusinessException("Asset ownership can only be confirmed when contract is in DRAFT or ASSET_PROCUREMENT status",
+                    "INVALID_CONTRACT_STATUS");
+        }
         if (!StringUtils.hasText(request.getRegisteredOwner())) {
             throw new BusinessException("Ijarah asset must be registered in the bank's name", "IJARAH_ASSET_NOT_REGISTERED");
         }
@@ -233,6 +238,18 @@ public class IjarahContractService {
                     .maintenanceDate(request.getEventDate() != null ? request.getEventDate() : LocalDate.now())
                     .completionDate(request.getEventDate() != null ? request.getEventDate() : LocalDate.now())
                     .build());
+        } else {
+            // Minor damage: record on the asset for audit trail
+            IjarahContract contract = findContract(contractId);
+            assetService.recordMaintenance(contract.getIjarahAssetId(), IjarahRequests.MaintenanceRecordRequest.builder()
+                    .maintenanceType(IjarahDomainEnums.MaintenanceType.MINOR_REPAIR)
+                    .responsibleParty(IjarahDomainEnums.ResponsibleParty.CUSTOMER)
+                    .description("Minor damage: " + request.getDescription())
+                    .cost(request.getEstimatedCost() != null ? request.getEstimatedCost() : BigDecimal.ZERO)
+                    .currencyCode("SAR")
+                    .maintenanceDate(request.getEventDate() != null ? request.getEventDate() : LocalDate.now())
+                    .completionDate(request.getEventDate() != null ? request.getEventDate() : LocalDate.now())
+                    .build());
         }
     }
 
@@ -324,15 +341,43 @@ public class IjarahContractService {
 
     public IjarahResponses.IjarahContractResponse processEarlyTermination(Long contractId, IjarahRequests.EarlyTerminationRequest request) {
         IjarahContract contract = findContract(contractId);
+        LocalDate terminationDate = request.getTerminationDate() != null ? request.getTerminationDate() : LocalDate.now();
+
         rentalService.getSchedule(contractId).stream()
                 .filter(installment -> installment.getStatus() == IjarahDomainEnums.RentalInstallmentStatus.SCHEDULED
                         || installment.getStatus() == IjarahDomainEnums.RentalInstallmentStatus.DUE)
                 .forEach(installment -> installment.setStatus(IjarahDomainEnums.RentalInstallmentStatus.CANCELLED));
+
+        // GL posting for early termination accounting
+        if (contract.getIjarahAssetId() != null) {
+            var asset = assetService.findAsset(contract.getIjarahAssetId());
+            BigDecimal nbv = IjarahSupport.money(asset.getNetBookValue());
+            postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                    .contractTypeCode("IJARAH")
+                    .txnType(IslamicTransactionType.EARLY_TERMINATION)
+                    .amount(nbv.max(BigDecimal.ONE))
+                    .reference(contract.getContractRef() + "-EARLY-TERM")
+                    .valueDate(terminationDate)
+                    .additionalContext(Map.of(
+                            "terminationReason", request.getReason() != null ? request.getReason() : "EARLY_TERMINATION",
+                            "assetCost", IjarahSupport.money(asset.getAcquisitionCost()),
+                            "accumulatedDepreciation", IjarahSupport.money(asset.getAccumulatedDepreciation()),
+                            "netBookValue", nbv))
+                    .build());
+
+            // Update asset status after early termination
+            asset.setStatus(IjarahDomainEnums.AssetStatus.OWNED_UNLEASED);
+        }
+
         contract.setStatus(IjarahDomainEnums.ContractStatus.TERMINATED_EARLY);
-        contract.setTerminatedAt(request.getTerminationDate() != null ? request.getTerminationDate() : LocalDate.now());
+        contract.setTerminatedAt(terminationDate);
         contract.setTerminationReason(request.getReason());
         if (contract.getImbTransferMechanismId() != null) {
             transferService.cancelTransfer(contract.getImbTransferMechanismId(), request.getReason());
+        }
+        // Unassign from investment pool
+        if (contract.getPoolAssetAssignmentId() != null) {
+            poolAssetManagementService.unassignAssetFromPool(contract.getPoolAssetAssignmentId(), "IJARAH_EARLY_TERMINATION");
         }
         contractRepository.save(contract);
         return IjarahSupport.toContractResponse(contract);

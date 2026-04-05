@@ -28,6 +28,10 @@ import com.cbs.mudarabah.repository.MudarabahTermDepositRepository;
 import com.cbs.mudarabah.repository.PoolProfitAllocationRepository;
 import com.cbs.mudarabah.entity.PoolProfitAllocation;
 import com.cbs.mudarabah.entity.ProfitAllocationStatus;
+import com.cbs.customer.entity.Customer;
+import com.cbs.customer.repository.CustomerRepository;
+import com.cbs.gl.islamic.entity.InvestmentPool;
+import com.cbs.gl.islamic.repository.InvestmentPoolRepository;
 import com.cbs.rulesengine.dto.DecisionResultResponse;
 import com.cbs.rulesengine.service.DecisionTableEvaluator;
 import lombok.RequiredArgsConstructor;
@@ -66,6 +70,8 @@ public class MudarabahTermDepositService {
     private final DecisionTableEvaluator decisionTableEvaluator;
     private final HijriCalendarService hijriCalendarService;
     private final PoolProfitAllocationRepository allocationRepository;
+    private final CustomerRepository customerRepository;
+    private final InvestmentPoolRepository investmentPoolRepository;
 
     private static final String MUDARABAH_INVESTMENT_GL = "3100-MDR-001";
     private static final String PROFIT_DISTRIBUTION_GL = "6100-000-001";

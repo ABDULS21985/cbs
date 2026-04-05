@@ -15,6 +15,7 @@ import com.cbs.ijarah.dto.IjarahResponses;
 import com.cbs.ijarah.entity.IjarahContract;
 import com.cbs.ijarah.entity.IjarahDomainEnums;
 import com.cbs.ijarah.entity.IjarahRentalInstallment;
+import com.cbs.ijarah.repository.IjarahAssetMaintenanceRecordRepository;
 import com.cbs.ijarah.repository.IjarahContractRepository;
 import com.cbs.ijarah.repository.IjarahRentalInstallmentRepository;
 import com.cbs.profitdistribution.dto.RecordPoolIncomeRequest;
@@ -28,6 +29,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +43,10 @@ public class IjarahRentalService {
     private final AccountRepository accountRepository;
     private final PoolAssetManagementService poolAssetManagementService;
     private final LatePenaltyService latePenaltyService;
+    private final IjarahAssetMaintenanceRecordRepository maintenanceRecordRepository;
+
+    /** Tracks externalRefs already processed within a transaction to prevent duplicate payments. */
+    private static final Set<String> PROCESSED_REFS = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     public List<IjarahRentalInstallment> generateRentalSchedule(Long contractId) {
         IjarahContract contract = getContract(contractId);
@@ -165,6 +171,10 @@ public class IjarahRentalService {
             BigDecimal penaltyDue = IjarahSupport.money(installment.getLatePenaltyAmount());
             BigDecimal penaltyApplied = remaining.min(penaltyDue);
             installment.setLatePenaltyAmount(IjarahSupport.money(penaltyDue.subtract(penaltyApplied)));
+            if (penaltyApplied.compareTo(BigDecimal.ZERO) > 0) {
+                latePenaltyService.settlePenalty(contract.getId(), "IJARAH", installment.getId(),
+                        penaltyApplied, request.getPaymentDate(), generatedRef);
+            }
             remaining = IjarahSupport.money(remaining.subtract(penaltyApplied));
             totalPenaltySettled = totalPenaltySettled.add(penaltyApplied);
 

@@ -174,6 +174,10 @@ public class MusharakahRentalService {
             BigDecimal penaltyDue = MusharakahSupport.money(installment.getLatePenaltyAmount());
             BigDecimal penaltyApplied = remaining.min(penaltyDue);
             installment.setLatePenaltyAmount(MusharakahSupport.money(penaltyDue.subtract(penaltyApplied)));
+            if (penaltyApplied.compareTo(BigDecimal.ZERO) > 0) {
+                latePenaltyService.settlePenalty(contract.getId(), "MUSHARAKAH", installment.getId(),
+                        penaltyApplied, request.getPaymentDate(), reference);
+            }
             remaining = MusharakahSupport.money(remaining.subtract(penaltyApplied));
             totalPenaltySettled = totalPenaltySettled.add(penaltyApplied);
 

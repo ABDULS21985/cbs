@@ -30,4 +30,6 @@ public interface FeeChargeLogRepository extends JpaRepository<FeeChargeLog, Long
     List<FeeChargeLog> findByDeferredRemainingAmountGreaterThanOrderByChargedAtAsc(java.math.BigDecimal deferredRemainingAmount);
 
     List<FeeChargeLog> findByChargedAtBetweenOrderByChargedAtDesc(Instant from, Instant to);
+
+    boolean existsByTriggerRef(String triggerRef);
 }

@@ -15,7 +15,11 @@ import com.cbs.musharakah.dto.MusharakahRequests;
 import com.cbs.musharakah.dto.MusharakahResponses;
 import com.cbs.musharakah.entity.MusharakahContract;
 import com.cbs.musharakah.entity.MusharakahDomainEnums;
+import com.cbs.musharakah.entity.MusharakahBuyoutInstallment;
+import com.cbs.musharakah.entity.MusharakahRentalInstallment;
+import com.cbs.musharakah.repository.MusharakahBuyoutInstallmentRepository;
 import com.cbs.musharakah.repository.MusharakahContractRepository;
+import com.cbs.musharakah.repository.MusharakahRentalInstallmentRepository;
 import com.cbs.productfactory.islamic.entity.IslamicProductTemplate;
 import com.cbs.productfactory.islamic.repository.IslamicProductTemplateRepository;
 import com.cbs.profitdistribution.dto.AssignAssetToPoolRequest;
@@ -27,11 +31,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +49,8 @@ import java.util.List;
 public class MusharakahContractService {
 
     private final MusharakahContractRepository contractRepository;
+    private final MusharakahRentalInstallmentRepository rentalInstallmentRepository;
+    private final MusharakahBuyoutInstallmentRepository buyoutInstallmentRepository;
     private final CustomerRepository customerRepository;
     private final ProductRepository productRepository;
     private final IslamicProductTemplateRepository islamicProductTemplateRepository;
@@ -72,6 +84,12 @@ public class MusharakahContractService {
 
     public MusharakahResponses.MusharakahContractResponse initiateAssetProcurement(Long contractId) {
         MusharakahContract contract = findContract(contractId);
+        if (contract.getStatus() != MusharakahDomainEnums.ContractStatus.DRAFT
+                && contract.getStatus() != MusharakahDomainEnums.ContractStatus.PENDING_EXECUTION) {
+            throw new BusinessException(
+                    "Asset procurement can only be initiated for contracts in DRAFT or PENDING_EXECUTION status, current status: " + contract.getStatus(),
+                    "INVALID_CONTRACT_STATUS");
+        }
         postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
                 .contractTypeCode("MUSHARAKAH")
                 .txnType(IslamicTransactionType.FINANCING_DISBURSEMENT)
@@ -199,6 +217,21 @@ public class MusharakahContractService {
         }
         MusharakahContract contract = findContract(contractId);
         unitService.transferUnits(contractId, quote.getRemainingBankUnits(), LocalDate.now(), quote.getBuyoutAmount(), "EARLY-BUYOUT");
+
+        // Post separate GL entry for rental arrears portion if any
+        if (quote.getRentalArrears() != null && quote.getRentalArrears().compareTo(BigDecimal.ZERO) > 0) {
+            postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                    .contractTypeCode("MUSHARAKAH")
+                    .txnType(IslamicTransactionType.RENTAL_PAYMENT)
+                    .accountId(contract.getAccountId())
+                    .amount(quote.getRentalArrears())
+                    .rental(quote.getRentalArrears())
+                    .valueDate(LocalDate.now())
+                    .reference(contract.getContractRef() + "-EARLY-BUYOUT-ARREARS")
+                    .narration("Musharakah early buyout - rental arrears settlement")
+                    .build());
+        }
+
         contract.setEarlyBuyoutDate(LocalDate.now());
         contract.setEarlyBuyoutAmount(quote.getTotalAmount());
         contract.setStatus(MusharakahDomainEnums.ContractStatus.FULLY_BOUGHT_OUT);
@@ -222,6 +255,29 @@ public class MusharakahContractService {
 
     public void dissolvePartnership(Long contractId, String reason) {
         MusharakahContract contract = findContract(contractId);
+
+        // Cancel remaining rental installments
+        List<MusharakahRentalInstallment> rentals = rentalInstallmentRepository.findByContractIdOrderByInstallmentNumberAsc(contractId);
+        for (MusharakahRentalInstallment rental : rentals) {
+            if (rental.getStatus() != MusharakahDomainEnums.InstallmentStatus.PAID
+                    && rental.getStatus() != MusharakahDomainEnums.InstallmentStatus.WAIVED
+                    && rental.getStatus() != MusharakahDomainEnums.InstallmentStatus.CANCELLED) {
+                rental.setStatus(MusharakahDomainEnums.InstallmentStatus.CANCELLED);
+            }
+        }
+        rentalInstallmentRepository.saveAll(rentals);
+
+        // Cancel remaining buyout installments
+        List<MusharakahBuyoutInstallment> buyouts = buyoutInstallmentRepository.findByContractIdOrderByInstallmentNumberAsc(contractId);
+        for (MusharakahBuyoutInstallment buyout : buyouts) {
+            if (buyout.getStatus() != MusharakahDomainEnums.InstallmentStatus.PAID
+                    && buyout.getStatus() != MusharakahDomainEnums.InstallmentStatus.WAIVED
+                    && buyout.getStatus() != MusharakahDomainEnums.InstallmentStatus.CANCELLED) {
+                buyout.setStatus(MusharakahDomainEnums.InstallmentStatus.CANCELLED);
+            }
+        }
+        buyoutInstallmentRepository.saveAll(buyouts);
+
         contract.setDissolvedAt(LocalDate.now());
         contract.setStatus(MusharakahDomainEnums.ContractStatus.CLOSED);
         contractRepository.save(contract);
@@ -238,16 +294,41 @@ public class MusharakahContractService {
 
     @Transactional(readOnly = true)
     public MusharakahResponses.MusharakahPortfolioSummary getPortfolioSummary() {
-        List<MusharakahContract> contracts = contractRepository.findAll();
+        int totalContracts = 0;
+        BigDecimal totalBankCapital = MusharakahSupport.ZERO;
+        BigDecimal totalRentalExpected = MusharakahSupport.ZERO;
+        BigDecimal totalRentalReceived = MusharakahSupport.ZERO;
+        BigDecimal totalBuyoutExpected = MusharakahSupport.ZERO;
+        BigDecimal totalBuyoutReceived = MusharakahSupport.ZERO;
+        Map<String, Long> byType = new HashMap<>();
+        Map<String, Long> byStatus = new HashMap<>();
+
+        Pageable pageable = PageRequest.of(0, 500);
+        Page<MusharakahContract> page;
+        do {
+            page = contractRepository.findAll(pageable);
+            for (MusharakahContract contract : page.getContent()) {
+                totalContracts++;
+                totalBankCapital = totalBankCapital.add(MusharakahSupport.money(contract.getBankCapitalContribution()));
+                totalRentalExpected = totalRentalExpected.add(MusharakahSupport.money(contract.getTotalRentalExpected()));
+                totalRentalReceived = totalRentalReceived.add(MusharakahSupport.money(contract.getTotalRentalReceived()));
+                totalBuyoutExpected = totalBuyoutExpected.add(MusharakahSupport.money(contract.getTotalBuyoutPaymentsExpected()));
+                totalBuyoutReceived = totalBuyoutReceived.add(MusharakahSupport.money(contract.getTotalBuyoutPaymentsReceived()));
+                byType.merge(contract.getMusharakahType().name(), 1L, Long::sum);
+                byStatus.merge(contract.getStatus().name(), 1L, Long::sum);
+            }
+            pageable = page.nextPageable();
+        } while (page.hasNext());
+
         return MusharakahResponses.MusharakahPortfolioSummary.builder()
-                .totalContracts(contracts.size())
-                .totalBankCapital(contracts.stream().map(MusharakahContract::getBankCapitalContribution).map(MusharakahSupport::money).reduce(MusharakahSupport.ZERO, BigDecimal::add))
-                .totalRentalExpected(contracts.stream().map(MusharakahContract::getTotalRentalExpected).map(MusharakahSupport::money).reduce(MusharakahSupport.ZERO, BigDecimal::add))
-                .totalRentalReceived(contracts.stream().map(MusharakahContract::getTotalRentalReceived).map(MusharakahSupport::money).reduce(MusharakahSupport.ZERO, BigDecimal::add))
-                .totalBuyoutExpected(contracts.stream().map(MusharakahContract::getTotalBuyoutPaymentsExpected).map(MusharakahSupport::money).reduce(MusharakahSupport.ZERO, BigDecimal::add))
-                .totalBuyoutReceived(contracts.stream().map(MusharakahContract::getTotalBuyoutPaymentsReceived).map(MusharakahSupport::money).reduce(MusharakahSupport.ZERO, BigDecimal::add))
-                .byType(contracts.stream().collect(java.util.stream.Collectors.groupingBy(c -> c.getMusharakahType().name(), java.util.stream.Collectors.counting())))
-                .byStatus(contracts.stream().collect(java.util.stream.Collectors.groupingBy(c -> c.getStatus().name(), java.util.stream.Collectors.counting())))
+                .totalContracts(totalContracts)
+                .totalBankCapital(totalBankCapital)
+                .totalRentalExpected(totalRentalExpected)
+                .totalRentalReceived(totalRentalReceived)
+                .totalBuyoutExpected(totalBuyoutExpected)
+                .totalBuyoutReceived(totalBuyoutReceived)
+                .byType(byType)
+                .byStatus(byStatus)
                 .build();
     }
 

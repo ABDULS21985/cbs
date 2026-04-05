@@ -19,6 +19,7 @@ import com.cbs.fees.islamic.dto.IslamicFeeRequests;
 import com.cbs.fees.islamic.dto.IslamicFeeResponses;
 import com.cbs.fees.islamic.entity.IslamicFeeConfiguration;
 import com.cbs.fees.islamic.repository.IslamicFeeConfigurationRepository;
+import com.cbs.fees.islamic.repository.IslamicFeeWaiverRepository;
 import com.cbs.productfactory.islamic.entity.IslamicProductTemplate;
 import com.cbs.productfactory.islamic.repository.IslamicProductTemplateRepository;
 import com.cbs.rulesengine.dto.DecisionResultResponse;
@@ -29,6 +30,7 @@ import com.cbs.shariahcompliance.service.ShariahScreeningService;
 import com.cbs.tenant.service.CurrentTenantResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
@@ -43,6 +45,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -53,6 +56,7 @@ public class IslamicFeeService {
     private final IslamicFeeConfigurationRepository configRepository;
     private final FeeDefinitionRepository feeDefinitionRepository;
     private final FeeChargeLogRepository feeChargeLogRepository;
+    private final IslamicFeeWaiverRepository waiverRepository;
     private final AccountRepository accountRepository;
     private final ProductRepository productRepository;
     private final IslamicProductTemplateRepository islamicProductTemplateRepository;
@@ -62,6 +66,7 @@ public class IslamicFeeService {
     private final DecisionTableEvaluator decisionTableEvaluator;
     private final CurrentActorProvider actorProvider;
     private final CurrentTenantResolver tenantResolver;
+    private final ObjectProvider<LatePenaltyService> latePenaltyServiceProvider;
 
     private final ExpressionParser spelParser = new SpelExpressionParser();
 
@@ -136,6 +141,23 @@ public class IslamicFeeService {
         return calculateFee(getFeeByCode(feeCode), context);
     }
 
+    public IslamicFeeResponses.LatePenaltyResult chargeLatePaymentFee(Long contractId,
+                                                                      Long installmentId,
+                                                                      BigDecimal overdueAmount,
+                                                                      int daysOverdue) {
+        LatePenaltyService latePenaltyService = latePenaltyServiceProvider.getIfAvailable();
+        if (latePenaltyService == null) {
+            throw new BusinessException("Late penalty service is unavailable", "LATE_PENALTY_SERVICE_UNAVAILABLE");
+        }
+        return latePenaltyService.processLatePenalty(IslamicFeeResponses.LatePenaltyRequest.builder()
+                .contractId(contractId)
+                .installmentId(installmentId)
+                .overdueAmount(overdueAmount)
+                .daysOverdue(daysOverdue)
+                .penaltyDate(LocalDate.now())
+                .build());
+    }
+
     public IslamicFeeResponses.FeeChargeResult chargeFee(IslamicFeeRequests.ChargeFeeRequest request) {
         IslamicFeeConfiguration configuration = getFeeByCode(request.getFeeCode());
         ensureChargeable(configuration);
@@ -151,7 +173,44 @@ public class IslamicFeeService {
                 .currencyCode(StringUtils.hasText(request.getCurrencyCode()) ? request.getCurrencyCode() : account.getCurrencyCode())
                 .build();
         IslamicFeeResponses.FeeCalculationResult calculation = calculateFee(configuration, context);
+        ChargeAdjustment waiverAdjustment = resolvePreChargeWaiver(configuration, request, calculation);
+        if (waiverAdjustment.deferUntil() != null) {
+            return buildSuppressedChargeResult(configuration, calculation,
+                    "Fee deferred until " + waiverAdjustment.deferUntil(), waiverAdjustment.waiverId(), request.getTriggerRef());
+        }
+        if (waiverAdjustment.convertedFeeCode() != null) {
+            consumePreChargeWaiver(waiverAdjustment.waiverId(),
+                    StringUtils.hasText(request.getTriggerRef()) ? request.getTriggerRef() : IslamicFeeSupport.nextRef("IFW"));
+            IslamicFeeRequests.ChargeFeeRequest convertedRequest = IslamicFeeRequests.ChargeFeeRequest.builder()
+                    .feeCode(waiverAdjustment.convertedFeeCode())
+                    .accountId(request.getAccountId())
+                    .transactionAmount(request.getTransactionAmount())
+                    .financingAmount(request.getFinancingAmount())
+                    .accountBalance(request.getAccountBalance())
+                    .customerSegment(request.getCustomerSegment())
+                    .tenorMonths(request.getTenorMonths())
+                    .contractId(request.getContractId())
+                    .contractRef(request.getContractRef())
+                    .contractTypeCode(request.getContractTypeCode())
+                    .installmentId(request.getInstallmentId())
+                    .transactionType(request.getTransactionType())
+                    .triggerRef(request.getTriggerRef())
+                    .narration(request.getNarration())
+                    .currencyCode(request.getCurrencyCode())
+                    .customerId(request.getCustomerId())
+                    .build();
+            return chargeFee(convertedRequest);
+        }
+        if (waiverAdjustment.overrideAmount() != null) {
+            calculation = overrideCalculatedAmount(calculation, waiverAdjustment.overrideAmount(), waiverAdjustment.message());
+        }
         if (calculation.getCalculatedAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            if (waiverAdjustment.waiverId() != null) {
+                return buildSuppressedChargeResult(configuration, calculation,
+                        waiverAdjustment.message() != null ? waiverAdjustment.message() : "Fee waived before charge",
+                        waiverAdjustment.waiverId(),
+                        request.getTriggerRef());
+            }
             throw new BusinessException("Calculated fee amount must be positive", "ISLAMIC_FEE_NON_POSITIVE");
         }
 
@@ -206,7 +265,8 @@ public class IslamicFeeService {
                     request.getContractRef(),
                     request.getContractTypeCode(),
                     request.getCustomerId(),
-                    journalTxn.getJournal() != null ? journalTxn.getJournal().getJournalNumber() : null
+                    journalTxn.getJournal() != null ? journalTxn.getJournal().getJournalNumber() : null,
+                    calculation.getCurrencyCode()
             ).getId();
         }
 
@@ -232,6 +292,9 @@ public class IslamicFeeService {
                 .notes(calculation.getCalculationBreakdown())
                 .status("CHARGED")
                 .build());
+        if (waiverAdjustment.waiverId() != null) {
+            consumePreChargeWaiver(waiverAdjustment.waiverId(), chargeLog.getJournalRef() != null ? chargeLog.getJournalRef() : postingRef);
+        }
 
         return IslamicFeeResponses.FeeChargeResult.builder()
                 .feeChargeLogId(chargeLog.getId())
@@ -356,7 +419,7 @@ public class IslamicFeeService {
                 breakdown = "Flat fee: " + amount;
             }
             case "PERCENTAGE" -> {
-                BigDecimal base = IslamicFeeSupport.nvl(context.getTransactionAmount());
+                BigDecimal base = resolvePercentageBase(configuration, context);
                 amount = IslamicFeeSupport.money(base.multiply(IslamicFeeSupport.nvl(configuration.getPercentageRate()))
                         .divide(IslamicFeeSupport.HUNDRED, 8, RoundingMode.HALF_UP));
                 breakdown = IslamicFeeSupport.feeCalcBreakdown("Percentage fee", base, configuration.getPercentageRate(), amount);
@@ -431,7 +494,7 @@ public class IslamicFeeService {
                 : result.getOutputs().get("flatAmount");
         BigDecimal resolved = IslamicFeeSupport.toDecimal(value);
         if (configuration.getFeeType().contains("PERCENTAGE")) {
-            return IslamicFeeSupport.money(IslamicFeeSupport.nvl(context.getTransactionAmount())
+            return IslamicFeeSupport.money(resolvePercentageBase(configuration, context)
                     .multiply(IslamicFeeSupport.nvl(resolved))
                     .divide(IslamicFeeSupport.HUNDRED, 8, RoundingMode.HALF_UP));
         }
@@ -472,6 +535,22 @@ public class IslamicFeeService {
         if (create && !StringUtils.hasText(request.getFeeCode())) {
             throw new BusinessException("Fee code is required", "ISLAMIC_FEE_CODE_REQUIRED");
         }
+        if (!StringUtils.hasText(request.getShariahClassification())) {
+            throw new BusinessException("Shariah classification is required", "ISLAMIC_FEE_CLASSIFICATION_REQUIRED");
+        }
+        if (!StringUtils.hasText(request.getFeeType())) {
+            throw new BusinessException("Fee type is required", "ISLAMIC_FEE_TYPE_REQUIRED");
+        }
+        if (!StringUtils.hasText(request.getFeeCategory())) {
+            throw new BusinessException("Fee category is required", "ISLAMIC_FEE_CATEGORY_REQUIRED");
+        }
+        if (!StringUtils.hasText(request.getChargeFrequency()) || !StringUtils.hasText(request.getChargeTiming())) {
+            throw new BusinessException("Charge frequency and timing are required", "ISLAMIC_FEE_CHARGE_SCHEDULE_REQUIRED");
+        }
+        if (request.getEffectiveFrom() != null && request.getEffectiveTo() != null
+                && request.getEffectiveTo().isBefore(request.getEffectiveFrom())) {
+            throw new BusinessException("Effective to date cannot be before effective from date", "ISLAMIC_FEE_EFFECTIVE_DATES_INVALID");
+        }
         if ("PENALTY_CHARITY".equals(request.getShariahClassification())) {
             if (!Boolean.TRUE.equals(request.getCharityRouted())) {
                 throw new BusinessException("Penalty charity fees must be charity-routed", "ISLAMIC_FEE_CHARITY_REQUIRED");
@@ -479,6 +558,8 @@ public class IslamicFeeService {
             if (!StringUtils.hasText(request.getCharityGlAccount())) {
                 throw new BusinessException("Penalty charity fee requires charity GL account", "ISLAMIC_FEE_CHARITY_GL_REQUIRED");
             }
+        } else if (!"PROHIBITED".equals(request.getShariahClassification()) && !StringUtils.hasText(request.getIncomeGlAccount())) {
+            throw new BusinessException("Active Islamic fees require an income GL account", "ISLAMIC_FEE_INCOME_GL_REQUIRED");
         }
         if (IslamicFeeSupport.UJRAH_CLASSIFICATIONS.contains(IslamicFeeSupport.normalize(request.getShariahClassification()))
                 && !StringUtils.hasText(request.getShariahJustification())) {
@@ -486,6 +567,45 @@ public class IslamicFeeService {
         }
         if (Boolean.FALSE.equals(request.getCompoundingProhibited())) {
             throw new BusinessException("Compounding must be prohibited for Islamic fees", "ISLAMIC_FEE_COMPOUNDING_PROHIBITED");
+        }
+        switch (IslamicFeeSupport.normalize(request.getFeeType())) {
+            case "FLAT" -> {
+                if (request.getFlatAmount() == null || request.getFlatAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new BusinessException("Flat fee requires a positive flat amount", "ISLAMIC_FEE_FLAT_AMOUNT_REQUIRED");
+                }
+            }
+            case "PERCENTAGE" -> {
+                if (request.getPercentageRate() == null || request.getPercentageRate().compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new BusinessException("Percentage fee requires a positive rate", "ISLAMIC_FEE_PERCENTAGE_RATE_REQUIRED");
+                }
+                if (request.getMaximumAmount() == null || request.getMaximumAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new BusinessException("Percentage fee requires a maximum amount cap", "ISLAMIC_FEE_PERCENTAGE_CAP_REQUIRED");
+                }
+                if (Boolean.TRUE.equals(request.getPercentageOfFinancingProhibited())
+                        && request.getMaximumAsPercentOfFinancing() == null) {
+                    throw new BusinessException("Fees prohibited from financing-based charging require a financing cap percentage",
+                            "ISLAMIC_FEE_FINANCING_CAP_REQUIRED");
+                }
+            }
+            case "TIERED_FLAT" -> {
+                if (!StringUtils.hasText(request.getTierDecisionTableCode())) {
+                    throw new BusinessException("Tiered flat fees require a decision table", "ISLAMIC_FEE_DECISION_TABLE_REQUIRED");
+                }
+            }
+            case "TIERED_PERCENTAGE" -> {
+                if (!StringUtils.hasText(request.getTierDecisionTableCode())) {
+                    throw new BusinessException("Tiered percentage fees require a decision table", "ISLAMIC_FEE_DECISION_TABLE_REQUIRED");
+                }
+                if (request.getMaximumAmount() == null || request.getMaximumAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new BusinessException("Tiered percentage fees require a maximum amount cap", "ISLAMIC_FEE_PERCENTAGE_CAP_REQUIRED");
+                }
+            }
+            case "FORMULA" -> {
+                if (!StringUtils.hasText(request.getFormulaExpression())) {
+                    throw new BusinessException("Formula fees require a formula expression", "ISLAMIC_FEE_FORMULA_REQUIRED");
+                }
+            }
+            default -> throw new BusinessException("Unsupported Islamic fee type", "ISLAMIC_FEE_TYPE_INVALID");
         }
     }
 

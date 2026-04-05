@@ -1,7 +1,10 @@
 package com.cbs.murabaha.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.fees.islamic.dto.IslamicFeeResponses;
@@ -34,6 +37,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -48,6 +52,7 @@ public class MurabahaScheduleService {
     private final AccountRepository accountRepository;
     private final PoolAssetManagementService poolAssetManagementService;
     private final LatePenaltyService latePenaltyService;
+    private final AccountPostingService accountPostingService;
 
     public List<MurabahaInstallment> generateSchedule(Long contractId) {
         MurabahaContract contract = getContract(contractId);
@@ -60,6 +65,13 @@ public class MurabahaScheduleService {
 
         List<MurabahaInstallment> existing = installmentRepository.findByContractIdOrderByInstallmentNumberAsc(contractId);
         if (!existing.isEmpty()) {
+            boolean hasPayments = existing.stream().anyMatch(inst ->
+                    inst.getStatus() == MurabahaDomainEnums.InstallmentStatus.PAID
+                            || inst.getStatus() == MurabahaDomainEnums.InstallmentStatus.PARTIAL);
+            if (hasPayments) {
+                throw new BusinessException("Cannot regenerate schedule: installments with payments exist",
+                        "SCHEDULE_HAS_PAYMENTS");
+            }
             installmentRepository.deleteAll(existing);
         }
 
@@ -141,6 +153,10 @@ public class MurabahaScheduleService {
                     "INVALID_CONTRACT_STATUS");
         }
 
+        if (request.getPaymentAmount() == null || request.getPaymentAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Payment amount must be positive", "INVALID_PAYMENT_AMOUNT");
+        }
+
         refreshPastDueStatuses(contract);
         List<MurabahaInstallment> unpaidInstallments = installmentRepository.findByContractIdAndStatusInOrderByInstallmentNumberAsc(
                 contractId,
@@ -162,6 +178,21 @@ public class MurabahaScheduleService {
                 ? request.getExternalRef()
                 : "MRB-REPAY-" + contract.getContractRef() + "-" + Instant.now().toEpochMilli();
 
+        // Debit customer settlement account
+        Account settlementAccount = resolveReferenceAccount(contract, request.getDebitAccountId());
+        if (settlementAccount != null) {
+            accountPostingService.postDebitAgainstGl(
+                    settlementAccount,
+                    TransactionType.DEBIT,
+                    request.getPaymentAmount(),
+                    "Murabaha repayment for contract " + contract.getContractRef(),
+                    TransactionChannel.SYSTEM,
+                    generatedRef,
+                    "1800-MRB-001",
+                    "MURABAHA",
+                    contract.getContractRef());
+        }
+
         for (MurabahaInstallment installment : unpaidInstallments) {
             if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
                 break;
@@ -173,6 +204,10 @@ public class MurabahaScheduleService {
             BigDecimal penaltyDue = MurabahaSupport.money(installment.getLatePenaltyAmount());
             BigDecimal penaltyApplied = remaining.min(penaltyDue);
             installment.setLatePenaltyAmount(MurabahaSupport.money(penaltyDue.subtract(penaltyApplied)));
+            if (penaltyApplied.compareTo(BigDecimal.ZERO) > 0) {
+                latePenaltyService.settlePenalty(contract.getId(), "MURABAHA", installment.getId(),
+                        penaltyApplied, request.getPaymentDate(), generatedRef);
+            }
             remaining = MurabahaSupport.money(remaining.subtract(penaltyApplied));
             totalPenaltySettled = totalPenaltySettled.add(penaltyApplied);
 
@@ -199,6 +234,22 @@ public class MurabahaScheduleService {
             installment.setNotes(request.getNarration());
             updateInstallmentStatus(installment);
             installmentRepository.save(installment);
+        }
+
+        if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+            // Post overpayment to suspense account
+            postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                    .contractTypeCode("MURABAHA")
+                    .txnType(IslamicTransactionType.FINANCING_REPAYMENT)
+                    .accountId(contract.getAccountId())
+                    .amount(remaining)
+                    .valueDate(request.getPaymentDate())
+                    .reference(generatedRef + "-OVERPAY")
+                    .narration("Overpayment suspense for contract " + contract.getContractRef())
+                    .additionalContext(Map.of("suspenseType", "OVERPAYMENT_SUSPENSE"))
+                    .build());
+            log.warn("Overpayment of {} detected on contract {}. Posted to suspense account.",
+                    remaining, contract.getContractRef());
         }
 
         if (totalPrincipalSettled.add(totalProfitSettled).compareTo(BigDecimal.ZERO) > 0) {
@@ -269,6 +320,9 @@ public class MurabahaScheduleService {
                     .daysOverdue(installment.getDaysOverdue())
                     .penaltyDate(LocalDate.now())
                     .build());
+
+            installment.setLatePenaltyAmount(penalty);
+            installmentRepository.save(installment);
         }
     }
 
@@ -339,6 +393,21 @@ public class MurabahaScheduleService {
             case NO_REBATE -> MurabahaSupport.ZERO;
         };
         BigDecimal settlementAmount = MurabahaSupport.money(quote.getRemainingBalance().subtract(ibra));
+
+        // Debit customer settlement account
+        Account earlySettlementAccount = resolveReferenceAccount(contract, request.getDebitAccountId());
+        if (earlySettlementAccount != null) {
+            accountPostingService.postDebitAgainstGl(
+                    earlySettlementAccount,
+                    TransactionType.DEBIT,
+                    settlementAmount,
+                    "Murabaha early settlement for contract " + contract.getContractRef(),
+                    TransactionChannel.SYSTEM,
+                    (request.getExternalRef() != null ? request.getExternalRef() : contract.getContractRef()) + "-SETTLE",
+                    "1800-MRB-001",
+                    "MURABAHA",
+                    contract.getContractRef());
+        }
 
         postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
                 .contractTypeCode("MURABAHA")
@@ -546,15 +615,24 @@ public class MurabahaScheduleService {
                 || installment.getStatus() == MurabahaDomainEnums.InstallmentStatus.WAIVED) {
             return;
         }
+        boolean isPartiallyPaid = installment.getPaidAmount() != null
+                && installment.getPaidAmount().compareTo(BigDecimal.ZERO) > 0;
         LocalDate today = LocalDate.now();
         if (today.isAfter(installment.getDueDate())) {
-            installment.setStatus(MurabahaDomainEnums.InstallmentStatus.OVERDUE);
+            // Preserve PARTIAL status for installments that have partial payments
+            if (!isPartiallyPaid) {
+                installment.setStatus(MurabahaDomainEnums.InstallmentStatus.OVERDUE);
+            }
             installment.setDaysOverdue((int) java.time.temporal.ChronoUnit.DAYS.between(installment.getDueDate(), today));
         } else if (today.isEqual(installment.getDueDate())) {
-            installment.setStatus(MurabahaDomainEnums.InstallmentStatus.DUE);
+            if (!isPartiallyPaid) {
+                installment.setStatus(MurabahaDomainEnums.InstallmentStatus.DUE);
+            }
             installment.setDaysOverdue(0);
         } else {
-            installment.setStatus(MurabahaDomainEnums.InstallmentStatus.SCHEDULED);
+            if (!isPartiallyPaid) {
+                installment.setStatus(MurabahaDomainEnums.InstallmentStatus.SCHEDULED);
+            }
             installment.setDaysOverdue(0);
         }
     }

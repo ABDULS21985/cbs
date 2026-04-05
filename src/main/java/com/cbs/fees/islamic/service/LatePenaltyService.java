@@ -40,6 +40,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -50,6 +51,11 @@ import java.util.Map;
 @Slf4j
 @Transactional
 public class LatePenaltyService {
+
+    private static final String STATUS_CHARGED = "CHARGED";
+    private static final String STATUS_REVERSED = "REVERSED";
+    private static final String STATUS_BLOCKED = "BLOCKED";
+    private static final String BLOCKED_COMPOUNDING = "COMPOUNDING_PROHIBITED";
 
     private final IslamicFeeService islamicFeeService;
     private final LatePenaltyRecordRepository latePenaltyRecordRepository;
@@ -66,15 +72,6 @@ public class LatePenaltyService {
     private final CurrentTenantResolver tenantResolver;
 
     public IslamicFeeResponses.LatePenaltyResult processLatePenalty(IslamicFeeResponses.LatePenaltyRequest request) {
-        if (latePenaltyRecordRepository.findFirstByInstallmentIdAndStatusOrderByPenaltyDateDesc(request.getInstallmentId(), "CHARGED").isPresent()) {
-            return IslamicFeeResponses.LatePenaltyResult.builder()
-                    .penaltyCharged(false)
-                    .reason("Existing unpaid penalty - compounding prohibited")
-                    .charityRouted(true)
-                    .totalPenaltiesOnContract(IslamicFeeSupport.money(latePenaltyRecordRepository.sumChargedByContractId(request.getContractId())))
-                    .build();
-        }
-
         ContractContext contractContext = resolveContractContext(request.getContractTypeCode(), request.getContractId());
         if (request.getDaysOverdue() <= contractContext.gracePeriodDays()) {
             return IslamicFeeResponses.LatePenaltyResult.builder()
@@ -88,6 +85,32 @@ public class LatePenaltyService {
                 request.getContractTypeCode(),
                 contractContext.productCode()
         );
+        LatePenaltyRecord outstandingPenalty = findOutstandingPenalty(request.getInstallmentId()).orElse(null);
+        if (outstandingPenalty != null) {
+            latePenaltyRecordRepository.save(LatePenaltyRecord.builder()
+                    .contractId(request.getContractId())
+                    .contractRef(request.getContractRef())
+                    .contractTypeCode(request.getContractTypeCode())
+                    .customerId(contractContext.customerId())
+                    .installmentId(request.getInstallmentId())
+                    .penaltyDate(request.getPenaltyDate())
+                    .overdueAmount(IslamicFeeSupport.money(request.getOverdueAmount()))
+                    .daysOverdue(request.getDaysOverdue())
+                    .penaltyAmount(BigDecimal.ZERO.setScale(2))
+                    .outstandingAmount(BigDecimal.ZERO.setScale(2))
+                    .feeConfigId(feeConfiguration.getId())
+                    .calculationMethod("Blocked due to outstanding late penalty on installment")
+                    .status(STATUS_BLOCKED)
+                    .blockedReason(BLOCKED_COMPOUNDING)
+                    .tenantId(tenantResolver.getCurrentTenantId())
+                    .build());
+            return IslamicFeeResponses.LatePenaltyResult.builder()
+                    .penaltyCharged(false)
+                    .reason("Existing unpaid penalty - compounding prohibited")
+                    .charityRouted(true)
+                    .totalPenaltiesOnContract(IslamicFeeSupport.money(latePenaltyRecordRepository.sumChargedByContractId(request.getContractId())))
+                    .build();
+        }
         BigDecimal currentYearTotal = IslamicFeeSupport.money(latePenaltyRecordRepository.sumChargedByContractIdBetween(
                 request.getContractId(),
                 IslamicFeeSupport.yearStart(request.getPenaltyDate()),
@@ -139,6 +162,14 @@ public class LatePenaltyService {
                         .narration("Late payment penalty routed to charity")
                         .build()
         );
+        if (chargeResult.getChargedAmount() == null || chargeResult.getChargedAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            return IslamicFeeResponses.LatePenaltyResult.builder()
+                    .penaltyCharged(false)
+                    .reason(chargeResult.getMessage())
+                    .charityRouted(true)
+                    .totalPenaltiesOnContract(IslamicFeeSupport.money(latePenaltyRecordRepository.sumChargedByContractId(request.getContractId())))
+                    .build();
+        }
 
         LatePenaltyRecord record = latePenaltyRecordRepository.save(LatePenaltyRecord.builder()
                 .contractId(request.getContractId())
@@ -150,12 +181,13 @@ public class LatePenaltyService {
                 .overdueAmount(request.getOverdueAmount())
                 .daysOverdue(request.getDaysOverdue())
                 .penaltyAmount(chargeResult.getChargedAmount())
+                .outstandingAmount(chargeResult.getChargedAmount())
                 .feeConfigId(feeConfiguration.getId())
                 .calculationMethod(calculation.getCalculationBreakdown())
                 .journalRef(chargeResult.getJournalRef())
                 .feeChargeLogId(chargeResult.getFeeChargeLogId())
                 .charityFundEntryId(chargeResult.getCharityFundEntryId())
-                .status("CHARGED")
+                .status(STATUS_CHARGED)
                 .tenantId(tenantResolver.getCurrentTenantId())
                 .build());
 
@@ -272,7 +304,8 @@ public class LatePenaltyService {
                         return;
                     }
                     int daysOverdue = (int) ChronoUnit.DAYS.between(installment.getDueDate(), asOfDate);
-                    if (daysOverdue <= (contract.getGracePeriodDays() == null ? 0 : contract.getGracePeriodDays())) {
+                    if (daysOverdue <= (contract.getGracePeriodDays() == null ? 0 : contract.getGracePeriodDays())
+                            || IslamicFeeSupport.money(installment.getLatePenaltyAmount()).compareTo(BigDecimal.ZERO) > 0) {
                         return;
                     }
                     BigDecimal overdue = IslamicFeeSupport.money(installment.getTotalBuyoutAmount().subtract(IslamicFeeSupport.nvl(installment.getPaidAmount())));
@@ -293,7 +326,7 @@ public class LatePenaltyService {
     public void reverseLatePenalty(Long penaltyId, String reason, String authorisedBy) {
         LatePenaltyRecord record = latePenaltyRecordRepository.findById(penaltyId)
                 .orElseThrow(() -> new ResourceNotFoundException("LatePenaltyRecord", "id", penaltyId));
-        if (!"CHARGED".equals(record.getStatus())) {
+        if (!STATUS_CHARGED.equals(record.getStatus())) {
             throw new BusinessException("Only charged penalties can be reversed", "LATE_PENALTY_NOT_REVERSIBLE");
         }
         ContractContext context = resolveContractContext(record.getContractTypeCode(), record.getContractId());
@@ -319,7 +352,9 @@ public class LatePenaltyService {
                 "ISLAMIC_FEE_ENGINE",
                 record.getContractRef() + "-LATE-REV"
         );
-        record.setStatus("REVERSED");
+        record.setStatus(STATUS_REVERSED);
+        record.setOutstandingAmount(BigDecimal.ZERO.setScale(2));
+        record.setSettledAt(IslamicFeeSupport.instantNow());
         record.setReversedAt(IslamicFeeSupport.instantNow());
         record.setReversalReason(reason);
         record.setReversalJournalRef(txn.getJournal() != null ? txn.getJournal().getJournalNumber() : null);
@@ -349,11 +384,47 @@ public class LatePenaltyService {
         return IslamicFeeSupport.money(latePenaltyRecordRepository.sumChargedByContractId(contractId));
     }
 
+    public BigDecimal settlePenalty(Long contractId,
+                                    String contractTypeCode,
+                                    Long installmentId,
+                                    BigDecimal amountSettled,
+                                    LocalDate settlementDate,
+                                    String settlementRef) {
+        BigDecimal remaining = IslamicFeeSupport.money(amountSettled);
+        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO.setScale(2);
+        }
+        BigDecimal totalSettled = BigDecimal.ZERO.setScale(2);
+        List<LatePenaltyRecord> outstandingRecords = latePenaltyRecordRepository.findByInstallmentIdOrderByPenaltyDateDesc(installmentId).stream()
+                .filter(record -> STATUS_CHARGED.equals(record.getStatus()))
+                .filter(record -> IslamicFeeSupport.money(record.getOutstandingAmount()).compareTo(BigDecimal.ZERO) > 0)
+                .sorted(Comparator.comparing(LatePenaltyRecord::getPenaltyDate).thenComparing(LatePenaltyRecord::getId))
+                .toList();
+        for (LatePenaltyRecord record : outstandingRecords) {
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+                break;
+            }
+            BigDecimal outstanding = IslamicFeeSupport.money(record.getOutstandingAmount());
+            BigDecimal settled = remaining.min(outstanding);
+            record.setOutstandingAmount(IslamicFeeSupport.money(outstanding.subtract(settled)));
+            if (record.getOutstandingAmount().compareTo(BigDecimal.ZERO) == 0) {
+                record.setSettledAt(settlementDate != null
+                        ? settlementDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()
+                        : IslamicFeeSupport.instantNow());
+            }
+            record.setCalculationMethod(appendSettlementNote(record.getCalculationMethod(), settled, settlementRef));
+            latePenaltyRecordRepository.save(record);
+            remaining = IslamicFeeSupport.money(remaining.subtract(settled));
+            totalSettled = IslamicFeeSupport.money(totalSettled.add(settled));
+        }
+        return totalSettled;
+    }
+
     @Transactional(readOnly = true)
     public IslamicFeeResponses.LatePenaltySummary getLatePenaltySummary() {
         LocalDate today = LocalDate.now();
         List<LatePenaltyRecord> charged = latePenaltyRecordRepository.findAll().stream()
-                .filter(record -> "CHARGED".equals(record.getStatus()))
+                .filter(record -> STATUS_CHARGED.equals(record.getStatus()))
                 .toList();
         BigDecimal total = charged.stream().map(LatePenaltyRecord::getPenaltyAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         Map<String, BigDecimal> byType = new LinkedHashMap<>();
@@ -366,9 +437,7 @@ public class LatePenaltyService {
                 .totalChargedMonthToDate(getTotalPenaltiesCharged(IslamicFeeSupport.monthStart(today), today))
                 .totalChargedYearToDate(getTotalPenaltiesCharged(IslamicFeeSupport.yearStart(today), today))
                 .averagePenaltyPerInstallment(IslamicFeeSupport.money(average))
-                .compoundingAttemptsBlockedCount(latePenaltyRecordRepository.findAll().stream()
-                        .filter(record -> "WAIVED".equals(record.getStatus()))
-                        .count())
+                .compoundingAttemptsBlockedCount(latePenaltyRecordRepository.countByStatusAndBlockedReason(STATUS_BLOCKED, BLOCKED_COMPOUNDING))
                 .byContractType(byType)
                 .build();
     }
@@ -427,6 +496,11 @@ public class LatePenaltyService {
                     installment.setLatePenaltyCharityJournalRef(journalRef);
                     musharakahRentalInstallmentRepository.save(installment);
                 });
+                musharakahBuyoutInstallmentRepository.findById(installmentId).ifPresent(installment -> {
+                    installment.setLatePenaltyAmount(IslamicFeeSupport.money(IslamicFeeSupport.nvl(installment.getLatePenaltyAmount()).add(delta)));
+                    installment.setLatePenaltyCharityJournalRef(journalRef);
+                    musharakahBuyoutInstallmentRepository.save(installment);
+                });
             }
             default -> {
             }
@@ -462,5 +536,21 @@ public class LatePenaltyService {
                                    String currencyCode,
                                    BigDecimal financingAmount,
                                    int gracePeriodDays) {
+    }
+
+    private java.util.Optional<LatePenaltyRecord> findOutstandingPenalty(Long installmentId) {
+        return latePenaltyRecordRepository.findFirstByInstallmentIdAndStatusAndOutstandingAmountGreaterThanOrderByPenaltyDateDesc(
+                installmentId,
+                STATUS_CHARGED,
+                BigDecimal.ZERO.setScale(2));
+    }
+
+    private String appendSettlementNote(String existingNote, BigDecimal settledAmount, String settlementRef) {
+        String note = "Settled " + IslamicFeeSupport.money(settledAmount)
+                + (settlementRef != null && !settlementRef.isBlank() ? " via " + settlementRef : "");
+        if (existingNote == null || existingNote.isBlank()) {
+            return note;
+        }
+        return existingNote + " | " + note;
     }
 }

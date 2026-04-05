@@ -17,6 +17,7 @@ import com.cbs.wadiah.repository.WadiahAccountRepository;
 import com.cbs.wadiah.repository.WadiahStatementConfigRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -235,10 +236,19 @@ public class WadiahStatementService {
     public List<WadiahStatement> generateMonthlyStatements() {
         LocalDate start = LocalDate.now().minusMonths(1).withDayOfMonth(1);
         LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
-        return wadiahAccountRepository.findAll().stream()
-                .filter(item -> item.getStatementFrequency() == WadiahDomainEnums.StatementFrequency.MONTHLY)
-                .map(item -> generateWadiahStatement(item.getAccount().getId(), start, end, item.getPreferredLanguage().name()))
-                .toList();
+        List<WadiahStatement> results = new ArrayList<>();
+        int pageNumber = 0;
+        int pageSize = 100;
+        Page<WadiahAccount> page;
+        do {
+            page = wadiahAccountRepository.findAll(PageRequest.of(pageNumber, pageSize));
+            page.getContent().stream()
+                    .filter(item -> item.getStatementFrequency() == WadiahDomainEnums.StatementFrequency.MONTHLY)
+                    .map(item -> generateWadiahStatement(item.getAccount().getId(), start, end, item.getPreferredLanguage().name()))
+                    .forEach(results::add);
+            pageNumber++;
+        } while (page.hasNext());
+        return results;
     }
 
     private WadiahAccount getWadiahAccount(Long accountId) {
@@ -273,6 +283,13 @@ public class WadiahStatementService {
             return fallbackBalance.setScale(2, RoundingMode.HALF_UP);
         }
         TransactionJournal first = transactions.getFirst();
+        if (first.getTransactionType() == TransactionType.INTEREST_POSTING) {
+            log.warn("SHARIAH_COMPLIANCE_FLAG: INTEREST_POSTING transaction detected on Wadiah account. "
+                    + "accountId={}, transactionRef={}, amount={}. "
+                    + "Interest-based postings are not Shariah-compliant for Wadiah accounts and require immediate review.",
+                    first.getAccount() != null ? first.getAccount().getId() : "unknown",
+                    first.getTransactionRef(), first.getAmount());
+        }
         BigDecimal delta = switch (first.getTransactionType()) {
             case CREDIT, TRANSFER_IN, OPENING_BALANCE, INTEREST_POSTING -> first.getAmount();
             default -> first.getAmount().negate();
@@ -293,7 +310,9 @@ public class WadiahStatementService {
 
     private TransactionView classifyTransaction(TransactionJournal transaction) {
         String narration = transaction.getNarration() != null ? transaction.getNarration().toLowerCase(Locale.ROOT) : "";
-        if (narration.contains("hibah")) {
+        String externalRef = transaction.getExternalRef() != null ? transaction.getExternalRef().toLowerCase(Locale.ROOT) : "";
+        String contractType = transaction.getContractType() != null ? transaction.getContractType().toUpperCase(Locale.ROOT) : "";
+        if (narration.contains("hibah") || externalRef.contains("hib-") || "HIBAH".equals(contractType)) {
             return new TransactionView("HIBAH", false, false, true);
         }
         if (transaction.getTransactionType() == TransactionType.TRANSFER_IN) {

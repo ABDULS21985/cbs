@@ -42,4 +42,7 @@ public interface MudarabahAccountRepository extends JpaRepository<MudarabahAccou
 
     @Query("SELECT m FROM MudarabahAccount m JOIN m.account a WHERE a.accountNumber = :accountNumber")
     Optional<MudarabahAccount> findByAccountNumber(@Param("accountNumber") String accountNumber);
+
+    @Query("SELECT DISTINCT m.investmentPoolId FROM MudarabahAccount m WHERE m.investmentPoolId IS NOT NULL")
+    List<Long> findDistinctActivePoolIds();
 }

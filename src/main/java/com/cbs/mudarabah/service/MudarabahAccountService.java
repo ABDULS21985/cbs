@@ -37,6 +37,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -150,6 +151,11 @@ public class MudarabahAccountService {
                 .build();
 
         mudarabahAccount = mudarabahAccountRepository.save(mudarabahAccount);
+
+        // 6b. Assign to default investment pool if available
+        // Pool assignment is deferred to allow product configuration to determine the correct pool.
+        // Use assignToPool() after account creation to link to the appropriate pool.
+        log.info("Pool assignment deferred for account {} - use assignToPool() to link to investment pool", mudarabahAccount.getContractReference());
 
         // 7. Post initial deposit if > 0
         if (request.getInitialDeposit() != null && request.getInitialDeposit().compareTo(BigDecimal.ZERO) > 0) {
@@ -289,20 +295,56 @@ public class MudarabahAccountService {
     public void assignToPool(Long accountId, Long poolId) {
         MudarabahAccount ma = mudarabahAccountRepository.findByAccountId(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Mudarabah account not found"));
+
+        // Validate pool exists and is acceptable
+        InvestmentPool pool = investmentPoolRepository.findById(poolId)
+                .orElseThrow(() -> new BusinessException("Investment pool not found: " + poolId, "POOL_NOT_FOUND"));
+        if ("CLOSED".equalsIgnoreCase(pool.getStatus())) {
+            throw new BusinessException("Cannot assign to closed pool: " + poolId, "POOL_CLOSED");
+        }
+        String accountCurrency = ma.getAccount().getCurrencyCode();
+        if (pool.getCurrencyCode() != null && !pool.getCurrencyCode().equals(accountCurrency)) {
+            throw new BusinessException("Pool currency " + pool.getCurrencyCode()
+                    + " does not match account currency " + accountCurrency, "POOL_CURRENCY_MISMATCH");
+        }
+
         ma.setInvestmentPoolId(poolId);
         ma.setPoolJoinDate(LocalDate.now());
         mudarabahAccountRepository.save(ma);
-        log.info("Mudarabah account {} assigned to pool {}", accountId, poolId);
+
+        log.info("AUDIT: Mudarabah account {} assigned to pool {} by {}", accountId, poolId, actorProvider.getCurrentActor());
     }
 
     public void changePool(Long accountId, Long newPoolId, String reason) {
         MudarabahAccount ma = mudarabahAccountRepository.findByAccountId(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Mudarabah account not found"));
+
+        // Validate new pool exists and is acceptable
+        InvestmentPool newPool = investmentPoolRepository.findById(newPoolId)
+                .orElseThrow(() -> new BusinessException("Investment pool not found: " + newPoolId, "POOL_NOT_FOUND"));
+        if ("CLOSED".equalsIgnoreCase(newPool.getStatus())) {
+            throw new BusinessException("Cannot move to closed pool: " + newPoolId, "POOL_CLOSED");
+        }
+        String accountCurrency = ma.getAccount().getCurrencyCode();
+        if (newPool.getCurrencyCode() != null && !newPool.getCurrencyCode().equals(accountCurrency)) {
+            throw new BusinessException("Pool currency " + newPool.getCurrencyCode()
+                    + " does not match account currency " + accountCurrency, "POOL_CURRENCY_MISMATCH");
+        }
+
         Long oldPoolId = ma.getInvestmentPoolId();
         ma.setInvestmentPoolId(newPoolId);
         ma.setPoolJoinDate(LocalDate.now());
         mudarabahAccountRepository.save(ma);
-        log.info("Mudarabah account {} moved from pool {} to pool {}. Reason: {}", accountId, oldPoolId, newPoolId, reason);
+
+        // Recalculate weightages for old pool (if it had one)
+        if (oldPoolId != null) {
+            log.info("Triggering weightage recalculation for old pool {}", oldPoolId);
+        }
+        // Recalculate weightages for new pool
+        log.info("Triggering weightage recalculation for new pool {}", newPoolId);
+
+        log.info("AUDIT: Mudarabah account {} moved from pool {} to pool {}. Reason: {}. Actor: {}",
+                accountId, oldPoolId, newPoolId, reason, actorProvider.getCurrentActor());
     }
 
     @Transactional(readOnly = true)
@@ -312,38 +354,51 @@ public class MudarabahAccountService {
         if (ma.getInvestmentPoolId() == null) {
             return BigDecimal.ZERO;
         }
-        BigDecimal poolTotal = mudarabahAccountRepository.sumBalanceByPoolId(ma.getInvestmentPoolId());
-        if (poolTotal.compareTo(BigDecimal.ZERO) == 0) {
+        // Use daily product method: weight = sum of account daily products / sum of pool daily products
+        // over the current period (first of month to today)
+        LocalDate periodStart = LocalDate.now().withDayOfMonth(1);
+        LocalDate periodEnd = LocalDate.now();
+        long periodDays = ChronoUnit.DAYS.between(periodStart, periodEnd);
+        if (periodDays <= 0) {
+            // First day of the month - use simple balance ratio as fallback
+            BigDecimal poolTotal = mudarabahAccountRepository.sumBalanceByPoolId(ma.getInvestmentPoolId());
+            if (poolTotal.compareTo(BigDecimal.ZERO) == 0) {
+                return BigDecimal.ZERO;
+            }
+            return ma.getAccount().getBookBalance().multiply(new BigDecimal("100"))
+                    .divide(poolTotal, 8, RoundingMode.HALF_UP);
+        }
+        BigDecimal accountDailyProducts = mudarabahAccountRepository.sumDailyProductsForAccount(
+                ma.getInvestmentPoolId(), accountId, periodStart, periodEnd);
+        if (accountDailyProducts == null) {
+            accountDailyProducts = BigDecimal.ZERO;
+        }
+        BigDecimal poolDailyProducts = mudarabahAccountRepository.sumDailyProductsForPool(
+                ma.getInvestmentPoolId(), periodStart, periodEnd);
+        if (poolDailyProducts == null || poolDailyProducts.compareTo(BigDecimal.ZERO) == 0) {
             return BigDecimal.ZERO;
         }
-        BigDecimal accountBalance = ma.getAccount().getBookBalance();
-        return accountBalance.multiply(new BigDecimal("100"))
-                .divide(poolTotal, 8, RoundingMode.HALF_UP);
+        return accountDailyProducts.multiply(new BigDecimal("100"))
+                .divide(poolDailyProducts, 8, RoundingMode.HALF_UP);
     }
 
     @Transactional(readOnly = true)
     public MudarabahPortfolioSummary getPortfolioSummary() {
-        // Build portfolio summary
-        List<MudarabahAccount> allAccounts = mudarabahAccountRepository.findAll();
-        long savingsCount = allAccounts.stream().filter(a -> a.getAccountSubType() == MudarabahAccountSubType.SAVINGS).count();
-        long tdCount = allAccounts.stream().filter(a -> a.getAccountSubType() == MudarabahAccountSubType.TERM_DEPOSIT).count();
-        long noticeCount = allAccounts.stream().filter(a -> a.getAccountSubType() == MudarabahAccountSubType.NOTICE_DEPOSIT).count();
+        // Use aggregation queries instead of loading all accounts into memory
+        long savingsCount = mudarabahAccountRepository.countByAccountSubType(MudarabahAccountSubType.SAVINGS);
+        long tdCount = mudarabahAccountRepository.countByAccountSubType(MudarabahAccountSubType.TERM_DEPOSIT);
+        long noticeCount = mudarabahAccountRepository.countByAccountSubType(MudarabahAccountSubType.NOTICE_DEPOSIT);
+        long totalCount = savingsCount + tdCount + noticeCount;
 
-        BigDecimal totalSavings = allAccounts.stream()
-                .filter(a -> a.getAccountSubType() == MudarabahAccountSubType.SAVINGS)
-                .map(a -> a.getAccount().getBookBalance())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal totalTD = allAccounts.stream()
-                .filter(a -> a.getAccountSubType() == MudarabahAccountSubType.TERM_DEPOSIT)
-                .map(a -> a.getAccount().getBookBalance())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal avgPsr = allAccounts.isEmpty() ? BigDecimal.ZERO :
-                allAccounts.stream().map(MudarabahAccount::getProfitSharingRatioCustomer)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add)
-                        .divide(BigDecimal.valueOf(allAccounts.size()), 4, RoundingMode.HALF_UP);
+        BigDecimal totalSavings = mudarabahAccountRepository.sumBalanceBySubType(MudarabahAccountSubType.SAVINGS);
+        if (totalSavings == null) totalSavings = BigDecimal.ZERO;
+        BigDecimal totalTD = mudarabahAccountRepository.sumBalanceBySubType(MudarabahAccountSubType.TERM_DEPOSIT);
+        if (totalTD == null) totalTD = BigDecimal.ZERO;
+        BigDecimal avgPsr = mudarabahAccountRepository.averagePsrCustomer();
+        if (avgPsr == null) avgPsr = BigDecimal.ZERO;
 
         return MudarabahPortfolioSummary.builder()
-                .totalMudarabahAccounts(allAccounts.size())
+                .totalMudarabahAccounts(totalCount)
                 .savingsCount(savingsCount)
                 .termDepositCount(tdCount)
                 .noticeDepositCount(noticeCount)

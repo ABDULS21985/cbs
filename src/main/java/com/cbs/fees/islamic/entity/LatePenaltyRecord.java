@@ -57,6 +57,9 @@ public class LatePenaltyRecord extends AuditableEntity {
     @Column(name = "penalty_amount", nullable = false, precision = 18, scale = 2)
     private BigDecimal penaltyAmount;
 
+    @Column(name = "outstanding_amount", nullable = false, precision = 18, scale = 2)
+    private BigDecimal outstandingAmount;
+
     @Column(name = "fee_config_id", nullable = false)
     private Long feeConfigId;
 
@@ -78,8 +81,14 @@ public class LatePenaltyRecord extends AuditableEntity {
     @Column(name = "reversed_at")
     private Instant reversedAt;
 
+    @Column(name = "settled_at")
+    private Instant settledAt;
+
     @Column(name = "reversal_reason", columnDefinition = "TEXT")
     private String reversalReason;
+
+    @Column(name = "blocked_reason", length = 80)
+    private String blockedReason;
 
     @Column(name = "reversal_journal_ref", length = 50)
     private String reversalJournalRef;

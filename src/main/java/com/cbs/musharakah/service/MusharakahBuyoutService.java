@@ -146,6 +146,38 @@ public class MusharakahBuyoutService {
                 : MusharakahDomainEnums.InstallmentStatus.PARTIAL);
         installmentRepository.save(installment);
 
+        // Apply surplus payment to subsequent installments if overpayment covers more units than current installment
+        BigDecimal surplus = MusharakahSupport.money(paymentAmount.subtract(usedAmount));
+        if (surplus.compareTo(BigDecimal.ZERO) > 0) {
+            List<MusharakahBuyoutInstallment> remaining = installmentRepository.findByContractIdOrderByInstallmentNumberAsc(contractId).stream()
+                    .filter(i -> i.getStatus() == MusharakahDomainEnums.InstallmentStatus.SCHEDULED
+                            || i.getStatus() == MusharakahDomainEnums.InstallmentStatus.DUE
+                            || i.getStatus() == MusharakahDomainEnums.InstallmentStatus.OVERDUE
+                            || i.getStatus() == MusharakahDomainEnums.InstallmentStatus.PARTIAL)
+                    .filter(i -> !i.getId().equals(installment.getId()))
+                    .toList();
+            for (MusharakahBuyoutInstallment next : remaining) {
+                if (surplus.compareTo(BigDecimal.ZERO) <= 0) break;
+                BigDecimal nextUnitsAffordable = MusharakahSupport.units(surplus.divide(next.getPricePerUnit(), 8, RoundingMode.HALF_UP));
+                if (nextUnitsAffordable.compareTo(BigDecimal.ZERO) <= 0) break;
+                BigDecimal nextUnitsToTransfer = nextUnitsAffordable.min(next.getUnitsToTransfer());
+                BigDecimal nextUsedAmount = MusharakahSupport.money(nextUnitsToTransfer.multiply(next.getPricePerUnit()));
+                MusharakahUnitTransfer surplusTransfer = unitService.transferUnits(
+                        contractId, nextUnitsToTransfer, request.getPaymentDate(), nextUsedAmount, request.getExternalRef());
+                next.setPaidAmount(MusharakahSupport.money(MusharakahSupport.money(next.getPaidAmount()).add(nextUsedAmount)));
+                next.setPaidDate(request.getPaymentDate());
+                next.setActualUnitsTransferred(MusharakahSupport.units(
+                        MusharakahSupport.units(next.getActualUnitsTransferred()).add(nextUnitsToTransfer)));
+                next.setTransactionRef(request.getExternalRef());
+                next.setUnitTransferId(surplusTransfer.getId());
+                next.setStatus(next.getActualUnitsTransferred().compareTo(next.getUnitsToTransfer()) >= 0
+                        ? MusharakahDomainEnums.InstallmentStatus.PAID
+                        : MusharakahDomainEnums.InstallmentStatus.PARTIAL);
+                installmentRepository.save(next);
+                surplus = MusharakahSupport.money(surplus.subtract(nextUsedAmount));
+            }
+        }
+
         rentalService.recalculateRemainingRentals(contractId);
         return installment;
     }
@@ -174,17 +206,20 @@ public class MusharakahBuyoutService {
             }
         }
 
-        var nextBuyout = getNextDueInstallment(contractId);
-        if (nextBuyout != null && remaining.compareTo(BigDecimal.ZERO) > 0) {
+        // Apply remaining to buyout installments, iterating through subsequent installments if surplus exists
+        while (remaining.compareTo(BigDecimal.ZERO) > 0) {
+            var nextBuyout = getNextDueInstallment(contractId);
+            if (nextBuyout == null) break;
             BigDecimal outstanding = MusharakahSupport.money(nextBuyout.getTotalBuyoutAmount().subtract(MusharakahSupport.money(nextBuyout.getPaidAmount())));
+            if (outstanding.compareTo(BigDecimal.ZERO) <= 0) break;
             BigDecimal applyToBuyout = remaining.min(outstanding);
             MusharakahBuyoutInstallment updated = processBuyoutPayment(contractId, MusharakahRequests.ProcessBuyoutPaymentRequest.builder()
                     .paymentAmount(applyToBuyout)
                     .paymentDate(request.getPaymentDate())
                     .externalRef(request.getExternalRef())
                     .build());
-            buyoutPaid = applyToBuyout;
-            unitsTransferred = MusharakahSupport.units(updated.getActualUnitsTransferred());
+            buyoutPaid = MusharakahSupport.money(buyoutPaid.add(applyToBuyout));
+            unitsTransferred = MusharakahSupport.units(unitsTransferred.add(MusharakahSupport.units(updated.getActualUnitsTransferred())));
             remaining = MusharakahSupport.money(remaining.subtract(applyToBuyout));
         }
 
@@ -198,10 +233,13 @@ public class MusharakahBuyoutService {
     }
 
     public void processScheduledBuyouts(LocalDate asOfDate) {
-        installmentRepository.findByStatusInAndDueDateBefore(
+        List<MusharakahBuyoutInstallment> overdueInstallments = installmentRepository.findByStatusInAndDueDateBefore(
                         List.of(MusharakahDomainEnums.InstallmentStatus.SCHEDULED, MusharakahDomainEnums.InstallmentStatus.DUE),
-                        asOfDate.plusDays(1))
-                .forEach(installment -> installment.setStatus(MusharakahDomainEnums.InstallmentStatus.OVERDUE));
+                        asOfDate.plusDays(1));
+        overdueInstallments.forEach(installment -> installment.setStatus(MusharakahDomainEnums.InstallmentStatus.OVERDUE));
+        if (!overdueInstallments.isEmpty()) {
+            installmentRepository.saveAll(overdueInstallments);
+        }
     }
 
     @Transactional(readOnly = true)

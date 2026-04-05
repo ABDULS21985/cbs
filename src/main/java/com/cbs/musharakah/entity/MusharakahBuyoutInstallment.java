@@ -79,4 +79,10 @@ public class MusharakahBuyoutInstallment extends AuditableEntity {
 
     @Column(name = "unit_transfer_id")
     private Long unitTransferId;
+
+    @Column(name = "late_penalty_amount", precision = 18, scale = 2)
+    private BigDecimal latePenaltyAmount;
+
+    @Column(name = "late_penalty_charity_journal_ref", length = 40)
+    private String latePenaltyCharityJournalRef;
 }

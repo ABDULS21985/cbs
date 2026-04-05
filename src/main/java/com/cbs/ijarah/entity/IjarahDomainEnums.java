@@ -180,7 +180,8 @@ public final class IjarahDomainEnums {
         ROUTINE_SCHEDULED,
         EMERGENCY_REPAIR,
         REPLACEMENT_PART,
-        INSURANCE_CLAIM
+        INSURANCE_CLAIM,
+        MINOR_REPAIR
     }
 
     public enum ResponsibleParty {

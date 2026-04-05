@@ -91,13 +91,9 @@ public class PoolWeightageService {
     }
 
     public void recordDailyWeightagesForAllPools(LocalDate date) {
-        // Get distinct pool IDs from active Mudarabah accounts
-        List<MudarabahAccount> all = mudarabahAccountRepository.findAll();
-        all.stream()
-                .filter(ma -> ma.getInvestmentPoolId() != null)
-                .map(MudarabahAccount::getInvestmentPoolId)
-                .distinct()
-                .forEach(poolId -> {
+        // Get distinct pool IDs using optimized query instead of loading all accounts
+        List<Long> poolIds = mudarabahAccountRepository.findDistinctActivePoolIds();
+        poolIds.forEach(poolId -> {
                     try {
                         recordDailyWeightages(poolId, date);
                     } catch (Exception e) {
@@ -152,6 +148,7 @@ public class PoolWeightageService {
             // PER/IRR adjustments — call actual PerService/IrrService
             BigDecimal perAdj = BigDecimal.ZERO;
             BigDecimal irrDed = BigDecimal.ZERO;
+            StringBuilder warningNotes = new StringBuilder();
             try {
                 PerCalculationResult perResult = perService.calculatePerAdjustment(poolId, grossShare, periodFrom, periodTo);
                 if ("RETENTION".equals(perResult.getAdjustmentType())) {
@@ -160,14 +157,16 @@ public class PoolWeightageService {
                     perAdj = perResult.getAdjustmentAmount(); // positive = increases distribution
                 }
             } catch (Exception e) {
-                log.warn("PER calculation skipped for pool {} account {}: {}", poolId, accountId, e.getMessage());
+                log.error("PER calculation failed for pool {} account {}, defaulting to zero: {}", poolId, accountId, e.getMessage());
+                warningNotes.append("PER calculation failed - defaulted to zero. ");
             }
             BigDecimal afterPer = grossShare.add(perAdj);
             try {
                 IrrRetentionResult irrResult = irrService.calculateIrrRetention(poolId, afterPer, periodFrom, periodTo);
                 irrDed = irrResult.getAdjustmentAmount();
             } catch (Exception e) {
-                log.warn("IRR calculation skipped for pool {} account {}: {}", poolId, accountId, e.getMessage());
+                log.error("IRR calculation failed for pool {} account {}, defaulting to zero: {}", poolId, accountId, e.getMessage());
+                warningNotes.append("IRR calculation failed - defaulted to zero. ");
             }
             BigDecimal netShare = afterPer.subtract(irrDed);
 
@@ -209,6 +208,7 @@ public class PoolWeightageService {
                     .bankProfitShare(bankProfit)
                     .effectiveProfitRate(effectiveRate)
                     .distributionStatus(ProfitAllocationStatus.CALCULATED)
+                    .warningNotes(warningNotes.length() > 0 ? warningNotes.toString().trim() : null)
                     .build();
 
             allocations.add(allocationRepository.save(allocation));
@@ -325,10 +325,15 @@ public class PoolWeightageService {
             }
         }
 
-        // Post bank's total share as Mudarib income
+        // Post bank's total share as Mudarib income to GL
         if (totalBankProfit.compareTo(BigDecimal.ZERO) > 0) {
-            log.info("Bank Mudarib income from pool {}: {}", poolId, totalBankProfit);
-            // Bank share is already split in the allocation — tracked for reporting
+            accountPostingService.postGlToGl(
+                    PROFIT_DISTRIBUTION_GL, BANK_MUDARIB_INCOME_GL,
+                    totalBankProfit,
+                    "Bank Mudarib income from pool " + poolId + " period " + periodFrom + " to " + periodTo,
+                    TransactionChannel.SYSTEM, null,
+                    "MUDARABAH", "MUDARIB-INCOME");
+            log.info("Bank Mudarib income posted to GL: pool={}, amount={}", poolId, totalBankProfit);
         }
 
         log.info("Profit distributed: poolId={}, period={} to {}", poolId, periodFrom, periodTo);
@@ -430,6 +435,7 @@ public class PoolWeightageService {
                 .distributionStatus(a.getDistributionStatus().name())
                 .distributedAt(a.getDistributedAt())
                 .journalRef(a.getJournalRef())
+                .warningNotes(a.getWarningNotes())
                 .build();
     }
 }

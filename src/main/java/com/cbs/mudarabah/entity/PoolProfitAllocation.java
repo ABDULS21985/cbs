@@ -86,6 +86,9 @@ public class PoolProfitAllocation extends AuditableEntity {
     @Column(name = "journal_ref", length = 50)
     private String journalRef;
 
+    @Column(name = "warning_notes", length = 500)
+    private String warningNotes;
+
     @Column(name = "tenant_id")
     private Long tenantId;
 }

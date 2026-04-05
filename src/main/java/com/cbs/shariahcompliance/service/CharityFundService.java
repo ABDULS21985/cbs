@@ -6,6 +6,7 @@ import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.fees.islamic.service.IslamicFeeSupport;
 import com.cbs.gl.service.GeneralLedgerService;
 import com.cbs.shariahcompliance.dto.CharityFundDtos;
+import com.cbs.shariahcompliance.entity.CharityCategory;
 import com.cbs.shariahcompliance.entity.CharityFundBatchDisbursement;
 import com.cbs.shariahcompliance.entity.CharityFundLedgerEntry;
 import com.cbs.shariahcompliance.entity.CharityRecipient;
@@ -21,12 +22,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +42,7 @@ public class CharityFundService {
 
     private static final String CHARITY_FUND_GL = "2300-000-001";
     private static final String CASH_GL = "1100-000-001";
+    private static final Set<String> ALLOWED_OUTFLOW_DESTINATIONS = Set.of("CHARITY_DISBURSEMENT", "REGULATORY_TRANSFER");
 
     private final CharityFundLedgerEntryRepository ledgerRepository;
     private final CharityFundBatchDisbursementRepository batchRepository;
@@ -43,6 +50,7 @@ public class CharityFundService {
     private final GeneralLedgerService generalLedgerService;
     private final CurrentActorProvider actorProvider;
     private final CurrentTenantResolver tenantResolver;
+    private final Object ledgerBalanceLock = new Object();
 
     public CharityFundLedgerEntry recordLatePenaltyInflow(Long latePenaltyRecordId,
                                                           BigDecimal amount,
@@ -50,13 +58,24 @@ public class CharityFundService {
                                                           String contractType,
                                                           Long customerId,
                                                           String journalRef) {
+        return recordLatePenaltyInflow(latePenaltyRecordId, amount, contractRef, contractType, customerId, journalRef, "SAR");
+    }
+
+    public CharityFundLedgerEntry recordLatePenaltyInflow(Long latePenaltyRecordId,
+                                                          BigDecimal amount,
+                                                          String contractRef,
+                                                          String contractType,
+                                                          Long customerId,
+                                                          String journalRef,
+                                                          String currencyCode) {
         return recordPenaltyInflow(
                 latePenaltyRecordId != null ? String.valueOf(latePenaltyRecordId) : null,
                 amount,
                 contractRef,
                 contractType,
                 customerId,
-                journalRef
+                journalRef,
+                currencyCode
         );
     }
 
@@ -66,11 +85,21 @@ public class CharityFundService {
                                                       String contractType,
                                                       Long customerId,
                                                       String journalRef) {
+        return recordPenaltyInflow(sourceReference, amount, contractRef, contractType, customerId, journalRef, "SAR");
+    }
+
+    public CharityFundLedgerEntry recordPenaltyInflow(String sourceReference,
+                                                      BigDecimal amount,
+                                                      String contractRef,
+                                                      String contractType,
+                                                      Long customerId,
+                                                      String journalRef,
+                                                      String currencyCode) {
         return createLedgerEntry(
                 "INFLOW",
                 LocalDate.now(),
                 amount,
-                "SAR",
+                resolveCurrency(currencyCode),
                 "LATE_PAYMENT_PENALTY",
                 sourceReference,
                 contractRef,
@@ -86,11 +115,18 @@ public class CharityFundService {
     public CharityFundLedgerEntry recordSnciPurificationInflow(Long purificationBatchId,
                                                                BigDecimal amount,
                                                                String journalRef) {
+        return recordSnciPurificationInflow(purificationBatchId, amount, journalRef, "SAR");
+    }
+
+    public CharityFundLedgerEntry recordSnciPurificationInflow(Long purificationBatchId,
+                                                               BigDecimal amount,
+                                                               String journalRef,
+                                                               String currencyCode) {
         return createLedgerEntry(
                 "INFLOW",
                 LocalDate.now(),
                 amount,
-                "SAR",
+                resolveCurrency(currencyCode),
                 "SNCI_PURIFICATION",
                 String.valueOf(purificationBatchId),
                 null,
@@ -109,7 +145,7 @@ public class CharityFundService {
                                                                         String reference,
                                                                         String notes) {
         CharityRecipient recipient = loadApprovedRecipient(charityRecipientId);
-        return createOutflow(recipient, amount, journalRef, reference, notes);
+        return createOutflow(recipient, amount, "SAR", journalRef, reference, notes);
     }
 
     public CharityFundLedgerEntry recordReversal(Long originalEntryId, BigDecimal amount, String journalRef, String notes) {
@@ -135,7 +171,8 @@ public class CharityFundService {
     public CharityFundDtos.CharityFundDisbursementResult disburseFunds(CharityFundDtos.DisburseFundsRequest request) {
         CharityRecipient recipient = loadApprovedRecipient(request.getCharityRecipientId());
         BigDecimal amount = IslamicFeeSupport.money(request.getAmount());
-        validateAvailableBalance(amount);
+        String currencyCode = resolveCurrency(request.getCurrencyCode());
+        validateAvailableBalance(amount, currencyCode);
         validateAnnualCap(recipient, amount);
 
         var journal = generalLedgerService.postJournal(
@@ -146,21 +183,21 @@ public class CharityFundService {
                 LocalDate.now(),
                 actorProvider.getCurrentActor(),
                 List.of(
-                        new GeneralLedgerService.JournalLineRequest(CHARITY_FUND_GL, amount, BigDecimal.ZERO, request.getCurrencyCode(), BigDecimal.ONE,
+                        new GeneralLedgerService.JournalLineRequest(CHARITY_FUND_GL, amount, BigDecimal.ZERO, currencyCode, BigDecimal.ONE,
                                 "Charity fund distribution", null, "HEAD", null, null),
-                        new GeneralLedgerService.JournalLineRequest(CASH_GL, BigDecimal.ZERO, amount, request.getCurrencyCode(), BigDecimal.ONE,
+                        new GeneralLedgerService.JournalLineRequest(CASH_GL, BigDecimal.ZERO, amount, currencyCode, BigDecimal.ONE,
                                 "Cash paid to charity", null, "HEAD", null, null)
                 )
         );
 
-        CharityFundLedgerEntry entry = createOutflow(recipient, amount, journal.getJournalNumber(), request.getReference(), request.getNotes());
+        CharityFundLedgerEntry entry = createOutflow(recipient, amount, currencyCode, journal.getJournalNumber(), request.getReference(), request.getNotes());
         updateRecipientTotals(recipient, amount);
 
         return CharityFundDtos.CharityFundDisbursementResult.builder()
                 .reference(request.getReference())
                 .journalRef(journal.getJournalNumber())
                 .amount(amount)
-                .remainingBalance(getCurrentBalance())
+                .remainingBalance(getCurrentBalance(currencyCode))
                 .ledgerEntryId(entry.getId())
                 .build();
     }
@@ -238,35 +275,32 @@ public class CharityFundService {
 
     @Transactional(readOnly = true)
     public BigDecimal getCurrentBalance() {
-        return ledgerRepository.findTopByOrderByEntryDateDescIdDesc()
-                .map(CharityFundLedgerEntry::getRunningBalance)
-                .orElse(BigDecimal.ZERO.setScale(2));
+        return IslamicFeeSupport.money(ledgerRepository.currentNetBalance());
     }
 
     @Transactional(readOnly = true)
     public BigDecimal getCurrentBalance(String currencyCode) {
-        return getCurrentBalance();
+        return IslamicFeeSupport.money(ledgerRepository.currentNetBalanceByCurrency(resolveCurrency(currencyCode)));
     }
 
     @Transactional(readOnly = true)
     public CharityFundDtos.CharityFundReportDetail getCharityFundReport(LocalDate fromDate, LocalDate toDate) {
         List<CharityFundLedgerEntry> entries = ledgerRepository.findByEntryDateBetweenOrderByEntryDateAscIdAsc(fromDate, toDate);
         BigDecimal opening = ledgerRepository.openingBalanceBefore(fromDate);
-        BigDecimal inflows = entries.stream()
-                .filter(entry -> "INFLOW".equals(entry.getEntryType()))
-                .map(CharityFundLedgerEntry::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal outflows = entries.stream()
-                .filter(entry -> "OUTFLOW".equals(entry.getEntryType()))
-                .map(CharityFundLedgerEntry::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal inflows = BigDecimal.ZERO;
+        BigDecimal outflows = BigDecimal.ZERO;
 
         Map<String, BigDecimal> inflowsBySource = new LinkedHashMap<>();
         Map<String, BigDecimal> outflowsByRecipient = new LinkedHashMap<>();
         for (CharityFundLedgerEntry entry : entries) {
             if ("INFLOW".equals(entry.getEntryType())) {
+                inflows = inflows.add(entry.getAmount());
                 inflowsBySource.merge(String.valueOf(entry.getSourceType()), entry.getAmount(), BigDecimal::add);
+            } else if ("REVERSAL".equals(entry.getEntryType()) && entry.getSourceType() != null) {
+                inflows = inflows.subtract(entry.getAmount());
+                inflowsBySource.merge(entry.getSourceType(), entry.getAmount().negate(), BigDecimal::add);
             } else if ("OUTFLOW".equals(entry.getEntryType())) {
+                outflows = outflows.add(entry.getAmount());
                 outflowsByRecipient.merge(String.valueOf(entry.getCharityRecipientName()), entry.getAmount(), BigDecimal::add);
             }
         }
@@ -286,13 +320,14 @@ public class CharityFundService {
     @Transactional(readOnly = true)
     public CharityFundDtos.CharityFundBreakdown getInflowBreakdown(LocalDate fromDate, LocalDate toDate) {
         Map<String, BigDecimal> lateByType = new LinkedHashMap<>();
-        lateByType.put("MURABAHA", ledgerRepository.sumInflowsBySourceTypeAndSourceContractTypeBetween(
-                "LATE_PAYMENT_PENALTY", "MURABAHA", fromDate, toDate));
-        lateByType.put("IJARAH", ledgerRepository.sumInflowsBySourceTypeAndSourceContractTypeBetween(
-                "LATE_PAYMENT_PENALTY", "IJARAH", fromDate, toDate));
-        lateByType.put("MUSHARAKAH", ledgerRepository.sumInflowsBySourceTypeAndSourceContractTypeBetween(
-                "LATE_PAYMENT_PENALTY", "MUSHARAKAH", fromDate, toDate));
-        Map<String, BigDecimal> snci = Map.of("SNCI_PURIFICATION", ledgerRepository.sumInflowsBySourceTypeBetween("SNCI_PURIFICATION", fromDate, toDate));
+        lateByType.put("MURABAHA", IslamicFeeSupport.money(ledgerRepository.sumNetInflowsBySourceTypeAndSourceContractTypeBetween(
+                "LATE_PAYMENT_PENALTY", "MURABAHA", fromDate, toDate)));
+        lateByType.put("IJARAH", IslamicFeeSupport.money(ledgerRepository.sumNetInflowsBySourceTypeAndSourceContractTypeBetween(
+                "LATE_PAYMENT_PENALTY", "IJARAH", fromDate, toDate)));
+        lateByType.put("MUSHARAKAH", IslamicFeeSupport.money(ledgerRepository.sumNetInflowsBySourceTypeAndSourceContractTypeBetween(
+                "LATE_PAYMENT_PENALTY", "MUSHARAKAH", fromDate, toDate)));
+        Map<String, BigDecimal> snci = Map.of("SNCI_PURIFICATION",
+                IslamicFeeSupport.money(ledgerRepository.sumNetInflowsBySourceTypeBetween("SNCI_PURIFICATION", fromDate, toDate)));
         return CharityFundDtos.CharityFundBreakdown.builder()
                 .latePenaltiesByContractType(lateByType)
                 .snciByType(snci)
@@ -313,11 +348,11 @@ public class CharityFundService {
         List<CharityFundLedgerEntry> entries = ledgerRepository.findByEntryDateBetweenOrderByEntryDateAscIdAsc(fromDate, toDate);
         BigDecimal latePenaltyTotal = entries.stream()
                 .filter(entry -> "LATE_PAYMENT_PENALTY".equals(entry.getSourceType()))
-                .map(CharityFundLedgerEntry::getAmount)
+                .map(entry -> signedSourceAmount(entry, "LATE_PAYMENT_PENALTY"))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal snciTotal = entries.stream()
                 .filter(entry -> "SNCI_PURIFICATION".equals(entry.getSourceType()))
-                .map(CharityFundLedgerEntry::getAmount)
+                .map(entry -> signedSourceAmount(entry, "SNCI_PURIFICATION"))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal disbursed = entries.stream()
                 .filter(entry -> "OUTFLOW".equals(entry.getEntryType()))
@@ -328,6 +363,10 @@ public class CharityFundService {
                 .allMatch(entry -> recipientRepository.findById(entry.getCharityRecipientId())
                         .map(recipient -> recipient.isSsbApproved() && "ACTIVE".equals(recipient.getStatus()))
                         .orElse(false));
+        boolean zeroBankUsageVerified = entries.stream()
+                .filter(entry -> "OUTFLOW".equals(entry.getEntryType()))
+                .allMatch(entry -> ALLOWED_OUTFLOW_DESTINATIONS.contains(entry.getDestinationType())
+                        && ("REGULATORY_TRANSFER".equals(entry.getDestinationType()) || entry.getCharityRecipientId() != null));
         return CharityFundDtos.CharityFundComplianceReport.builder()
                 .fromDate(fromDate)
                 .toDate(toDate)
@@ -335,7 +374,7 @@ public class CharityFundService {
                 .totalSnciPurified(IslamicFeeSupport.money(snciTotal))
                 .totalDisbursed(IslamicFeeSupport.money(disbursed))
                 .currentBalance(getCurrentBalance())
-                .zeroBankUsageVerified(true)
+                .zeroBankUsageVerified(zeroBankUsageVerified)
                 .approvedRecipientsOnlyVerified(approvedRecipientsOnly)
                 .build();
     }
@@ -347,6 +386,7 @@ public class CharityFundService {
 
     private CharityFundLedgerEntry createOutflow(CharityRecipient recipient,
                                                  BigDecimal amount,
+                                                 String currencyCode,
                                                  String journalRef,
                                                  String reference,
                                                  String notes) {
@@ -354,7 +394,7 @@ public class CharityFundService {
                 "OUTFLOW",
                 LocalDate.now(),
                 amount,
-                "SAR",
+                resolveCurrency(currencyCode),
                 null,
                 null,
                 null,
@@ -381,38 +421,40 @@ public class CharityFundService {
                                                      Long charityRecipientId,
                                                      String journalRef,
                                                      String notes) {
-        BigDecimal currentBalance = getCurrentBalance();
-        BigDecimal runningBalance = switch (entryType) {
-            case "INFLOW", "ADJUSTMENT" -> currentBalance.add(IslamicFeeSupport.money(amount));
-            case "OUTFLOW", "REVERSAL" -> currentBalance.subtract(IslamicFeeSupport.money(amount));
-            default -> currentBalance;
-        };
+        synchronized (ledgerBalanceLock) {
+            BigDecimal currentBalance = getCurrentBalance(currencyCode);
+            BigDecimal runningBalance = switch (entryType) {
+                case "INFLOW", "ADJUSTMENT" -> currentBalance.add(IslamicFeeSupport.money(amount));
+                case "OUTFLOW", "REVERSAL" -> currentBalance.subtract(IslamicFeeSupport.money(amount));
+                default -> currentBalance;
+            };
 
-        CharityRecipient recipient = charityRecipientId == null ? null : recipientRepository.findById(charityRecipientId).orElse(null);
+            CharityRecipient recipient = charityRecipientId == null ? null : recipientRepository.findById(charityRecipientId).orElse(null);
 
-        CharityFundLedgerEntry entry = CharityFundLedgerEntry.builder()
-                .entryRef(IslamicFeeSupport.nextRef("CFL"))
-                .entryType(entryType)
-                .entryDate(entryDate)
-                .amount(IslamicFeeSupport.money(amount))
-                .currencyCode(currencyCode)
-                .runningBalance(IslamicFeeSupport.money(runningBalance))
-                .sourceType(sourceType)
-                .sourceReference(sourceReference)
-                .sourceContractRef(sourceContractRef)
-                .sourceContractType(sourceContractType)
-                .sourceCustomerId(sourceCustomerId)
-                .destinationType(destinationType)
-                .destinationReference(destinationReference)
-                .charityRecipientId(charityRecipientId)
-                .charityRecipientName(recipient != null ? recipient.getName() : null)
-                .journalRef(journalRef)
-                .notes(notes)
-                .tenantId(tenantResolver.getCurrentTenantId())
-                .build();
-        CharityFundLedgerEntry saved = ledgerRepository.save(entry);
-        log.info("Charity fund entry posted: ref={}, type={}, amount={}", saved.getEntryRef(), entryType, amount);
-        return saved;
+            CharityFundLedgerEntry entry = CharityFundLedgerEntry.builder()
+                    .entryRef(IslamicFeeSupport.nextRef("CFL"))
+                    .entryType(entryType)
+                    .entryDate(entryDate)
+                    .amount(IslamicFeeSupport.money(amount))
+                    .currencyCode(resolveCurrency(currencyCode))
+                    .runningBalance(IslamicFeeSupport.money(runningBalance))
+                    .sourceType(sourceType)
+                    .sourceReference(sourceReference)
+                    .sourceContractRef(sourceContractRef)
+                    .sourceContractType(sourceContractType)
+                    .sourceCustomerId(sourceCustomerId)
+                    .destinationType(destinationType)
+                    .destinationReference(destinationReference)
+                    .charityRecipientId(charityRecipientId)
+                    .charityRecipientName(recipient != null ? recipient.getName() : null)
+                    .journalRef(journalRef)
+                    .notes(notes)
+                    .tenantId(tenantResolver.getCurrentTenantId())
+                    .build();
+            CharityFundLedgerEntry saved = ledgerRepository.save(entry);
+            log.info("Charity fund entry posted: ref={}, type={}, amount={}", saved.getEntryRef(), entryType, amount);
+            return saved;
+        }
     }
 
     private CharityRecipient loadApprovedRecipient(Long charityRecipientId) {
@@ -424,8 +466,8 @@ public class CharityFundService {
         return recipient;
     }
 
-    private void validateAvailableBalance(BigDecimal amount) {
-        if (getCurrentBalance().compareTo(amount) < 0) {
+    private void validateAvailableBalance(BigDecimal amount, String currencyCode) {
+        if (getCurrentBalance(currencyCode).compareTo(amount) < 0) {
             throw new BusinessException("Insufficient charity fund balance", "CHARITY_FUND_INSUFFICIENT_BALANCE");
         }
     }
@@ -475,12 +517,16 @@ public class CharityFundService {
         if (recipients.isEmpty()) {
             throw new BusinessException("No active SSB-approved charity recipients found", "CHARITY_RECIPIENT_NOT_FOUND");
         }
-        BigDecimal split = IslamicFeeSupport.money(currentBalance.divide(BigDecimal.valueOf(recipients.size()), 2, BigDecimal.ROUND_HALF_UP));
+        recipients = recipients.stream()
+                .sorted(Comparator.comparing(CharityRecipient::getId))
+                .toList();
+        List<BigDecimal> splits = splitAmount(currentBalance, recipients.size());
         List<Map<String, Object>> allocations = new ArrayList<>();
-        for (CharityRecipient recipient : recipients) {
+        for (int i = 0; i < recipients.size(); i++) {
+            CharityRecipient recipient = recipients.get(i);
             allocations.add(new LinkedHashMap<>(Map.of(
                     "charityRecipientId", recipient.getId(),
-                    "amount", split,
+                    "amount", splits.get(i),
                     "currencyCode", "SAR",
                     "purpose", "Equal split charity distribution",
                     "notes", "Auto-generated equal split allocation"
@@ -494,22 +540,63 @@ public class CharityFundService {
         if (recipients.isEmpty()) {
             throw new BusinessException("No active SSB-approved charity recipients found", "CHARITY_RECIPIENT_NOT_FOUND");
         }
-        BigDecimal totalWeight = BigDecimal.valueOf(recipients.stream()
-                .map(CharityRecipient::getCategory)
-                .distinct()
-                .count());
+        Map<CharityCategory, List<CharityRecipient>> byCategory = recipients.stream()
+                .collect(Collectors.groupingBy(recipient -> recipient.getCategory() != null ? recipient.getCategory() : CharityCategory.OTHER,
+                        () -> new EnumMap<>(CharityCategory.class),
+                        Collectors.toList()));
+        List<CharityCategory> categories = byCategory.keySet().stream().sorted().toList();
+        List<BigDecimal> categorySplits = splitAmount(currentBalance, categories.size());
         List<Map<String, Object>> allocations = new ArrayList<>();
-        for (CharityRecipient recipient : recipients) {
-            BigDecimal weight = BigDecimal.ONE;
-            BigDecimal amount = IslamicFeeSupport.money(currentBalance.multiply(weight).divide(totalWeight, 2, BigDecimal.ROUND_HALF_UP));
-            allocations.add(new LinkedHashMap<>(Map.of(
-                    "charityRecipientId", recipient.getId(),
-                    "amount", amount,
-                    "currencyCode", "SAR",
-                    "purpose", "Proportional charity distribution",
-                    "notes", "Auto-generated proportional allocation"
-            )));
+        for (int i = 0; i < categories.size(); i++) {
+            List<CharityRecipient> categoryRecipients = byCategory.get(categories.get(i)).stream()
+                    .sorted(Comparator.comparing(CharityRecipient::getId))
+                    .toList();
+            List<BigDecimal> recipientSplits = splitAmount(categorySplits.get(i), categoryRecipients.size());
+            for (int j = 0; j < categoryRecipients.size(); j++) {
+                CharityRecipient recipient = categoryRecipients.get(j);
+                allocations.add(new LinkedHashMap<>(Map.of(
+                        "charityRecipientId", recipient.getId(),
+                        "amount", recipientSplits.get(j),
+                        "currencyCode", "SAR",
+                        "purpose", "Proportional charity distribution",
+                        "notes", "Auto-generated proportional allocation"
+                )));
+            }
         }
         return allocations;
+    }
+
+    private List<BigDecimal> splitAmount(BigDecimal totalAmount, int count) {
+        if (count <= 0) {
+            return List.of();
+        }
+        BigDecimal total = IslamicFeeSupport.money(totalAmount);
+        BigDecimal base = total.divide(BigDecimal.valueOf(count), 2, RoundingMode.DOWN);
+        BigDecimal remainder = total.subtract(base.multiply(BigDecimal.valueOf(count)));
+        List<BigDecimal> splits = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            BigDecimal amount = base;
+            if (remainder.compareTo(BigDecimal.ZERO) > 0) {
+                amount = amount.add(new BigDecimal("0.01"));
+                remainder = remainder.subtract(new BigDecimal("0.01"));
+            }
+            splits.add(IslamicFeeSupport.money(amount));
+        }
+        return splits;
+    }
+
+    private BigDecimal signedSourceAmount(CharityFundLedgerEntry entry, String sourceType) {
+        if (!sourceType.equals(entry.getSourceType())) {
+            return BigDecimal.ZERO;
+        }
+        return switch (entry.getEntryType()) {
+            case "INFLOW" -> entry.getAmount();
+            case "REVERSAL" -> entry.getAmount().negate();
+            default -> BigDecimal.ZERO;
+        };
+    }
+
+    private String resolveCurrency(String currencyCode) {
+        return currencyCode == null || currencyCode.isBlank() ? "SAR" : currencyCode.trim().toUpperCase();
     }
 }

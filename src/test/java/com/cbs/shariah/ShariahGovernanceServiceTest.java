@@ -75,7 +75,7 @@ class ShariahGovernanceServiceTest {
 
         when(mapper.toEntity(request)).thenReturn(entity);
         when(memberRepo.save(any())).thenReturn(entity);
-        when(memberRepo.count()).thenReturn(0L);
+        when(memberRepo.getNextMemberCodeSequence()).thenReturn(1L);
         when(mapper.toMemberResponse(entity)).thenReturn(response);
 
         SsbMemberResponse result = service.createMember(request, "admin");
@@ -244,10 +244,11 @@ class ShariahGovernanceServiceTest {
                 .build();
 
         when(reviewRepo.findById(1L)).thenReturn(Optional.of(review));
-        when(memberRepo.findByMemberIdIgnoreCaseAndIsActiveTrue("SSB-0001")).thenReturn(Optional.of(member));
+        when(memberRepo.findActiveByMemberIdOrEmailIn(any())).thenReturn(List.of(member));
         when(voteRepo.findByReviewRequestIdAndMemberId(1L, 1L)).thenReturn(Optional.empty());
         when(voteRepo.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(voteRepo.findByReviewRequestIdOrderByVotedAtAsc(1L)).thenReturn(List.of(savedVote));
+        when(memberRepo.findByIdInAndIsActiveTrue(any())).thenReturn(List.of(member));
         when(reviewRepo.save(any())).thenReturn(review);
 
         ReviewRequestResponse result = service.castVote(1L, voteRequest, "shariah-officer", Set.of("SSB-0001"));
@@ -278,7 +279,7 @@ class ShariahGovernanceServiceTest {
                 .build();
 
         when(reviewRepo.findById(1L)).thenReturn(Optional.of(review));
-        when(memberRepo.findByMemberIdIgnoreCaseAndIsActiveTrue("SSB-0001")).thenReturn(Optional.of(member));
+        when(memberRepo.findActiveByMemberIdOrEmailIn(any())).thenReturn(List.of(member));
 
         assertThatThrownBy(() -> service.castVote(1L, voteRequest, "shariah-officer", Set.of("SSB-0001")))
                 .isInstanceOf(BusinessException.class)
@@ -304,7 +305,7 @@ class ShariahGovernanceServiceTest {
                 .build();
 
         when(reviewRepo.findById(1L)).thenReturn(Optional.of(review));
-        when(memberRepo.findByMemberIdIgnoreCaseAndIsActiveTrue("SSB-0099")).thenReturn(Optional.of(member));
+        when(memberRepo.findActiveByMemberIdOrEmailIn(any())).thenReturn(List.of(member));
 
         assertThatThrownBy(() -> service.castVote(1L, voteRequest, "shariah-officer", Set.of("SSB-0099")))
                 .isInstanceOf(BusinessException.class)
@@ -380,5 +381,139 @@ class ShariahGovernanceServiceTest {
         assertThat(result.getReviewsByCategory()).containsEntry("NEW_PRODUCT", 2L);
         assertThat(result.getUpcomingDeadlines()).hasSize(1);
         assertThat(result.getUpcomingDeadlines().get(0).getRequestCode()).isEqualTo("SSB-2026-0002");
+    }
+
+    // ── Issue 3: REQUEST_REVISION vote test ─────────────────────────────
+
+    @Test
+    @DisplayName("Should transition review to REVISION_REQUIRED when any member votes REQUEST_REVISION")
+    void castVote_requestRevisionOverridesOtherVotes() {
+        var member = SsbBoardMember.builder()
+                .id(2L).memberId("SSB-0002").contactEmail("reviewer@example.com")
+                .isActive(true).build();
+        var review = SsbReviewRequest.builder()
+                .id(1L).requestCode("SSB-2026-0001")
+                .status(ReviewRequestStatus.UNDER_REVIEW)
+                .assignedMemberIds(List.of(1L, 2L))
+                .requiredQuorum(2)
+                .currentApprovals(1).currentRejections(0)
+                .build();
+
+        var priorApproveVote = SsbVote.builder()
+                .id(1L).reviewRequestId(1L).memberId(1L)
+                .vote(VoteType.APPROVE).votedAt(Instant.now()).build();
+        var revisionVote = SsbVote.builder()
+                .id(2L).reviewRequestId(1L).memberId(2L)
+                .vote(VoteType.REQUEST_REVISION).votedAt(Instant.now()).build();
+
+        var voteRequest = CastVoteRequest.builder()
+                .vote(VoteType.REQUEST_REVISION)
+                .comments("Contract clause needs rewording per AAOIFI SS 8")
+                .build();
+
+        when(reviewRepo.findById(1L)).thenReturn(Optional.of(review));
+        when(memberRepo.findActiveByMemberIdOrEmailIn(any())).thenReturn(List.of(member));
+        when(voteRepo.findByReviewRequestIdAndMemberId(1L, 2L)).thenReturn(Optional.empty());
+        when(voteRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(voteRepo.findByReviewRequestIdOrderByVotedAtAsc(1L)).thenReturn(List.of(priorApproveVote, revisionVote));
+        when(memberRepo.findByIdInAndIsActiveTrue(any())).thenReturn(List.of(
+                SsbBoardMember.builder().id(1L).isActive(true).build(),
+                member));
+        when(reviewRepo.save(any())).thenReturn(review);
+
+        ReviewRequestResponse result = service.castVote(1L, voteRequest, "shariah-officer", Set.of("SSB-0002"));
+
+        assertThat(review.getStatus()).isEqualTo(ReviewRequestStatus.REVISION_REQUIRED);
+        assertThat(review.getResolvedAt()).isNull();
+        assertThat(review.getResolvedBy()).isNull();
+    }
+
+    // ── Issue 4: revokeFatwa test ───────────────────────────────────────
+
+    @Test
+    @DisplayName("Should revoke an active fatwa and audit the transition")
+    void revokeFatwa_success() {
+        var fatwa = FatwaRecord.builder()
+                .id(1L).fatwaNumber("FTW-2026-0001")
+                .status(FatwaStatus.ACTIVE).build();
+        var response = FatwaResponse.builder()
+                .id(1L).fatwaNumber("FTW-2026-0001")
+                .status(FatwaStatus.REVOKED).build();
+
+        when(fatwaRepo.findById(1L)).thenReturn(Optional.of(fatwa));
+        when(fatwaRepo.save(any())).thenReturn(fatwa);
+        when(mapper.toFatwaResponse(any())).thenReturn(response);
+
+        FatwaResponse result = service.revokeFatwa(1L, "admin");
+
+        assertThat(fatwa.getStatus()).isEqualTo(FatwaStatus.REVOKED);
+        assertThat(result.getStatus()).isEqualTo(FatwaStatus.REVOKED);
+        verify(fatwaRepo).save(fatwa);
+        verify(auditRepo, atLeast(1)).save(any());
+    }
+
+    @Test
+    @DisplayName("Should reject revocation of a non-ACTIVE fatwa")
+    void revokeFatwa_rejectNonActive() {
+        var fatwa = FatwaRecord.builder().id(1L).status(FatwaStatus.DRAFT).build();
+        when(fatwaRepo.findById(1L)).thenReturn(Optional.of(fatwa));
+
+        assertThatThrownBy(() -> service.revokeFatwa(1L, "admin"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Only ACTIVE fatwas can be revoked");
+    }
+
+    // ── Issue 5: Auto-rejection via quorum-unreachable test ─────────────
+
+    @Test
+    @DisplayName("Should auto-reject review when remaining possible approvals cannot reach quorum")
+    void castVote_autoRejectWhenQuorumUnreachable() {
+        var member2 = SsbBoardMember.builder()
+                .id(2L).memberId("SSB-0002").isActive(true).build();
+        var member3 = SsbBoardMember.builder()
+                .id(3L).memberId("SSB-0003").isActive(true).build();
+
+        // 3 members assigned, quorum = 3 (unanimity required)
+        // Member 1 already rejected, now member 2 rejects
+        // After member 2's rejection: approvals=0, rejections=2, remaining=1
+        // Max possible approvals = 0 + 1 = 1 < quorum(3) => unreachable
+        var review = SsbReviewRequest.builder()
+                .id(1L).requestCode("SSB-2026-0005")
+                .status(ReviewRequestStatus.UNDER_REVIEW)
+                .assignedMemberIds(List.of(1L, 2L, 3L))
+                .requiredQuorum(3)
+                .currentApprovals(0).currentRejections(1)
+                .build();
+
+        var existingRejectVote = SsbVote.builder()
+                .id(1L).reviewRequestId(1L).memberId(1L)
+                .vote(VoteType.REJECT).votedAt(Instant.now()).build();
+        var newRejectVote = SsbVote.builder()
+                .id(2L).reviewRequestId(1L).memberId(2L)
+                .vote(VoteType.REJECT).votedAt(Instant.now()).build();
+
+        var voteRequest = CastVoteRequest.builder()
+                .vote(VoteType.REJECT)
+                .comments("Underlying asset structure non-compliant")
+                .build();
+
+        when(reviewRepo.findById(1L)).thenReturn(Optional.of(review));
+        when(memberRepo.findActiveByMemberIdOrEmailIn(any())).thenReturn(List.of(member2));
+        when(voteRepo.findByReviewRequestIdAndMemberId(1L, 2L)).thenReturn(Optional.empty());
+        when(voteRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(voteRepo.findByReviewRequestIdOrderByVotedAtAsc(1L))
+                .thenReturn(List.of(existingRejectVote, newRejectVote));
+        when(memberRepo.findByIdInAndIsActiveTrue(List.of(1L, 2L, 3L)))
+                .thenReturn(List.of(
+                        SsbBoardMember.builder().id(1L).isActive(true).build(),
+                        member2, member3));
+        when(reviewRepo.save(any())).thenReturn(review);
+
+        ReviewRequestResponse result = service.castVote(1L, voteRequest, "shariah-officer", Set.of("SSB-0002"));
+
+        assertThat(review.getStatus()).isEqualTo(ReviewRequestStatus.REJECTED);
+        assertThat(review.getResolvedBy()).isEqualTo("QUORUM_UNREACHABLE");
+        assertThat(review.getResolvedAt()).isNotNull();
+        assertThat(review.getCurrentRejections()).isEqualTo(2);
     }
 }

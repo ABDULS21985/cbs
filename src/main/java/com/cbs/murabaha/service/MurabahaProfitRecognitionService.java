@@ -80,7 +80,14 @@ public class MurabahaProfitRecognitionService {
         List<MurabahaContract> activeContracts = contractRepository.findByStatus(MurabahaDomainEnums.ContractStatus.ACTIVE);
         List<MurabahaContract> executedContracts = contractRepository.findByStatus(MurabahaDomainEnums.ContractStatus.EXECUTED);
         java.util.stream.Stream.concat(activeContracts.stream(), executedContracts.stream())
-                .forEach(contract -> recogniseProfitForPeriod(contract.getId(), fromDate, toDate));
+                .forEach(contract -> {
+                    try {
+                        recogniseProfitForPeriod(contract.getId(), fromDate, toDate);
+                    } catch (Exception ex) {
+                        log.error("Failed to recognise profit for contract {} (id={}): {}",
+                                contract.getContractRef(), contract.getId(), ex.getMessage(), ex);
+                    }
+                });
     }
 
     public void recogniseProfitOnRepayment(Long contractId, BigDecimal profitPaid, String journalRef) {
@@ -89,10 +96,23 @@ public class MurabahaProfitRecognitionService {
             return;
         }
         BigDecimal capped = MurabahaSupport.money(profitPaid).min(contract.getUnrecognisedProfit());
+
+        // Post GL journal for profit recognition on repayment
+        var journal = postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                .contractTypeCode("MURABAHA")
+                .txnType(IslamicTransactionType.PROFIT_RECOGNITION)
+                .accountId(contract.getAccountId())
+                .amount(capped)
+                .profit(capped)
+                .valueDate(LocalDate.now())
+                .reference(journalRef != null ? journalRef : contract.getContractRef() + "-PROF-REPAY")
+                .build());
+
         contract.setRecognisedProfit(MurabahaSupport.money(contract.getRecognisedProfit().add(capped)));
         contract.setUnrecognisedProfit(MurabahaSupport.money(contract.getTotalDeferredProfit().subtract(contract.getRecognisedProfit())));
         contractRepository.save(contract);
-        recordPoolIncome(contract, capped, LocalDate.now().withDayOfMonth(1), LocalDate.now(), journalRef);
+        recordPoolIncome(contract, capped, LocalDate.now().withDayOfMonth(1), LocalDate.now(),
+                journal.getJournalNumber() != null ? journal.getJournalNumber() : journalRef);
     }
 
     public void recogniseProfitOnEarlySettlement(Long contractId, BigDecimal ibraAmount) {
@@ -157,16 +177,57 @@ public class MurabahaProfitRecognitionService {
 
         contract.setImpairmentProvisionBalance(MurabahaSupport.money(contract.getImpairmentProvisionBalance().subtract(amount)));
         contractRepository.save(contract);
+
+        // Record pool income entry to reverse the original impairment expense
+        if (contract.getInvestmentPoolId() != null && contract.getPoolAssetAssignmentId() != null) {
+            poolAssetManagementService.recordIncome(
+                    contract.getInvestmentPoolId(),
+                    RecordPoolIncomeRequest.builder()
+                            .poolId(contract.getInvestmentPoolId())
+                            .assetAssignmentId(contract.getPoolAssetAssignmentId())
+                            .incomeType(IncomeType.MURABAHA_PROFIT.name())
+                            .amount(MurabahaSupport.money(amount))
+                            .currencyCode(contract.getCurrencyCode())
+                            .incomeDate(LocalDate.now())
+                            .periodFrom(LocalDate.now().withDayOfMonth(1))
+                            .periodTo(LocalDate.now())
+                            .journalRef(contract.getContractRef() + "-IMPAIR-REV")
+                            .assetReferenceCode(contract.getContractRef())
+                            .contractTypeCode("MURABAHA")
+                            .notes("Impairment provision reversal: " + reason)
+                            .build());
+        }
     }
 
     @Transactional(readOnly = true)
     public MurabahaProfitRecognitionReport getProfitRecognitionReport(LocalDate fromDate, LocalDate toDate) {
         List<MurabahaContract> contracts = contractRepository.findAll();
+        // Calculate incremental profit recognised during the period, not cumulative
         BigDecimal recognisedThisPeriod = contracts.stream()
                 .filter(contract -> contract.getLastProfitRecognitionDate() != null
                         && !contract.getLastProfitRecognitionDate().isBefore(fromDate)
                         && !contract.getLastProfitRecognitionDate().isAfter(toDate))
-                .map(MurabahaContract::getRecognisedProfit)
+                .map(contract -> {
+                    // Incremental = totalDeferredProfit - unrecognisedProfit gives cumulative recognised;
+                    // We need only the portion recognised in this period which is:
+                    // recognisedProfit - (totalDeferredProfit - unrecognisedProfit - what was recognised before fromDate)
+                    // Best approximation: use schedule installments paid in this period
+                    List<MurabahaInstallment> periodInstallments = installmentRepository
+                            .findByContractIdOrderByInstallmentNumberAsc(contract.getId()).stream()
+                            .filter(inst -> inst.getPaidDate() != null
+                                    && !inst.getPaidDate().isBefore(fromDate)
+                                    && !inst.getPaidDate().isAfter(toDate))
+                            .toList();
+                    if (!periodInstallments.isEmpty()) {
+                        return periodInstallments.stream()
+                                .map(inst -> MurabahaSupport.money(inst.getPaidProfit()))
+                                .reduce(MurabahaSupport.ZERO, BigDecimal::add);
+                    }
+                    // Fallback: calculate target cumulative at toDate minus target at fromDate
+                    BigDecimal targetTo = calculateTargetCumulativeRecognition(contract, toDate);
+                    BigDecimal targetFrom = calculateTargetCumulativeRecognition(contract, fromDate.minusDays(1));
+                    return MurabahaSupport.money(targetTo.subtract(targetFrom).max(BigDecimal.ZERO));
+                })
                 .reduce(MurabahaSupport.ZERO, BigDecimal::add);
 
         Map<String, BigDecimal> byType = contracts.stream()

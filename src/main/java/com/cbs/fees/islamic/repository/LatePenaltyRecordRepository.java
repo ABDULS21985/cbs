@@ -21,6 +21,15 @@ public interface LatePenaltyRecordRepository extends JpaRepository<LatePenaltyRe
 
     Optional<LatePenaltyRecord> findFirstByInstallmentIdAndStatusOrderByPenaltyDateDesc(Long installmentId, String status);
 
+    Optional<LatePenaltyRecord> findFirstByInstallmentIdAndStatusAndOutstandingAmountGreaterThanOrderByPenaltyDateDesc(
+            Long installmentId,
+            String status,
+            BigDecimal outstandingAmount);
+
+    Optional<LatePenaltyRecord> findFirstByFeeChargeLogId(Long feeChargeLogId);
+
+    long countByStatusAndBlockedReason(String status, String blockedReason);
+
     @Query("""
             select coalesce(sum(r.penaltyAmount), 0)
             from LatePenaltyRecord r

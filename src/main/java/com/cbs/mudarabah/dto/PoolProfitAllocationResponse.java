@@ -29,4 +29,5 @@ public class PoolProfitAllocationResponse {
     private String distributionStatus;
     private LocalDateTime distributedAt;
     private String journalRef;
+    private String warningNotes;
 }
