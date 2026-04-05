@@ -21,6 +21,7 @@ class ContactCenterServiceTest {
 
     @Mock private ContactCenterRepository centerRepository;
     @Mock private ContactInteractionRepository interactionRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private ContactCenterService service;
 
     @Test @DisplayName("Interaction starts in QUEUED status with generated ID")

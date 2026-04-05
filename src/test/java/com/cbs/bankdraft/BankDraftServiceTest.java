@@ -23,6 +23,8 @@ import static org.mockito.Mockito.*;
 class BankDraftServiceTest {
 
     @Mock private BankDraftRepository draftRepository;
+    @Mock private com.cbs.gl.service.GeneralLedgerService generalLedgerService;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private BankDraftService bankDraftService;
 
     @Test @DisplayName("Issued draft has 6-month expiry and serial number")

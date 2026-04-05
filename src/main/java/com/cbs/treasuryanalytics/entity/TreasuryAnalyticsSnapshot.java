@@ -11,8 +11,8 @@ public class TreasuryAnalyticsSnapshot {
     private Integer weightedAvgTenorDays;
     private BigDecimal totalEarningAssets;
     private BigDecimal yieldOnAssetsPct;
-    private BigDecimal netInterestMarginPct;
-    private BigDecimal interestSpreadPct;
+    private BigDecimal netProfitMarginPct;
+    private BigDecimal profitSpreadPct;
     private BigDecimal loanToDepositRatio;
     private BigDecimal capitalAdequacyRatio;
     @Column(name = "tier1_ratio") private BigDecimal tier1Ratio;

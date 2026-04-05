@@ -22,6 +22,7 @@ class CardClearingServiceTest {
 
     @Mock private CardClearingBatchRepository batchRepository;
     @Mock private CardSettlementPositionRepository positionRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private CardClearingService service;
 
     @Test @DisplayName("Net settlement = total - fees - interchange")

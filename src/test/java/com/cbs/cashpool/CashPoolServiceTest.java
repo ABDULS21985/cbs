@@ -26,6 +26,7 @@ class CashPoolServiceTest {
     @Mock private CashPoolParticipantRepository participantRepository;
     @Mock private CashPoolSweepLogRepository sweepLogRepository;
     @Mock private AccountRepository accountRepository;
+    @Mock private com.cbs.account.service.AccountPostingService accountPostingService;
     @InjectMocks private CashPoolService cashPoolService;
 
     @Test @DisplayName("Pool creation generates code and persists")

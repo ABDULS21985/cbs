@@ -2,6 +2,7 @@ package com.cbs.advertising;
 import com.cbs.advertising.entity.AdPlacement;
 import com.cbs.advertising.repository.AdPlacementRepository;
 import com.cbs.advertising.service.AdvertisingService;
+import com.cbs.common.audit.CurrentActorProvider;
 import org.junit.jupiter.api.*; import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*; import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal; import java.util.Optional;
@@ -10,6 +11,7 @@ import static org.assertj.core.api.Assertions.*; import static org.mockito.Argum
 @ExtendWith(MockitoExtension.class)
 class AdvertisingServiceTest {
     @Mock private AdPlacementRepository repository;
+    @Mock private CurrentActorProvider currentActorProvider;
     @InjectMocks private AdvertisingService service;
 
     @Test @DisplayName("Performance recording auto-calculates CTR")

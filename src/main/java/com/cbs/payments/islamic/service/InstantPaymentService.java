@@ -16,6 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.http.HttpStatus;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -72,9 +74,6 @@ public class InstantPaymentService {
                         .requestReceivedAt(start)
                         .build());
         extension.setIpsRail("SARIE_EXPRESS");
-        extension.setIpsTransactionId(paymentSupport.nextMessageRef("IPS", payment.getId()));
-        extension.setIpsResponseCode("PENDING_GATEWAY");
-        extension.setIpsResponseMessage("Awaiting network acknowledgement");
         extension.setRequestReceivedAt(extension.getRequestReceivedAt() != null ? extension.getRequestReceivedAt() : start);
         extension.setScreeningCompletedAt(start.plusNanos(screeningDurationMs * 1_000_000));
         extension.setScreeningDurationMs(screeningDurationMs);
@@ -91,7 +90,25 @@ public class InstantPaymentService {
         extension.setProxyValue(request != null ? request.getProxyValue() : null);
         extension.setResolvedAccountNumber(resolution != null ? resolution.getResolvedAccountNumber() : payment.getCreditAccountNumber());
         extension.setResolvedBankCode(resolution != null ? resolution.getResolvedBankCode() : payment.getBeneficiaryBankCode());
-        extension.setStatus(IslamicPaymentDomainEnums.InstantPaymentStatus.SUBMITTED);
+
+        // Submit to IPS gateway and set status based on actual response
+        IpsGatewayResponse gatewayResponse = submitToIpsGateway(payment, extension);
+        extension.setIpsResponseCode(gatewayResponse.responseCode());
+        extension.setIpsResponseMessage(gatewayResponse.responseMessage());
+        extension.setIpsTransactionId(gatewayResponse.transactionId());
+
+        if ("00".equals(gatewayResponse.responseCode())) {
+            extension.setStatus(IslamicPaymentDomainEnums.InstantPaymentStatus.CONFIRMED);
+            extension.setPaymentConfirmedAt(LocalDateTime.now());
+        } else if (gatewayResponse.timeout()) {
+            extension.setStatus(IslamicPaymentDomainEnums.InstantPaymentStatus.TIMED_OUT);
+            log.warn("IPS gateway timeout for payment {}: txnId={}", payment.getId(), gatewayResponse.transactionId());
+        } else {
+            extension.setStatus(IslamicPaymentDomainEnums.InstantPaymentStatus.REJECTED);
+            log.warn("IPS gateway rejected payment {}: code={}, message={}",
+                    payment.getId(), gatewayResponse.responseCode(), gatewayResponse.responseMessage());
+        }
+
         extensionRepository.save(extension);
 
         return IslamicPaymentResponses.InstantPaymentResult.builder()
@@ -141,9 +158,11 @@ public class InstantPaymentService {
         extension.setDeferredScreeningResult(result);
         extension.setDeferredScreeningCompletedAt(LocalDateTime.now());
         if (result == IslamicPaymentDomainEnums.DeferredScreeningResult.FAIL) {
-            extension.setStatus(IslamicPaymentDomainEnums.InstantPaymentStatus.REJECTED);
+            extension.setStatus(IslamicPaymentDomainEnums.InstantPaymentStatus.RETURNED);
             extension.setIpsResponseCode("SHARIAH_FAIL");
-            extension.setIpsResponseMessage("Deferred screening rejected the payment");
+            extension.setIpsResponseMessage("Deferred Shariah screening failed — payment returned");
+            log.warn("Deferred screening FAILED for payment {} — reversal required", paymentId);
+            // TODO: Post reversal notification to operations queue for fund recovery
         }
         extensionRepository.save(extension);
 
@@ -176,21 +195,22 @@ public class InstantPaymentService {
         }
 
         // For non-IBAN proxy types, look up in the proxy directory
+        // This is an integration point — per-country IPS registry lookup is required
         var proxyEntry = paymentSupport.lookupProxyDirectory(proxyType, proxyValue);
         if (proxyEntry != null && proxyEntry.resolvedAccountNumber() != null) {
             return IslamicPaymentResponses.ProxyResolutionResult.builder()
                     .proxyType(proxyType).proxyValue(proxyValue)
-                .resolvedAccountNumber(proxyEntry.resolvedAccountNumber())
-                .resolvedBankCode(proxyEntry.resolvedBankCode())
+                    .resolvedAccountNumber(proxyEntry.resolvedAccountNumber())
+                    .resolvedBankCode(proxyEntry.resolvedBankCode())
                     .found(true)
                     .build();
         }
 
         log.warn("Proxy resolution failed: type={}, value={} — not found in directory", proxyType, proxyValue);
-        return IslamicPaymentResponses.ProxyResolutionResult.builder()
-                .proxyType(proxyType).proxyValue(proxyValue)
-                .resolvedAccountNumber(null).resolvedBankCode(null).found(false)
-                .build();
+        throw new BusinessException(
+                "Proxy resolution for type " + proxyType + " requires IPS registry integration",
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "PROXY_RESOLUTION_UNAVAILABLE");
     }
 
     @Transactional(readOnly = true)
@@ -277,5 +297,69 @@ public class InstantPaymentService {
     private PaymentIslamicExtension loadIslamicExtension(Long paymentId) {
         return paymentIslamicExtensionRepository.findByPaymentId(paymentId)
                 .orElseThrow(() -> new BusinessException("Islamic payment extension not found", "PAYMENT_ISLAMIC_EXTENSION_NOT_FOUND"));
+    }
+
+    // ---- IPS Gateway integration point ----
+
+    /**
+     * Encapsulates the response from the IPS network gateway.
+     */
+    private record IpsGatewayResponse(
+            String responseCode,
+            String responseMessage,
+            String transactionId,
+            boolean timeout
+    ) {}
+
+    /**
+     * Submits a payment to the IPS network gateway and returns the response.
+     * <p>
+     * This is the primary integration point for connecting to the real-time IPS network
+     * (e.g., SARIE, SADAD, FAWRI). The current implementation is a structured stub that
+     * must be replaced with the actual gateway client when available.
+     * </p>
+     *
+     * TODO: Replace stub with actual IPS gateway HTTP/MQ client integration.
+     * The real implementation should:
+     *   1. Build the ISO 20022 pacs.008 message from the payment and extension
+     *   2. Submit to the IPS network endpoint with appropriate timeout (e.g., 30s)
+     *   3. Parse the network acknowledgement (pacs.002) for response code/message
+     *   4. Handle network-level timeouts by returning timeout=true
+     *   5. Handle connection failures with appropriate retry/circuit-breaker logic
+     */
+    private IpsGatewayResponse submitToIpsGateway(PaymentInstruction payment,
+                                                   InstantPaymentExtension extension) {
+        String transactionId = paymentSupport.nextMessageRef("IPS", payment.getId());
+        try {
+            // TODO: Actual IPS gateway call goes here. Example integration shape:
+            //   var ipsRequest = buildIpsMessage(payment, extension);
+            //   var ipsResponse = ipsGatewayClient.submit(ipsRequest, Duration.ofSeconds(30));
+            //   return new IpsGatewayResponse(
+            //       ipsResponse.getResponseCode(),
+            //       ipsResponse.getResponseMessage(),
+            //       ipsResponse.getNetworkTransactionId(),
+            //       false
+            //   );
+
+            // Stub: return pending status indicating gateway is not yet connected
+            log.info("IPS gateway stub: payment {} submitted with txnId={} — awaiting real gateway integration",
+                    payment.getId(), transactionId);
+            return new IpsGatewayResponse(
+                    "PENDING",
+                    "IPS gateway integration not yet implemented — payment queued",
+                    transactionId,
+                    false
+            );
+        } catch (Exception e) {
+            // Determine if this is a timeout or a hard rejection
+            boolean isTimeout = e.getMessage() != null
+                    && (e.getMessage().contains("timeout") || e.getMessage().contains("timed out"));
+            if (isTimeout) {
+                log.error("IPS gateway timeout for payment {}: {}", payment.getId(), e.getMessage());
+                return new IpsGatewayResponse("TIMEOUT", "Gateway timeout: " + e.getMessage(), transactionId, true);
+            }
+            log.error("IPS gateway error for payment {}: {}", payment.getId(), e.getMessage());
+            return new IpsGatewayResponse("ERR", "Gateway error: " + e.getMessage(), transactionId, false);
+        }
     }
 }

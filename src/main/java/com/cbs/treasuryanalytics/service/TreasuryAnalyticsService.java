@@ -177,7 +177,7 @@ public class TreasuryAnalyticsService {
             currEntry.put("capitalAdequacyRatio", s.getCapitalAdequacyRatio());
             currEntry.put("tier1Ratio", s.getTier1Ratio());
             currEntry.put("leverageRatio", s.getLeverageRatio());
-            currEntry.put("netInterestMarginPct", s.getNetInterestMarginPct());
+            currEntry.put("netProfitMarginPct", s.getNetProfitMarginPct());
             currEntry.put("returnOnAssetsPct", s.getReturnOnAssetsPct());
             currEntry.put("returnOnEquityPct", s.getReturnOnEquityPct());
             currencyBreakdown.add(currEntry);

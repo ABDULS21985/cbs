@@ -268,11 +268,25 @@ public class CharityFundService {
         batch.setStatus("PROCESSING");
         batchRepository.save(batch);
 
+        int successCount = 0;
+        int failureCount = 0;
         for (CharityFundDtos.DisburseFundsRequest request : requests) {
-            disburseFunds(request);
+            try {
+                disburseFunds(request);
+                successCount++;
+            } catch (Exception e) {
+                log.error("Disbursement failed for recipient {}: {}", request.getCharityRecipientId(), e.getMessage());
+                failureCount++;
+            }
         }
 
-        batch.setStatus("COMPLETED");
+        if (failureCount == 0) {
+            batch.setStatus("COMPLETED");
+        } else if (successCount == 0) {
+            batch.setStatus("FAILED");
+        } else {
+            batch.setStatus("PARTIALLY_COMPLETED");
+        }
         batch.setExecutedAt(Instant.now());
         batch.setExecutedBy(actorProvider.getCurrentActor());
         return batchRepository.save(batch);

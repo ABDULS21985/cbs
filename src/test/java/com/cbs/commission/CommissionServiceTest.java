@@ -14,6 +14,7 @@ import static org.assertj.core.api.Assertions.*; import static org.mockito.Argum
 class CommissionServiceTest {
     @Mock private CommissionAgreementRepository agreementRepository;
     @Mock private CommissionPayoutRepository payoutRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private CommissionService service;
 
     @Test @DisplayName("Payout calculation: net = gross - tax (10%)")

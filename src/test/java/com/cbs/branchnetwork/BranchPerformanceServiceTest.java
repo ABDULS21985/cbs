@@ -25,6 +25,9 @@ class BranchPerformanceServiceTest {
     @Mock
     private BranchPerformanceRepository repository;
 
+    @Mock
+    private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
+
     @InjectMocks
     private BranchPerformanceService service;
 

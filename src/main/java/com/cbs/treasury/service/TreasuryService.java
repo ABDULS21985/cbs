@@ -248,11 +248,7 @@ public class TreasuryService {
         );
         deal.getMetadata().put("lastAmendment", amendmentRecord);
 
-        // Store audit history list
-        @SuppressWarnings("unchecked")
-        List<Object> history = (List<Object>) deal.getMetadata().computeIfAbsent("amendmentHistory",
-                k -> new ArrayList<>());
-        history.add(amendmentRecord);
+        appendMetadataHistory(deal, "amendmentHistory", amendmentRecord);
 
         if (newAmount != null) {
             deal.setLeg1Amount(newAmount);
@@ -662,7 +658,7 @@ public class TreasuryService {
     }
 
     @Transactional
-    public TreasuryAnalyticsRecord recordAnalytics(String currency, BigDecimal nim, BigDecimal yield,
+    public TreasuryAnalyticsRecord recordAnalytics(String currency, BigDecimal netProfitMargin, BigDecimal yield,
                                                    BigDecimal roa, BigDecimal roe, BigDecimal car,
                                                    LocalDate snapshotDate) {
         if (!StringUtils.hasText(currency)) {
@@ -671,7 +667,7 @@ public class TreasuryService {
         TreasuryAnalyticsSnapshot saved = treasuryAnalyticsSnapshotRepository.save(TreasuryAnalyticsSnapshot.builder()
                 .snapshotDate(snapshotDate != null ? snapshotDate : LocalDate.now())
             .currency(currency.trim().toUpperCase())
-            .interestSpreadPct(nim)
+            .profitSpreadPct(netProfitMargin)
                 .yieldOnAssetsPct(yield)
                 .returnOnAssetsPct(roa)
                 .returnOnEquityPct(roe)
@@ -706,6 +702,12 @@ public class TreasuryService {
                         instrument.getCurrency()
                 ))
                 .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void appendMetadataHistory(TreasuryDeal deal, String key, Map<String, Object> entry) {
+        List<Object> history = (List<Object>) deal.getMetadata().computeIfAbsent(key, ignored -> new ArrayList<>());
+        history.add(entry);
     }
 
     private DealerDeskSummary summarizeDesk(DealingDesk desk) {
@@ -889,7 +891,7 @@ public class TreasuryService {
         return new TreasuryAnalyticsRecord(
                 String.valueOf(snapshot.getId()),
                 snapshot.getCurrency(),
-            firstNonZero(snapshot.getInterestSpreadPct(), snapshot.getNetInterestMarginPct()),
+            firstNonZero(snapshot.getProfitSpreadPct(), snapshot.getNetProfitMarginPct()),
                 snapshot.getYieldOnAssetsPct(),
                 snapshot.getCapitalAdequacyRatio(),
                 snapshot.getReturnOnAssetsPct(),
@@ -1399,7 +1401,7 @@ public class TreasuryService {
     public record TreasuryAnalyticsRecord(
             String id,
             String currency,
-            BigDecimal nim,
+            BigDecimal npm,
             BigDecimal yield,
             BigDecimal car,
             BigDecimal roa,

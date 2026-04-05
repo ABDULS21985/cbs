@@ -22,6 +22,7 @@ class OmnichannelServiceTest {
 
     @Mock private ChannelSessionRepository sessionRepository;
     @Mock private ChannelConfigRepository configRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
 
     @InjectMocks private OmnichannelService omnichannelService;
 

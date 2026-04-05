@@ -121,7 +121,7 @@ class RootCauseAnalysisServiceTest {
                 buildRca("RCA-2", "SYSTEM", "IN_PROGRESS"),
                 buildRca("RCA-3", "PROCESS", "VALIDATED")
         );
-        when(rcaRepository.findAll()).thenReturn(rcas);
+        when(rcaRepository.findByAnalysisDateBetween(any(), any())).thenReturn(rcas);
 
         List<Map<String, Object>> result = service.getRecurringRootCauses();
         assertThat(result).isNotEmpty();
@@ -135,7 +135,7 @@ class RootCauseAnalysisServiceTest {
         CaseRootCauseAnalysis rca2 = buildRca("RCA-P2", "SYSTEM", "IN_PROGRESS");
         rca1.setAnalysisDate(LocalDate.now().minusDays(10));
         rca2.setAnalysisDate(LocalDate.now().minusDays(5));
-        when(rcaRepository.findAll()).thenReturn(List.of(rca1, rca2));
+        when(rcaRepository.findByAnalysisDateBetween(any(), any())).thenReturn(List.of(rca1, rca2));
         when(patternRepository.save(any())).thenAnswer(inv -> { CasePatternInsight p = inv.getArgument(0); p.setId(1L); return p; });
 
         List<CasePatternInsight> insights = service.generatePatternInsights(LocalDate.now().minusDays(30), LocalDate.now());
